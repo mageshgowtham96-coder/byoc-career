@@ -40,8 +40,10 @@ import {
 import {
   AdzunaJobAdapter,
   DEFAULT_PORTAL_SHORTCUTS,
+  JobicyJobAdapter,
   LiveJobSearchEngine,
   PublicFeedsJobAdapter,
+  RemoteOkJobAdapter,
   buildPortalShortcutUrl,
   calculateHonestMatch,
   isWorldwideCountryCode,
@@ -1194,7 +1196,7 @@ describe('API Layer: Job Search Location, Provider Honesty & Adzuna Fail-Safe (M
       );
       assert.equal(globalRes.error, undefined);
       assert.equal(globalRes.jobs.length, 3);
-      assert.deepEqual(globalRes.sourcesQueried, ['Local Stored Positions', 'Remotive Live']);
+      assert.deepEqual(globalRes.sourcesQueried, ['Local Stored Positions', 'Remotive Live', 'Remote OK Live', 'Jobicy Live']);
       assert.match(globalRes.locationNotice, /Worldwide remote mode/i);
       assert.equal(requestedUrls[0].includes('global'), false);
 
@@ -1212,6 +1214,42 @@ describe('API Layer: Job Search Location, Provider Honesty & Adzuna Fail-Safe (M
       assert.equal(adzunaStatus?.status, 'unconfigured');
       assert.equal(inRes.sourcesQueried.includes('LinkedIn'), false);
       assert.equal(inRes.sourcesQueried.includes('Adzuna Jobs API'), false);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('maps free Remote OK and Jobicy public feeds without inventing fields or losing source URLs', async () => {
+    const origFetch = globalThis.fetch;
+    const urls: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes('remoteok.com')) {
+        return new Response(JSON.stringify([
+          { legal: 'metadata row' },
+          { id: 77, position: 'Security Engineer', company: 'Remote Co', location: 'Worldwide', description: '<p>TypeScript <script>fake()</script> systems role</p>', url: 'https://remoteok.com/l/77', date: '2026-11-12', tags: ['TypeScript'] },
+          { id: 78, position: 'Missing URL', company: 'No Link Inc', location: 'Worldwide', description: 'Should be omitted', url: 'javascript:alert(1)' }
+        ]), { status: 200 });
+      }
+      return new Response(JSON.stringify({ jobs: [
+        { id: 88, jobTitle: 'Product Analyst', companyName: 'Jobicy Co', jobGeo: 'Anywhere', jobDescription: '<p>SQL analysis &amp; reporting</p>', url: 'https://jobicy.com/jobs/88', pubDate: '2026-11-13T12:00:00Z', salaryMin: 50000, salaryMax: 70000, salaryCurrency: 'USD', salaryPeriod: 'yearly', jobIndustry: ['Analytics'] },
+        { id: 89, jobTitle: 'No source link', companyName: 'Jobicy Co', jobGeo: 'Anywhere', jobDescription: 'Omitted', url: 'data:text/plain,unsafe' }
+      ] }), { status: 200 });
+    }) as typeof fetch;
+
+    try {
+      const remoteOk = await new RemoteOkJobAdapter().search({ query: 'engineer', country: 'GLOBAL' });
+      const jobicy = await new JobicyJobAdapter().search({ query: 'analyst', country: 'GLOBAL' });
+      assert.equal(remoteOk.length, 1);
+      assert.equal(remoteOk[0].url, 'https://remoteok.com/l/77');
+      assert.equal(remoteOk[0].jobDescriptionRaw, 'TypeScript systems role');
+      assert.equal(jobicy.length, 1);
+      assert.equal(jobicy[0].url, 'https://jobicy.com/jobs/88');
+      assert.equal(jobicy[0].jobDescriptionRaw, 'SQL analysis & reporting');
+      assert.equal(jobicy[0].salary, '50,000–70,000 USD / yearly');
+      assert.deepEqual(jobicy[0].skillsRequired, []);
+      assert.ok(urls[1].includes('count=50'));
     } finally {
       globalThis.fetch = origFetch;
     }
@@ -1469,9 +1507,13 @@ describe('Portal Shortcuts, URL Sanitization, User Import Filter & Application S
 
   it('filters "User Import" portal to include Glassdoor/pasted jobs while excluding Remotive Live', async () => {
     const origFetch = globalThis.fetch;
-    globalThis.fetch = (async () =>
-      new Response(
-        JSON.stringify({
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const body = url.includes('remoteok.com')
+        ? [{ id: 502, position: 'TypeScript Remote Engineer', company: 'Remote OK Org', location: 'Worldwide', description: 'TypeScript role', url: 'https://remoteok.com/l/502', tags: ['TypeScript'] }]
+        : url.includes('jobicy.com')
+          ? { jobs: [{ id: 503, jobTitle: 'TypeScript Remote Analyst', companyName: 'Jobicy Org', jobGeo: 'Anywhere', jobDescription: 'TypeScript role', url: 'https://jobicy.com/jobs/503' }] }
+          : {
           jobs: [
             {
               id: 501,
@@ -1485,9 +1527,9 @@ describe('Portal Shortcuts, URL Sanitization, User Import Filter & Application S
               tags: ['TypeScript']
             }
           ]
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )) as typeof fetch;
+        };
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
 
     try {
       const engine = new LiveJobSearchEngine();

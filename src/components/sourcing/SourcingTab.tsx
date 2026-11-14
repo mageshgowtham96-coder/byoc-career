@@ -444,8 +444,8 @@ export const SourcingTab: React.FC = () => {
 
         <p className="text-[11px] text-slate-400 leading-relaxed">
           {isWorldwide
-            ? 'Worldwide mode queries Remotive Live globally without sending invalid country codes.'
-            : `Remotive Live only provides remote postings and filters locally for ${candidatePreferences?.country || 'IN'} / Worldwide eligibility${
+            ? 'Worldwide mode queries the Remotive, Remote OK, and Jobicy remote feeds. Coverage depends on these feeds and is not an exhaustive global job index.'
+            : `Remotive, Remote OK, and Jobicy provide remote postings only and filter locally for ${candidatePreferences?.country || 'IN'} / Worldwide eligibility${
                 optionalLocation.trim() ? ` + "${optionalLocation.trim()}"` : ''
               }. Non-remote or city-specific roles require pasted JDs.`}
         </p>
@@ -464,7 +464,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {(['All', 'Remotive Live', 'User Import'] as JobSourcePortal[]).map((portal) => {
+          {(['All', 'Remotive Live', 'Remote OK Live', 'Jobicy Live', 'User Import'] as JobSourcePortal[]).map((portal) => {
             const isSelectedPortal = portalFilter === portal;
             return (
               <button
@@ -484,7 +484,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-          <strong className="text-slate-200">Live Query Status:</strong> Remotive Live (remote open feed) active. Adzuna is unavailable in client-only builds (requires server-side App ID &amp; Key). External portals (including Glassdoor, LinkedIn, Indeed, Naukri, Foundit, and Instahyre) do not provide live results here—open a shortcut below, then paste the listing text &amp; link via <span className="text-sky-300 font-semibold">Add Custom Job Description</span>.
+          <strong className="text-slate-200">Live Query Status:</strong> Remotive, Remote OK, and Jobicy public remote feeds are queried on demand; listings retain source links and provider failures appear in search status. This is not a complete worldwide index. Adzuna is unavailable in client-only builds (requires server-side App ID &amp; Key). External portals (including Glassdoor, LinkedIn, Indeed, Naukri, Foundit, and Instahyre) remain shortcuts only—open a shortcut below, then paste the listing text &amp; link via <span className="text-sky-300 font-semibold">Add Custom Job Description</span>.
         </div>
 
         {/* External Portal Shortcuts (Shortcut Only — No Live API) */}
@@ -647,7 +647,7 @@ export const SourcingTab: React.FC = () => {
             className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSearchingLive ? 'animate-spin' : ''}`} />
-            <span>{isSearchingLive ? 'Querying Remotive...' : 'Query Remotive Live'}</span>
+            <span>{isSearchingLive ? 'Querying public feeds...' : 'Query Live Job Feeds'}</span>
           </button>
         </div>
       </div>

@@ -30,6 +30,7 @@ export interface JobProviderAdapter {
   requiresAuth: boolean;
   authHelpUrl?: string;
   statusReason?: string;
+  remoteOnly?: boolean;
   search(params: JobSearchQueryParams): Promise<JobPosting[]>;
 }
 
@@ -339,6 +340,7 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
   id = 'public_open_jobs';
   name = 'Remotive Live';
   requiresAuth = false;
+  remoteOnly = true;
 
   get isConfigured(): boolean {
     return true;
@@ -426,13 +428,162 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
   }
 }
 
+function stripJobHtml(value: unknown, maxLength = 5000): string {
+  return typeof value === 'string'
+    ? value.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, maxLength)
+    : '';
+}
+
+function formatFeedDate(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) return 'Unspecified';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Unspecified' : date.toLocaleDateString();
+}
+
+function parseSalaryRange(min: unknown, max: unknown, currency: unknown, period: unknown): string {
+  const low = typeof min === 'number' && Number.isFinite(min) ? min : null;
+  const high = typeof max === 'number' && Number.isFinite(max) ? max : null;
+  if (low === null && high === null) return 'Undisclosed';
+  const amount = low !== null && high !== null
+    ? `${low.toLocaleString()}–${high.toLocaleString()}`
+    : `${(low ?? high)!.toLocaleString()}`;
+  const suffix = [typeof currency === 'string' ? currency : '', typeof period === 'string' ? period : '']
+    .filter(Boolean).join(' / ');
+  return suffix ? `${amount} ${suffix}` : amount;
+}
+
+function createRemoteFeedJob(item: any, sourceId: string, sourceName: string, fields: {
+  id: unknown; title: unknown; company: unknown; location: unknown; description: unknown; url: unknown;
+  date?: unknown; salary?: string; tags?: unknown;
+}): JobPosting | null {
+  const title = typeof fields.title === 'string' ? fields.title.trim() : '';
+  const company = typeof fields.company === 'string' ? fields.company.trim() : '';
+  const url = sanitizeExternalHttpUrl(typeof fields.url === 'string' ? fields.url : '');
+  if (!title || !company || !url) return null;
+
+  const location = normalizeLocation(typeof fields.location === 'string' ? fields.location : '');
+  const description = stripJobHtml(fields.description);
+  const tags = Array.isArray(fields.tags)
+    ? fields.tags.filter((tag: unknown): tag is string => typeof tag === 'string' && tag.trim().length > 0).slice(0, 12)
+    : [];
+  const stableId = String(fields.id ?? url);
+
+  return {
+    id: `${sourceId}-${stableId}`,
+    title,
+    company,
+    location,
+    workplaceType: 'Remote',
+    salary: fields.salary || 'Undisclosed',
+    postedDate: formatFeedDate(fields.date),
+    jobDescriptionRaw: description,
+    url,
+    source: sourceName,
+    skillsRequired: tags,
+    fitScore: null,
+    matchedKeywords: [],
+    missingKeywords: [],
+    experienceLevel: 'Unspecified'
+  };
+}
+
+async function fetchJsonWithTimeout(url: string, sourceName: string): Promise<any> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+    if (!response.ok) {
+      if (response.status === 429) throw new Error(`${sourceName} rate limit exceeded (HTTP 429).`);
+      throw new Error(`${sourceName} returned HTTP ${response.status}.`);
+    }
+    return await response.json();
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') throw new Error(`${sourceName} timed out after 15 seconds.`);
+    if (error instanceof Error && error.message.startsWith(sourceName)) throw error;
+    throw new Error(`${sourceName} could not be reached (${error instanceof Error ? error.message : 'network error'}).`);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/** Public, unauthenticated global remote feed. Listings link back to Remote OK as required by its feed guidance. */
+export class RemoteOkJobAdapter implements JobProviderAdapter {
+  id = 'remote_ok';
+  name = 'Remote OK Live';
+  requiresAuth = false;
+  remoteOnly = true;
+
+  get isConfigured(): boolean { return true; }
+
+  async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
+    if (!(params.query || params.targetRole || params.profession || params.skills?.length)) return [];
+    const payload = await fetchJsonWithTimeout('https://remoteok.com/api', this.name);
+    const items = Array.isArray(payload) ? payload.filter((item: any) => item && typeof item === 'object' && item.id) : [];
+    return items.map((item: any) => createRemoteFeedJob(item, this.id, this.name, {
+      id: item.id,
+      title: item.position || item.title,
+      company: item.company,
+      location: item.location || 'Location Unspecified',
+      description: item.description,
+      url: item.url,
+      date: item.date,
+      salary: item.salary_min || item.salary_max
+        ? parseSalaryRange(item.salary_min, item.salary_max, item.salary_currency, item.salary_period)
+        : 'Undisclosed',
+      tags: item.tags
+    })).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
+      job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location
+    ));
+  }
+}
+
+/** Public, no-key Jobicy feed. The free endpoint deliberately preserves Jobicy listing URLs for attribution and applications. */
+export class JobicyJobAdapter implements JobProviderAdapter {
+  id = 'jobicy';
+  name = 'Jobicy Live';
+  requiresAuth = false;
+  remoteOnly = true;
+
+  get isConfigured(): boolean { return true; }
+
+  async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
+    if (!(params.query || params.targetRole || params.profession || params.skills?.length)) return [];
+    const payload = await fetchJsonWithTimeout('https://jobicy.com/api/jobs?count=50', this.name);
+    const items = Array.isArray(payload?.jobs) ? payload.jobs : [];
+    return items.map((item: any) => createRemoteFeedJob(item, this.id, this.name, {
+      id: item.id,
+      title: item.jobTitle,
+      company: item.companyName,
+      location: item.jobGeo || 'Location Unspecified',
+      description: item.jobDescription || item.jobExcerpt,
+      url: item.url,
+      date: item.pubDate,
+      salary: parseSalaryRange(item.salaryMin, item.salaryMax, item.salaryCurrency, item.salaryPeriod),
+      tags: []
+    })).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
+      job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location
+    ));
+  }
+}
+
 export function buildLocationScopeNotice(country?: string, location?: string): string {
   const cleanLoc = (location || '').trim();
   if (isWorldwideCountryCode(country)) {
-    return 'Worldwide remote mode: Remotive Live queried globally with no country code restrictions.';
+    return 'Worldwide remote mode: Remotive, Remote OK, and Jobicy public remote feeds are queried; results depend on each feed and are not an exhaustive global job index.';
   }
   const code = (country || '').trim().toUpperCase();
-  const base = `Target region ${code}: Remotive Live returns remote postings only and filters locally by region eligibility (${code} / Worldwide).`;
+  const base = `Target region ${code}: Remotive, Remote OK, and Jobicy return remote postings only; BYOC filters locally by region eligibility (${code} / Worldwide).`;
   if (cleanLoc) {
     return `${base} Local keyword filter applied for "${cleanLoc}". City-specific non-remote boards require a configured regional API or pasted custom JDs.`;
   }
@@ -445,6 +596,8 @@ export function buildLocationScopeNotice(country?: string, location?: string): s
 export class LiveJobSearchEngine {
   private providers: JobProviderAdapter[] = [
     new PublicFeedsJobAdapter(),
+    new RemoteOkJobAdapter(),
+    new JobicyJobAdapter(),
     new AdzunaJobAdapter()
   ];
 
@@ -484,13 +637,13 @@ export class LiveJobSearchEngine {
         continue;
       }
 
-      if (normalizedParams.workplaceType && normalizedParams.workplaceType !== 'All' && normalizedParams.workplaceType !== 'Remote' && provider.id === 'public_open_jobs') {
+      if (normalizedParams.workplaceType && normalizedParams.workplaceType !== 'All' && normalizedParams.workplaceType !== 'Remote' && provider.remoteOnly) {
         providerStatuses.push({
           id: provider.id,
           name: provider.name,
           status: 'skipped',
           count: 0,
-          detail: `Skipped: Remotive Live only serves Remote positions (filter is set to ${normalizedParams.workplaceType}).`
+          detail: `Skipped: ${provider.name} only serves Remote positions (filter is set to ${normalizedParams.workplaceType}).`
         });
         continue;
       }
@@ -504,7 +657,7 @@ export class LiveJobSearchEngine {
           name: provider.name,
           status: 'queried',
           count: providerJobs.length,
-          detail: `Returned ${providerJobs.length} matching remote listing(s).`
+          detail: `Returned ${providerJobs.length} matching listing(s). Source links lead to ${provider.name.replace(' Live', '')}.`
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : `${provider.name} request failed.`;
@@ -559,9 +712,10 @@ export class LiveJobSearchEngine {
       }
 
       if (normalizedParams.portal && normalizedParams.portal !== 'All') {
+        const isLiveSource = ['remotive live', 'remote ok live', 'jobicy live'].includes((job.source || '').toLowerCase());
         const matchesPortal =
           normalizedParams.portal === 'User Import'
-            ? (job.source || '').toLowerCase() !== 'remotive live'
+            ? !isLiveSource
             : (job.source && job.source.toLowerCase().includes(normalizedParams.portal.toLowerCase())) ||
               (job.url && job.url.toLowerCase().includes(normalizedParams.portal.toLowerCase()));
         if (!matchesPortal) return false;
