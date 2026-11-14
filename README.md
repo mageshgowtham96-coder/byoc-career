@@ -88,9 +88,10 @@ npm run dev
 
 ### Production Build & Linting
 ```bash
-npm run lint
-npm run build
+npm run check
 ```
+
+`npm run check` runs TypeScript linting, the regression suite, and a production build in sequence. To run an individual step, use `npm run lint`, `npm test`, or `npm run build`.
 
 ### Android APK Compilation
 To build the native Android APK using Android Studio or the Gradle wrapper:
