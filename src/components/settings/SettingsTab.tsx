@@ -418,7 +418,7 @@ export const SettingsTab: React.FC = () => {
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0 self-start sm:self-auto"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${isEmailSyncing ? 'animate-spin' : ''}`} />
-            <span>{isEmailSyncing ? 'Checking...' : 'Verify Local Mail Vault'}</span>
+            <span>{isEmailSyncing ? 'Checking...' : 'Check Local Email Vault'}</span>
           </button>
         </div>
 

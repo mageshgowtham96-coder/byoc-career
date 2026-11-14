@@ -145,12 +145,12 @@ export const TrackingTab: React.FC = () => {
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer shadow-sm"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${isEmailSyncing ? 'animate-spin' : ''}`} />
-            <span>{isEmailSyncing ? 'Checking...' : 'Verify Local Mail Vault'}</span>
+            <span>{isEmailSyncing ? 'Checking...' : 'Check Local Email Vault'}</span>
           </button>
         </div>
       </div>
 
-      {/* Unsaved Applications Queue (External Discovery Engine) */}
+      {/* Email-derived applications awaiting user review */}
       {unsavedQueue.length > 0 && (
         <div className="p-5 rounded-3xl bg-indigo-950/30 border border-indigo-500/40 space-y-3 animate-in fade-in">
           <div className="flex items-center justify-between">
@@ -160,13 +160,13 @@ export const TrackingTab: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>Unsaved Applications Queue</span>
+                  <span>Unmatched Applications from Email</span>
                   <span className="px-2 py-0.2 rounded-full bg-indigo-500/30 text-indigo-300 text-[10px] font-mono">
-                    {unsavedQueue.length} Discovered
+                    {unsavedQueue.length} to Review
                   </span>
                 </h3>
                 <p className="text-[11px] text-slate-400">
-                  External roles detected from authoritative recruiting platforms (Greenhouse, Workday, Lever).
+                  These email-derived roles did not match a saved application. Review each record before adding it to your pipeline.
                 </p>
               </div>
             </div>
