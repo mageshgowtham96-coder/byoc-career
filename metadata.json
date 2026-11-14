@@ -1,0 +1,6 @@
+{
+  "name": "BYOC - Build Your Own Career",
+  "description": "Mobile-first PWA for career development, resume intelligence, job sourcing, vetting, tailored kit generation, and tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
