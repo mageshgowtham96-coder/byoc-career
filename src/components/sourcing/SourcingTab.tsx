@@ -432,7 +432,7 @@ export const SourcingTab: React.FC = () => {
                   setOptionalLocation(val);
                   setCandidatePreferences({ preferredLocations: val.trim() ? [val.trim()] : [] });
                 }}
-                placeholder={isWorldwide ? 'Worldwide mode active' : 'Optional city/region (e.g. Bengaluru)'}
+              placeholder={isWorldwide ? 'Worldwide mode active' : 'City/region (e.g. Bengaluru)'}
                 className="px-2.5 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed w-52"
               />
             </div>
@@ -464,9 +464,9 @@ export const SourcingTab: React.FC = () => {
         <p className="text-[11px] text-slate-400 leading-relaxed">
           {isWorldwide
             ? 'Worldwide mode queries the Remotive, Remote OK, and Jobicy remote feeds. Coverage depends on these feeds and is not an exhaustive global job index.'
-            : `Remotive, Remote OK, and Jobicy provide remote postings only and filter locally for ${candidatePreferences?.country || 'IN'}${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' plus explicitly worldwide roles'}${
+            : `Remotive, Remote OK, and Jobicy provide remote postings only and filter published locations for ${candidatePreferences?.country || 'IN'}${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' plus explicitly worldwide roles'}${
                 optionalLocation.trim() ? ` + "${optionalLocation.trim()}"` : ''
-              }. Non-remote or city-specific roles require pasted JDs.`}
+              }. City mentions in descriptions do not count as location evidence; hybrid/on-site openings must be saved or pasted.`}
         </p>
       </div>
 
@@ -670,6 +670,14 @@ export const SourcingTab: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <p className="-mt-1 text-[11px] text-slate-400">
+        {workplaceFilter === 'All'
+          ? 'All shows saved/pasted roles of any type, plus remote roles from connected public feeds.'
+          : workplaceFilter === 'Remote'
+            ? 'Connected public job feeds provide remote roles only.'
+            : `${workplaceFilter} filters saved or pasted listings only; connected public feeds currently provide remote roles only.`}
+      </p>
 
       {/* Live Search Feedback Banner */}
       {liveSearchReport && (

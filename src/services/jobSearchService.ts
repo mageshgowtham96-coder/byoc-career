@@ -57,6 +57,32 @@ const COUNTRY_ELIGIBILITY_ALIASES: Record<string, string[]> = {
   AE: ['uae', 'u.a.e.', 'united arab emirates', 'dubai', 'abu dhabi', 'mena', 'emea']
 };
 
+const COUNTRY_WIDE_REMOTE_MARKERS: Record<string, string[]> = {
+  IN: ['india', 'india only', 'within india', 'apac', 'asia'],
+  US: ['usa', 'u.s.', 'united states', 'us only', 'north america', 'americas'],
+  GB: ['uk', 'u.k.', 'united kingdom', 'britain', 'england', 'europe', 'emea'],
+  CA: ['canada', 'north america', 'americas'],
+  DE: ['germany', 'deutschland', 'europe', 'eu', 'emea'],
+  SG: ['singapore', 'apac', 'asia'],
+  AE: ['uae', 'u.a.e.', 'united arab emirates', 'mena', 'emea']
+};
+
+const CITY_ALIASES: Record<string, string[]> = {
+  bengaluru: ['bengaluru', 'bangalore'],
+  bangalore: ['bengaluru', 'bangalore'],
+  gurugram: ['gurugram', 'gurgaon'],
+  gurgaon: ['gurugram', 'gurgaon']
+};
+
+const COUNTRY_SPECIFIC_LOCATION_MARKERS: Record<string, string[]> = {
+  IN: ['bengaluru', 'bangalore', 'hyderabad', 'pune', 'mumbai', 'gurugram', 'gurgaon', 'noida', 'chennai', 'delhi'],
+  US: ['new york', 'san francisco', 'los angeles', 'seattle', 'austin', 'boston', 'chicago', 'denver'],
+  GB: ['london', 'manchester', 'birmingham', 'edinburgh', 'glasgow'],
+  CA: ['toronto', 'vancouver', 'montreal', 'ottawa', 'calgary'],
+  DE: ['berlin', 'munich', 'hamburg', 'frankfurt'],
+  AE: ['dubai', 'abu dhabi']
+};
+
 const GLOBAL_REMOTE_MARKERS = ['worldwide', 'anywhere', 'global', 'everywhere', 'any location', 'open to all locations'];
 
 const EXCLUSIVE_REGION_MARKERS: Array<{ marker: RegExp; countries: string[] }> = [
@@ -163,7 +189,7 @@ export function isWorldwideCountryCode(country?: string): boolean {
 
 export function matchesRemoteCountryAndLocation(
   jobLocation: string,
-  jobText: string,
+  _jobText: string,
   country?: string,
   optionalLocation?: string,
   includeWorldwideRemote = true
@@ -172,10 +198,18 @@ export function matchesRemoteCountryAndLocation(
   const cityFilter = (optionalLocation || '').trim().toLowerCase();
 
   if (cityFilter) {
-    const combinedText = `${locLower} ${(jobText || '').toLowerCase()}`;
-    const isExplicitlyAnywhere =
-      /\b(worldwide|anywhere|global)\b/i.test(locLower);
-    if (!combinedText.includes(cityFilter) && !isExplicitlyAnywhere) {
+    const normalizedCountry = (country || '').trim().toUpperCase();
+    const cityAliases = CITY_ALIASES[cityFilter] || [cityFilter];
+    const locationNamesCity = cityAliases.some((alias) => locLower.includes(alias));
+    const knownSpecificCityInLocation = (COUNTRY_SPECIFIC_LOCATION_MARKERS[normalizedCountry] || [])
+      .some((alias) => locLower.includes(alias));
+    const countryWideRemote = !knownSpecificCityInLocation && (COUNTRY_WIDE_REMOTE_MARKERS[normalizedCountry] || [])
+      .some((marker) => locLower.includes(marker));
+    const explicitlyWorldwide = includeWorldwideRemote && GLOBAL_REMOTE_MARKERS.some((marker) => locLower.includes(marker));
+
+    // City eligibility comes from the published location only. A role mentioning a city in its description is not location evidence.
+    // Country-wide remote postings remain valid for a city in that country; an explicit city elsewhere does not.
+    if (!locationNamesCity && !countryWideRemote && !explicitlyWorldwide) {
       return false;
     }
   }
@@ -617,7 +651,7 @@ export function buildLocationScopeNotice(country?: string, location?: string, in
   const eligibility = includeWorldwideRemote ? `${code} / explicitly worldwide` : `${code} only`;
   const base = `Target region ${code}: Remotive, Remote OK, and Jobicy return remote postings only; BYOC filters locally for ${eligibility} eligibility.`;
   if (cleanLoc) {
-    return `${base} Local keyword filter applied for "${cleanLoc}". City-specific non-remote boards require a configured regional API or pasted custom JDs.`;
+    return `${base} The location filter uses the listing's published location, not city mentions in its description. City-specific non-remote boards require a configured regional source or pasted custom JDs.`;
   }
   return base;
 }

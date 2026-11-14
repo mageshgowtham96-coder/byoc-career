@@ -429,6 +429,15 @@ describe('Zero Fabricated Defaults & Honest Matching', () => {
     assert.equal(matchesRemoteCountryAndLocation('APAC (Remote)', 'Software Engineer', 'IN'), true);
     assert.equal(matchesRemoteCountryAndLocation('Anywhere (Remote)', 'Software Engineer', 'IN'), true);
   });
+
+  it('uses the published location—not description mentions—for city eligibility', async () => {
+    const { matchesRemoteCountryAndLocation } = await import('../services/jobSearchService');
+    assert.equal(matchesRemoteCountryAndLocation('Hyderabad, India (Remote)', 'Bengaluru mentioned in the description', 'IN', 'Bengaluru', false), false);
+    assert.equal(matchesRemoteCountryAndLocation('India (Remote)', 'No city in the description', 'IN', 'Bengaluru', false), true);
+    assert.equal(matchesRemoteCountryAndLocation('Bangalore (Remote)', 'Role description', 'IN', 'Bengaluru', false), true);
+    assert.equal(matchesRemoteCountryAndLocation('Worldwide (Remote)', 'Role description', 'IN', 'Bengaluru', false), false);
+    assert.equal(matchesRemoteCountryAndLocation('Worldwide (Remote)', 'Role description', 'IN', 'Bengaluru', true), true);
+  });
 });
 
 describe('Encrypted Intake Career Form Draft & Lossless Migration', () => {
@@ -1286,6 +1295,34 @@ describe('API Layer: Job Search Location, Provider Honesty & Adzuna Fail-Safe (M
     try {
       const jobs = await new RemoteOkJobAdapter().search({ query: 'software engineer', country: 'IN' });
       assert.deepEqual(jobs.map((job) => job.company).sort(), ['India Co', 'Worldwide Co']);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('does not call remote-only providers for Hybrid or On-site searches', async () => {
+    const origFetch = globalThis.fetch;
+    let fetchCalls = 0;
+    globalThis.fetch = (async () => {
+      fetchCalls += 1;
+      return new Response('Unexpected feed request', { status: 500 });
+    }) as typeof fetch;
+
+    try {
+      const engine = new LiveJobSearchEngine();
+      for (const workplaceType of ['Hybrid', 'On-site'] as const) {
+        const result = await engine.executeLiveSearch(
+          { query: 'software engineer', country: 'IN', workplaceType },
+          null,
+          []
+        );
+        assert.equal(result.sourcesQueried.length, 1);
+        assert.deepEqual(
+          result.providerStatuses.filter((status) => ['public_open_jobs', 'remote_ok', 'jobicy'].includes(status.id)).map((status) => status.status),
+          ['skipped', 'skipped', 'skipped']
+        );
+      }
+      assert.equal(fetchCalls, 0);
     } finally {
       globalThis.fetch = origFetch;
     }
