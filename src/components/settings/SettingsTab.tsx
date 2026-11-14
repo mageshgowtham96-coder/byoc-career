@@ -423,7 +423,7 @@ export const SettingsTab: React.FC = () => {
         </div>
 
         <p className="text-xs text-slate-400 leading-relaxed">
-          Matches verified incoming ATS confirmation streams (Greenhouse, Workday, Lever) against saved applications without inventing synthetic recruiter messages.
+          No inbox is connected, so this check does not fetch new email. It checks access to records already stored in the encrypted local vault; Gmail/Workspace OAuth is not connected.
           {lastEmailSyncDate && (
             <span className="block text-[11px] font-mono text-slate-500 mt-1 tabular-nums">
               Last Checked: {new Date(lastEmailSyncDate).toLocaleTimeString()}
