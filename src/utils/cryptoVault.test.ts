@@ -56,6 +56,8 @@ import {
   tailorResumeWithGroq,
   validateTailoredOutput,
   validateQuestionnaireDraft,
+  mergeGroqResumeProfile,
+  parseResumeWithGroq,
   vetJobWithGroq
 } from '../services/groqService';
 import {
@@ -1361,6 +1363,60 @@ describe('Evidence-Referenced Questionnaire Draft Validation', () => {
       ).answer,
       /does not specify/i
     );
+  });
+});
+
+describe('Optional Groq Resume Structuring Safety', () => {
+  it('preserves extracted source text and stats, and keeps local sections when the AI omits them', () => {
+    const local = SAMPLE_PAYLOAD.masterResume as MasterResume;
+    const structured = mergeGroqResumeProfile(
+      {
+        headline: 'Platform Architect',
+        summary: 'Structured summary for candidate review.',
+        skills: { technical: ['TypeScript'] },
+        experiences: [{ company: 'Northstar Systems', role: 'Platform Architect', bullets: ['Built local AES-256-GCM encryption boundaries.'] }]
+      },
+      local
+    );
+
+    assert.equal(structured.rawText, local.rawText);
+    assert.deepEqual(structured.stats, local.stats);
+    assert.deepEqual(structured.skills.soft, local.skills.soft);
+    assert.deepEqual(structured.education, local.education);
+    assert.equal(structured.experiences[0].company, 'Northstar Systems');
+    assert.equal(structured.experiences[0].id, 'groq-exp-1');
+  });
+
+  it('rejects a malformed AI profile instead of replacing the local parse', () => {
+    assert.throws(() => mergeGroqResumeProfile(null, SAMPLE_PAYLOAD.masterResume as MasterResume), /not a JSON object/i);
+  });
+
+  it('sends resume text only after the explicit service call and keeps the parsed result reviewable', async () => {
+    const originalFetch = globalThis.fetch;
+    const requests: Array<{ url: string; body?: string }> = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      requests.push({ url, body: typeof init?.body === 'string' ? init.body : undefined });
+      if (url.includes('/models')) {
+        return new Response(JSON.stringify({ data: [{ id: 'llama-3.3-70b-versatile' }] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ headline: 'Platform Architect', experiences: [] }) } }]
+      }), { status: 200 });
+    }) as typeof fetch;
+
+    try {
+      const local = SAMPLE_PAYLOAD.masterResume as MasterResume;
+      const result = await parseResumeWithGroq(local, 'gsk_TEST_ONLY_NOT_A_REAL_KEY');
+      assert.equal(result.rawText, local.rawText);
+      assert.equal(result.stats.sourceFileName, local.stats.sourceFileName);
+      assert.equal(result.headline, 'Platform Architect');
+      assert.equal(result.experiences[0].company, local.experiences[0].company);
+      assert.equal(requests.some((request) => request.url.includes('/chat/completions')), true);
+      assert.equal(requests.some((request) => request.body?.includes(local.rawText)), true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
 

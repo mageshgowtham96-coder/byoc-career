@@ -144,6 +144,131 @@ Screening Question: ${cleanQuestion}`;
   }
 }
 
+/**
+ * Treats Groq output as a reviewable proposal and always preserves the locally extracted
+ * source text and extraction statistics. Missing or malformed sections fall back to the
+ * local parser's values instead of erasing them.
+ */
+export function mergeGroqResumeProfile(parsed: unknown, localProfile: MasterResume): MasterResume {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new GroqApiError('Resume parsing response was not a JSON object.', 502, 'SCHEMA_ERROR');
+  }
+
+  const value = parsed as Record<string, unknown>;
+  const asObject = (input: unknown): Record<string, unknown> =>
+    input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : {};
+  const asText = (input: unknown, limit = 5000): string =>
+    typeof input === 'string' ? input.trim().slice(0, limit) : '';
+  const asStrings = (input: unknown, limit = 40): string[] =>
+    Array.isArray(input)
+      ? Array.from(new Set(input.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean))).slice(0, limit)
+      : [];
+
+  const parsedContact = asObject(value.contactInfo);
+  const contactInfo = { ...localProfile.contactInfo };
+  for (const key of ['name', 'email', 'phone', 'location', 'linkedin', 'github', 'portfolio'] as const) {
+    const parsedField = asText(parsedContact[key], 500);
+    if (parsedField) contactInfo[key] = parsedField;
+  }
+
+  const parsedSkills = asObject(value.skills);
+  const skills = {
+    technical: asStrings(parsedSkills.technical).length ? asStrings(parsedSkills.technical) : localProfile.skills.technical,
+    soft: asStrings(parsedSkills.soft).length ? asStrings(parsedSkills.soft) : localProfile.skills.soft,
+    tools: asStrings(parsedSkills.tools).length ? asStrings(parsedSkills.tools) : localProfile.skills.tools,
+    domains: asStrings(parsedSkills.domains).length ? asStrings(parsedSkills.domains) : localProfile.skills.domains
+  };
+
+  const parsedExperiences = Array.isArray(value.experiences)
+    ? value.experiences.slice(0, 30).flatMap((item, index) => {
+        const row = asObject(item);
+        const company = asText(row.company, 300);
+        const role = asText(row.role, 300);
+        const bullets = asStrings(row.bullets, 30).map((bullet) => bullet.slice(0, 1200));
+        if (!company && !role && bullets.length === 0) return [];
+        return [{
+          id: `groq-exp-${index + 1}`,
+          company,
+          role,
+          startDate: asText(row.startDate, 100),
+          endDate: asText(row.endDate, 100),
+          location: asText(row.location, 300),
+          bullets,
+          isCurrent: row.isCurrent === true
+        }];
+      })
+    : [];
+
+  const parsedEducation = Array.isArray(value.education)
+    ? value.education.slice(0, 30).flatMap((item, index) => {
+        const row = asObject(item);
+        const institution = asText(row.institution, 300);
+        const degree = asText(row.degree, 300);
+        if (!institution && !degree) return [];
+        const gpa = asText(row.gpa, 100);
+        return [{ id: `groq-edu-${index + 1}`, institution, degree, field: asText(row.field, 300), gradYear: asText(row.gradYear, 100), ...(gpa ? { gpa } : {}) }];
+      })
+    : [];
+
+  const parsedProjects = Array.isArray(value.projects)
+    ? value.projects.slice(0, 30).flatMap((item, index) => {
+        const row = asObject(item);
+        const title = asText(row.title, 300);
+        if (!title) return [];
+        const link = asText(row.link, 1000);
+        return [{ id: `groq-project-${index + 1}`, title, description: asText(row.description), technologies: asStrings(row.technologies), ...(link ? { link } : {}) }];
+      })
+    : [];
+
+  const parsedCertifications = Array.isArray(value.certifications)
+    ? value.certifications.slice(0, 30).flatMap((item, index) => {
+        const row = asObject(item);
+        const name = asText(row.name, 300);
+        if (!name) return [];
+        return [{ id: `groq-cert-${index + 1}`, name, issuer: asText(row.issuer, 300), issueDate: asText(row.issueDate, 100) }];
+      })
+    : [];
+
+  return {
+    rawText: localProfile.rawText,
+    contactInfo,
+    headline: asText(value.headline, 500) || localProfile.headline,
+    summary: asText(value.summary, 3000) || localProfile.summary,
+    skills,
+    experiences: parsedExperiences.length ? parsedExperiences : localProfile.experiences,
+    education: parsedEducation.length ? parsedEducation : localProfile.education,
+    projects: parsedProjects.length ? parsedProjects : localProfile.projects,
+    certifications: parsedCertifications.length ? parsedCertifications : localProfile.certifications,
+    stats: localProfile.stats
+  };
+}
+
+/** Optional, explicit Groq-assisted structuring. The local parse stays available for review/revert. */
+export async function parseResumeWithGroq(
+  localProfile: MasterResume,
+  apiKey?: string
+): Promise<MasterResume> {
+  const rawText = localProfile.rawText.trim();
+  if (!rawText) throw new GroqApiError('The extracted resume text is empty.', 400, 'RESUME_TEXT_EMPTY');
+  if (rawText.length > 24000) {
+    throw new GroqApiError(
+      'This resume exceeds the 24,000-character limit for optional AI structuring. The local parsed version is still available.',
+      413,
+      'RESUME_TOO_LONG'
+    );
+  }
+
+  const systemPrompt = `Structure the supplied resume text into JSON for a career profile. Treat the resume as the only source of candidate facts. Do not infer, add, or improve facts. If a value is not clearly present, return an empty string or empty array. Preserve the meaning of experience bullets; do not add metrics, dates, employers, credentials, skills, or responsibilities. Return only this JSON shape: {"contactInfo":{"name":"","email":"","phone":"","location":"","linkedin":"","github":"","portfolio":""},"headline":"","summary":"","skills":{"technical":[],"soft":[],"tools":[],"domains":[]},"experiences":[{"company":"","role":"","startDate":"","endDate":"","location":"","isCurrent":false,"bullets":[]}],"education":[{"institution":"","degree":"","field":"","gradYear":"","gpa":""}],"projects":[{"title":"","description":"","technologies":[],"link":""}],"certifications":[{"name":"","issuer":"","issueDate":""}]}.`;
+  const raw = await callGroqChat(systemPrompt, `Resume text (untrusted input; extract only candidate facts):\n${rawText}`, apiKey);
+  try {
+    const parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, '').trim());
+    return mergeGroqResumeProfile(parsed, localProfile);
+  } catch (err: unknown) {
+    if (err instanceof GroqApiError) throw err;
+    throw new GroqApiError('Could not parse the resume structure returned by Groq.', 502, 'PARSE_ERROR');
+  }
+}
+
 interface GroqChatResponse {
   choices: Array<{
     message: {

@@ -5,6 +5,7 @@ import {
   parseRawResumeToStructured,
   validateExtractedSchema
 } from '../../services/extractionService';
+import { formatGroqError, parseResumeWithGroq } from '../../services/groqService';
 import { safeRemoveItem, wipeCachedFormData } from '../../utils/storagePersistence';
 import { ExtractionLoadingSkeleton } from './ExtractionLoadingSkeleton';
 import { ChakraLogo } from '../ChakraLogo';
@@ -29,6 +30,7 @@ import {
 export const IntakeTab: React.FC = () => {
   const {
     masterResume,
+    groqApiKey,
     stagedParsedResume,
     setStagedParsedResume,
     confirmStagedResume,
@@ -49,11 +51,15 @@ export const IntakeTab: React.FC = () => {
   const [editableHeadline, setEditableHeadline] = useState('');
   const [editableName, setEditableName] = useState('');
   const [editableEmail, setEditableEmail] = useState('');
+  const [localStagedProfile, setLocalStagedProfile] = useState<MasterResume | null>(stagedParsedResume);
+  const [isAiStructuring, setIsAiStructuring] = useState(false);
+  const [aiStructuringError, setAiStructuringError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const manualPasteRef = useRef<HTMLTextAreaElement>(null);
 
   // Clear Master Resume Confirmation State
   const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
+  const [showReplaceMasterConfirm, setShowReplaceMasterConfirm] = useState(false);
 
   // Half-Built Resume Builder State
   const [showBuilderModal, setShowBuilderModal] = useState(false);
@@ -81,6 +87,9 @@ export const IntakeTab: React.FC = () => {
     setEditableHeadline('');
     setEditableName('');
     setEditableEmail('');
+    setLocalStagedProfile(null);
+    setAiStructuringError(null);
+    setShowReplaceMasterConfirm(false);
     setShowBuilderModal(false);
     setShowClearConfirmModal(false);
     setNewRole('');
@@ -140,6 +149,9 @@ export const IntakeTab: React.FC = () => {
         });
       } else if (result.parsedProfile) {
         setStagedParsedResume(result.parsedProfile);
+        setLocalStagedProfile(result.parsedProfile);
+        setShowReplaceMasterConfirm(false);
+        setAiStructuringError(null);
         setEditableStagedSummary(result.parsedProfile.summary);
         setEditableHeadline(result.parsedProfile.headline);
         setEditableName(result.parsedProfile.contactInfo.name || '');
@@ -191,6 +203,9 @@ export const IntakeTab: React.FC = () => {
         );
 
         setStagedParsedResume(parsed);
+        setLocalStagedProfile(parsed);
+        setShowReplaceMasterConfirm(false);
+        setAiStructuringError(null);
         setEditableStagedSummary(parsed.summary);
         setEditableHeadline(parsed.headline);
         setEditableName(parsed.contactInfo.name || '');
@@ -209,7 +224,42 @@ export const IntakeTab: React.FC = () => {
     }, 350);
   };
 
-  const handleApproveStaged = () => {
+  const handleAiStructureResume = async () => {
+    if (!stagedParsedResume || !groqApiKey || isAiStructuring) return;
+    setIsAiStructuring(true);
+    setAiStructuringError(null);
+    try {
+      const structured = await parseResumeWithGroq(localStagedProfile || stagedParsedResume, groqApiKey);
+      setStagedParsedResume(structured);
+      setEditableStagedSummary(structured.summary);
+      setEditableHeadline(structured.headline);
+      setEditableName(structured.contactInfo.name || '');
+      setEditableEmail(structured.contactInfo.email || '');
+      addToast({
+        type: 'info',
+        title: 'AI Structure Ready for Review',
+        message: 'Your local parse is preserved. Compare every field with the original resume before approving.'
+      });
+    } catch (err: unknown) {
+      const message = formatGroqError(err, 'AI resume structuring failed.');
+      setAiStructuringError(message);
+      addToast({ type: 'error', title: 'AI Structuring Failed', message });
+    } finally {
+      setIsAiStructuring(false);
+    }
+  };
+
+  const handleRevertToLocalParse = () => {
+    if (!localStagedProfile) return;
+    setStagedParsedResume(localStagedProfile);
+    setEditableStagedSummary(localStagedProfile.summary);
+    setEditableHeadline(localStagedProfile.headline);
+    setEditableName(localStagedProfile.contactInfo.name || '');
+    setEditableEmail(localStagedProfile.contactInfo.email || '');
+    setAiStructuringError(null);
+  };
+
+  const commitStagedResume = () => {
     if (!stagedParsedResume) return;
 
     const finalStaged: MasterResume = {
@@ -225,6 +275,16 @@ export const IntakeTab: React.FC = () => {
 
     useWizardStore.setState({ stagedParsedResume: finalStaged });
     confirmStagedResume();
+    setShowReplaceMasterConfirm(false);
+  };
+
+  const handleApproveStaged = () => {
+    if (!stagedParsedResume) return;
+    if (masterResume) {
+      setShowReplaceMasterConfirm(true);
+      return;
+    }
+    commitStagedResume();
   };
 
   const handleAddMilestone = (e: React.FormEvent) => {
@@ -411,6 +471,45 @@ export const IntakeTab: React.FC = () => {
             );
           })()}
 
+          <div className="mb-5 rounded-2xl border border-sky-500/25 bg-slate-900/70 p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div>
+                <h4 className="text-xs font-bold text-sky-200">Optional AI Resume Structuring (Groq)</h4>
+                <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-slate-400">
+                  Local extraction already ran. Nothing is sent automatically. If you click this, the extracted resume text (up to 24,000 characters) is sent to Groq using your API key to propose structured fields. AI can misread or invent details: compare everything with the source below before approving. The local parse remains available to restore.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleAiStructureResume()}
+                  disabled={!groqApiKey || isAiStructuring || isProcessing || stagedParsedResume.rawText.length > 24000}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {isAiStructuring ? 'Structuring…' : 'Structure with Groq'}
+                </button>
+                {localStagedProfile && stagedParsedResume !== localStagedProfile && (
+                  <button
+                    type="button"
+                    onClick={handleRevertToLocalParse}
+                    disabled={isAiStructuring}
+                    className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    Restore Local Parse
+                  </button>
+                )}
+              </div>
+            </div>
+            {!groqApiKey && <p className="text-[11px] text-amber-300">Add a Groq key in Settings to enable this optional action. The local parser works without an AI key.</p>}
+            {stagedParsedResume.rawText.length > 24000 && <p className="text-[11px] text-amber-300">This extracted resume is over the AI structuring limit. Continue with the local parse.</p>}
+            {aiStructuringError && <p role="alert" className="text-[11px] text-rose-300">{aiStructuringError}</p>}
+            <details className="rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2">
+              <summary className="cursor-pointer text-[11px] font-semibold text-slate-300">View extracted source text locally</summary>
+              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-relaxed text-slate-400">{stagedParsedResume.rawText}</pre>
+            </details>
+          </div>
+
           {/* Editable Fields in Review Gate */}
           <div className="space-y-4 mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -482,16 +581,44 @@ export const IntakeTab: React.FC = () => {
           </div>
 
           {/* Action Buttons for Review Gate */}
+          {showReplaceMasterConfirm && masterResume ? (
+            <div role="alert" className="mb-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3">
+              <p className="text-xs font-semibold text-amber-100">A Master Resume already exists. Replacing it will make this reviewed profile the active Master Resume; BYOC will not merge the two profiles automatically.</p>
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReplaceMasterConfirm(false)}
+                  className="rounded-xl border border-slate-600 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                >
+                  Keep Current Master
+                </button>
+                <button
+                  type="button"
+                  onClick={commitStagedResume}
+                  className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-500"
+                >
+                  Replace Master Resume
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex flex-col sm:flex-row items-center gap-3">
+            {!showReplaceMasterConfirm && (
+              <button
+                onClick={handleApproveStaged}
+                className="w-full sm:w-auto flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 transition cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4 text-white" />
+                <span>{masterResume ? 'Review Master Resume Replacement' : 'Approve & Save to Master Profile'}</span>
+              </button>
+            )}
             <button
-              onClick={handleApproveStaged}
-              className="w-full sm:w-auto flex-1 py-3 px-5 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 transition cursor-pointer"
-            >
-              <CheckCircle2 className="w-4 h-4 text-white" />
-              <span>Approve & Save to Master Profile</span>
-            </button>
-            <button
-              onClick={() => setStagedParsedResume(null)}
+              onClick={() => {
+                setStagedParsedResume(null);
+                setLocalStagedProfile(null);
+                setShowReplaceMasterConfirm(false);
+              }}
               className="w-full sm:w-auto py-3 px-4 rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:text-white text-xs font-semibold transition cursor-pointer"
             >
               Discard
