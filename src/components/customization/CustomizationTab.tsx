@@ -165,7 +165,7 @@ export const CustomizationTab: React.FC = () => {
       addToast({
         type: 'success',
         title: 'Tailored Kit Synthesized',
-        message: '3 authentic sibling variations generated.'
+        message: '3 AI draft variations generated. Review all generated wording before use.'
       });
     } catch (err: unknown) {
       const msg = formatGroqError(err, 'Tailoring generation failed.');
@@ -327,7 +327,7 @@ export const CustomizationTab: React.FC = () => {
             <span>AI Kit Customization & Sibling Variants</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            ATS alignment, 3 sibling variations, and authentic evidence re-weighting with zero hallucination.
+            ATS alignment, 3 sibling variations, and source-mapped bullet replacements. Review all AI-written prose before use.
           </p>
         </div>
 
@@ -351,7 +351,7 @@ export const CustomizationTab: React.FC = () => {
                 Add your master resume in the Intake tab to unlock AI tailoring
               </h4>
               <p className="text-[11px] text-amber-300/80 mt-0.5">
-                The anti-hallucination engine requires verified career milestones before it can synthesize tailored bullets.
+                Add source career milestones so BYOC can check replacement bullets against your recorded experience.
               </p>
             </div>
           </div>
@@ -393,10 +393,10 @@ export const CustomizationTab: React.FC = () => {
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-mono font-bold flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                Experience Originality Lock Active
+                Source Evidence Checks Active
               </span>
               <span className="text-xs text-slate-400 hidden xs:inline">
-                Strict Zero-Fabrication Guarantee
+                AI drafts require your review
               </span>
             </div>
             <h3 className="text-base sm:text-lg font-bold text-white">
@@ -407,7 +407,7 @@ export const CustomizationTab: React.FC = () => {
                 : 'Synthesize 3 Sibling Variations'}
             </h3>
             <p className="text-xs text-slate-400 max-w-xl mt-1 leading-relaxed">
-              Generates 3 distinct framing angles (Leadership & Scope, Systems Reliability, and Direct ATS Match) while strictly preventing fabricated metrics, titles, or dates.
+              Generates 3 framing angles. Replacement bullets and listed skills are checked against your Master Resume; AI-written summaries, cover letters, and talking points still require your review before use.
             </p>
           </div>
 
@@ -587,7 +587,7 @@ export const CustomizationTab: React.FC = () => {
                     Targeted Executive Summary (Active Variation)
                   </span>
                   <span className="text-[10px] text-emerald-400 font-mono font-bold">
-                    Zero-Fabrication Verified
+                    AI draft — review before use
                   </span>
                 </div>
                 <p className="text-xs text-slate-200 leading-relaxed bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
@@ -794,6 +794,11 @@ export const CustomizationTab: React.FC = () => {
           {/* Sub Tab: Cover Letter */}
           {activeSubTab === 'coverLetter' && (
             <div className="p-5 sm:p-6 rounded-3xl bg-slate-800/80 border border-slate-700 space-y-3">
+              {currentArtifact.variants.length > 0 && (
+                <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+                  AI-generated draft: verify every personal claim and detail against your Master Resume before copying or exporting.
+                </p>
+              )}
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] uppercase font-mono text-sky-400 block">
                   Tailored Cover Letter
@@ -823,8 +828,13 @@ export const CustomizationTab: React.FC = () => {
           {/* Sub Tab: Interview Prep */}
           {activeSubTab === 'interview' && (
             <div className="p-5 sm:p-6 rounded-3xl bg-slate-800/80 border border-slate-700 space-y-4">
+              {currentArtifact.variants.length > 0 && (
+                <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+                  AI-generated interview material: verify every personal claim and suggested talking point against your own experience.
+                </p>
+              )}
               <span className="text-[10px] uppercase font-mono text-indigo-400 block mb-1">
-                Authentic Interview Talking Points
+                AI Interview Prep Drafts — Review Required
               </span>
 
               {currentArtifact.interviewPrepQuestions.map((q, i) => (

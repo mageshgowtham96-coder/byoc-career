@@ -1632,7 +1632,7 @@ describe('Tailored Bullet Verification & Complete Master Resume Preservation Acr
           badge: 'Leadership & Scale',
           description: 'Leadership angle',
           tailoredSummary: 'Tailored executive security summary.',
-          highlightedSkills: ['TypeScript', 'WebCrypto'],
+          highlightedSkills: ['TypeScript', 'WebCrypto', 'InventedCloudPlatform'],
           optimizedBullets: [
             // 1. Valid exact match targeting second experience (index 1, NOT 0)
             {
@@ -1674,6 +1674,8 @@ describe('Tailored Bullet Verification & Complete Master Resume Preservation Acr
     const artifact = validateTailoredOutput(rawGroqOutput, SAMPLE_PAYLOAD.jobs[0] as any, RICH_MASTER_RESUME);
     const { verified, unmapped } = partitionTailoredBullets(artifact.optimizedBullets, RICH_MASTER_RESUME);
 
+    assert.equal(artifact.authenticityGuaranteed, false);
+    assert.deepEqual(artifact.highlightedSkills, ['TypeScript', 'WebCrypto']);
     assert.equal(verified.length, 1);
     assert.equal(verified[0].experienceId, 'exp-helios');
     assert.equal(verified[0].verified, true);

@@ -9,8 +9,8 @@ import type {
 import { partitionTailoredBullets } from '../utils/tailoredBulletResolver';
 
 /**
- * MANDATORY EXPERIENCE ORIGINALITY LOCK & AUTHENTICITY FILTER
- * Injected in all prompt constructors to strictly prevent fabrication.
+ * Factuality instructions supplied to the model for generated drafts.
+ * These instructions do not replace source validation or candidate review.
  */
 export const SYSTEMIC_AUTHENTICITY_FILTER = `
 STRICT SYSTEMIC EXPERIENCE ORIGINALITY LOCK:
@@ -564,6 +564,11 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
     { id: 'variant-b', name: 'Variant B: Technical Depth & Systems Architecture', badge: 'Systems & Reliability' },
     { id: 'variant-c', name: 'Variant C: Direct ATS Keyword Alignment', badge: 'ATS Match & Delivery' }
   ];
+  const verifiedSkillMap = new Map(
+    [...masterResume.skills.technical, ...masterResume.skills.soft, ...masterResume.skills.tools, ...masterResume.skills.domains]
+      .map((skill) => [skill.trim().toLocaleLowerCase(), skill.trim()] as const)
+      .filter(([key, value]) => Boolean(key && value))
+  );
 
   const validatedVariants: TailoredVariant[] = defaultBadges.map((def, idx) => {
     const rv = rawVariants[idx] || {};
@@ -587,15 +592,24 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
         }))
       : [];
 
+    const highlightedSkills: string[] = [];
+    if (Array.isArray(rv.highlightedSkills)) {
+      for (const skill of rv.highlightedSkills as unknown[]) {
+        if (typeof skill !== 'string') continue;
+        const verifiedSkill = verifiedSkillMap.get(skill.trim().toLocaleLowerCase());
+        if (verifiedSkill && !highlightedSkills.includes(verifiedSkill)) {
+          highlightedSkills.push(verifiedSkill);
+        }
+      }
+    }
+
     return {
       id: def.id,
       name: String(rv.name || def.name),
       badge: String(rv.badge || def.badge),
       description: String(rv.description || `Specialized tailoring focusing on ${def.badge}.`),
       tailoredSummary: String(rv.tailoredSummary || masterResume.summary || ''),
-      highlightedSkills: Array.isArray(rv.highlightedSkills)
-        ? rv.highlightedSkills.map((s: any) => String(s))
-        : masterResume.skills.technical.slice(0, 8),
+      highlightedSkills: highlightedSkills.length > 0 ? highlightedSkills : masterResume.skills.technical.slice(0, 8),
       optimizedBullets,
       coverLetter: String(rv.coverLetter || ''),
       interviewPrepQuestions
@@ -617,7 +631,8 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
     coverLetter: active.coverLetter,
     interviewPrepQuestions: active.interviewPrepQuestions,
     generationTimestamp: new Date().toISOString(),
-    authenticityGuaranteed: true
+    // Bullets and displayed skills are checked against source data, but AI-generated prose still requires review.
+    authenticityGuaranteed: false
   };
 }
 

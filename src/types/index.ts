@@ -162,7 +162,7 @@ export interface TailoredArtifact {
   coverLetter: string;
   interviewPrepQuestions: InterviewQuestion[];
   generationTimestamp: string;
-  authenticityGuaranteed: boolean; // Confirms strict anti-fabrication compliance
+  authenticityGuaranteed: boolean; // True only when every artifact field is independently source-validated
   exportedMaterials?: ExportedMaterialRecord[];
 }
 
