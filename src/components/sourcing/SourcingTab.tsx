@@ -705,9 +705,19 @@ export const SourcingTab: React.FC = () => {
               <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto mb-4">
                 <FileText className="w-7 h-7" />
               </div>
-              <h3 className="text-base font-bold text-white mb-2">No Target Job Descriptions Loaded</h3>
+              <h3 className="text-base font-bold text-white mb-2">
+                {liveSearchReport?.error
+                  ? 'Job search needs attention'
+                  : liveSearchReport
+                    ? 'No matching openings found'
+                    : 'No job listings added yet'}
+              </h3>
               <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-                BYOC operates with zero fabricated job postings. Paste a job description from any employer portal or query the live Remotive remote feed to compute verified keyword matches.
+                {liveSearchReport?.error
+                  ? liveSearchReport.error
+                  : liveSearchReport
+                    ? 'No roles matched your current search and location filters. Try adjusting your keywords or search area.'
+                    : 'BYOC does not invent job postings. Paste a job description from an employer portal or search public listings to get started.'}
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
