@@ -418,6 +418,14 @@ describe('Zero Fabricated Defaults & Honest Matching', () => {
     assert.equal(matchesRemoteCountryAndLocation('Location Unspecified', 'Software Engineer', 'IN'), false);
     assert.equal(matchesRemoteCountryAndLocation('Worldwide', 'Software Engineer', 'IN'), true);
     assert.equal(matchesRemoteCountryAndLocation('Location Unspecified', 'Software Engineer', 'GLOBAL'), true);
+    assert.equal(matchesRemoteCountryAndLocation('Warsaw (Remote)', 'Software Engineer', 'IN'), false);
+    assert.equal(matchesRemoteCountryAndLocation('Palo Alto (Remote)', 'Software Engineer', 'IN'), false);
+    assert.equal(matchesRemoteCountryAndLocation('Kansas (Remote)', 'Software Engineer', 'IN'), false);
+    assert.equal(matchesRemoteCountryAndLocation('Netherlands (Remote)', 'Software Engineer', 'IN'), false);
+    assert.equal(matchesRemoteCountryAndLocation('Remote', 'Software Engineer', 'IN'), false);
+    assert.equal(matchesRemoteCountryAndLocation('India (Remote)', 'Software Engineer', 'IN'), true);
+    assert.equal(matchesRemoteCountryAndLocation('APAC (Remote)', 'Software Engineer', 'IN'), true);
+    assert.equal(matchesRemoteCountryAndLocation('Anywhere (Remote)', 'Software Engineer', 'IN'), true);
   });
 });
 
@@ -1240,7 +1248,7 @@ describe('API Layer: Job Search Location, Provider Honesty & Adzuna Fail-Safe (M
         ]), { status: 200 });
       }
       return new Response(JSON.stringify({ jobs: [
-        { id: 88, jobTitle: 'Product Analyst', companyName: 'Jobicy Co', jobGeo: 'Anywhere', jobDescription: '<p>SQL analysis &amp; reporting</p>', url: 'https://jobicy.com/jobs/88', pubDate: '2026-11-13T12:00:00Z', salaryMin: 50000, salaryMax: 70000, salaryCurrency: 'USD', salaryPeriod: 'yearly', jobIndustry: ['Analytics'] },
+        { id: 88, jobTitle: 'Product Analyst', companyName: 'Jobicy Co', jobGeo: 'Anywhere', jobDescription: '<p>SQL analysis &amp; reporting; recruiterâ€™s note â€” support</p>', url: 'https://jobicy.com/jobs/88', pubDate: '2026-11-13T12:00:00Z', salaryMin: 50000, salaryMax: 70000, salaryCurrency: 'USD', salaryPeriod: 'yearly', jobIndustry: ['Analytics'] },
         { id: 89, jobTitle: 'No source link', companyName: 'Jobicy Co', jobGeo: 'Anywhere', jobDescription: 'Omitted', url: 'data:text/plain,unsafe' }
       ] }), { status: 200 });
     }) as typeof fetch;
@@ -1253,10 +1261,29 @@ describe('API Layer: Job Search Location, Provider Honesty & Adzuna Fail-Safe (M
       assert.equal(remoteOk[0].jobDescriptionRaw, 'TypeScript systems role');
       assert.equal(jobicy.length, 1);
       assert.equal(jobicy[0].url, 'https://jobicy.com/jobs/88');
-      assert.equal(jobicy[0].jobDescriptionRaw, 'SQL analysis & reporting');
+      assert.equal(jobicy[0].jobDescriptionRaw, 'SQL analysis & reporting; recruiter’s note — support');
       assert.equal(jobicy[0].salary, '50,000–70,000 USD / yearly');
       assert.deepEqual(jobicy[0].skillsRequired, []);
       assert.ok(urls[1].includes('count=50'));
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('keeps remote listings from outside the selected India market out of live results', async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response(JSON.stringify([
+      { id: 601, position: 'Software Engineer', company: 'Warsaw Co', location: 'Warsaw (Remote)', description: 'Role', url: 'https://remoteok.com/l/601' },
+      { id: 602, position: 'Software Engineer', company: 'Palo Alto Co', location: 'Palo Alto (Remote)', description: 'Role', url: 'https://remoteok.com/l/602' },
+      { id: 603, position: 'Software Engineer', company: 'Kansas Co', location: 'Kansas (Remote)', description: 'Role', url: 'https://remoteok.com/l/603' },
+      { id: 604, position: 'Software Engineer', company: 'Netherlands Co', location: 'Netherlands (Remote)', description: 'Role', url: 'https://remoteok.com/l/604' },
+      { id: 605, position: 'Software Engineer', company: 'India Co', location: 'India (Remote)', description: 'Role', url: 'https://remoteok.com/l/605' },
+      { id: 606, position: 'Software Engineer', company: 'Worldwide Co', location: 'Worldwide (Remote)', description: 'Role', url: 'https://remoteok.com/l/606' }
+    ]), { status: 200 })) as typeof fetch;
+
+    try {
+      const jobs = await new RemoteOkJobAdapter().search({ query: 'software engineer', country: 'IN' });
+      assert.deepEqual(jobs.map((job) => job.company).sort(), ['India Co', 'Worldwide Co']);
     } finally {
       globalThis.fetch = origFetch;
     }
