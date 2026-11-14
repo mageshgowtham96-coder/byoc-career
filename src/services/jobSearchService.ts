@@ -183,6 +183,10 @@ export function matchesRemoteCountryAndLocation(
   }
 
   const normalizedCountry = (country || '').trim().toUpperCase();
+  // Missing feed location data is not proof that a posting is eligible in a selected market.
+  if (/\b(location unspecified|unspecified|unknown location|location unknown)\b/i.test(locLower)) {
+    return false;
+  }
   const aliases = COUNTRY_ELIGIBILITY_ALIASES[normalizedCountry] || [];
 
   // Exclude postings explicitly locked to a different region/country

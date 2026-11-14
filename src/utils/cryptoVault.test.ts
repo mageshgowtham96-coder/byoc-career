@@ -412,6 +412,13 @@ describe('Zero Fabricated Defaults & Honest Matching', () => {
     assert.equal(mapped.stats.wordCount, 0);
     assert.equal(mapped.stats.pageCount, 0);
   });
+
+  it('excludes remote listings with unknown locations from a country-specific search', async () => {
+    const { matchesRemoteCountryAndLocation } = await import('../services/jobSearchService');
+    assert.equal(matchesRemoteCountryAndLocation('Location Unspecified', 'Software Engineer', 'IN'), false);
+    assert.equal(matchesRemoteCountryAndLocation('Worldwide', 'Software Engineer', 'IN'), true);
+    assert.equal(matchesRemoteCountryAndLocation('Location Unspecified', 'Software Engineer', 'GLOBAL'), true);
+  });
 });
 
 describe('Encrypted Intake Career Form Draft & Lossless Migration', () => {
