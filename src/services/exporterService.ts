@@ -1,6 +1,5 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import type { MasterResume, TailoredArtifact, JobPosting } from '../types';
+import type { Paragraph } from 'docx';
 import { resolveTailoredResumeForExportAndPreview } from '../utils/tailoredBulletResolver';
 
 export interface ExportOptions {
@@ -179,6 +178,7 @@ function toPdfSafeText(text: string): string {
  * Standard PDF Generator using pdf-lib with clean margins & layout
  */
 export async function generatePdfResume(artifact: TailoredArtifact, resume: MasterResume): Promise<Blob> {
+  const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
   const resolved = resolveTailoredResumeForExportAndPreview(artifact, resume);
   const pdfDoc = await PDFDocument.create();
   let page = pdfDoc.addPage([612, 792]); // Standard US Letter (points)
@@ -534,6 +534,7 @@ export async function generatePdfResume(artifact: TailoredArtifact, resume: Mast
  * Real DOCX Generator using the official 'docx' package
  */
 export async function generateDocxResume(artifact: TailoredArtifact, resume: MasterResume): Promise<Blob> {
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx');
   const resolved = resolveTailoredResumeForExportAndPreview(artifact, resume);
   const children: Paragraph[] = [];
 

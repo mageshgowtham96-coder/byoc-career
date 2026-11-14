@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
 import { tailorResumeWithGroq, draftQuestionnaireAnswer, formatGroqError } from '../../services/groqService';
-import {
-  generatePlainTextResume,
-  generatePdfResume,
-  generateDocxResume,
-  dispatchExportFile
-} from '../../services/exporterService';
 import { sanitizeExternalHttpUrl } from '../../services/jobSearchService';
 import {
   partitionTailoredBullets,
@@ -225,6 +219,14 @@ export const CustomizationTab: React.FC = () => {
     const activeVariant = currentArtifact.variants.find((v) => v.id === currentArtifact.selectedVariantId);
 
     try {
+      // Keep PDF/DOCX export libraries out of the initial app bundle. They are
+      // loaded only when the user explicitly exports a resume.
+      const {
+        generatePlainTextResume,
+        generatePdfResume,
+        generateDocxResume,
+        dispatchExportFile
+      } = await import('../../services/exporterService');
       let dispatched = false;
       if (format === 'txt') {
         const text = generatePlainTextResume(currentArtifact, masterResume);
