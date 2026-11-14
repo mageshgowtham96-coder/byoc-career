@@ -8,6 +8,7 @@ export interface JobSearchQueryParams {
   seniority?: string;
   country?: string;
   location?: string;
+  includeWorldwideRemote?: boolean;
   workplaceType?: 'All' | 'Remote' | 'Hybrid' | 'On-site';
   salary?: string;
   portal?: JobSourcePortal;
@@ -164,7 +165,8 @@ export function matchesRemoteCountryAndLocation(
   jobLocation: string,
   jobText: string,
   country?: string,
-  optionalLocation?: string
+  optionalLocation?: string,
+  includeWorldwideRemote = true
 ): boolean {
   const locLower = (jobLocation || '').toLowerCase();
   const cityFilter = (optionalLocation || '').trim().toLowerCase();
@@ -201,7 +203,7 @@ export function matchesRemoteCountryAndLocation(
   }
 
   // Only explicit all-location eligibility qualifies as global. A generic "Remote" label is insufficient.
-  if (GLOBAL_REMOTE_MARKERS.some((marker) => locLower.includes(marker))) {
+  if (includeWorldwideRemote && GLOBAL_REMOTE_MARKERS.some((marker) => locLower.includes(marker))) {
     return true;
   }
 
@@ -381,7 +383,8 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
             parsedLocation,
             `${title} ${plainDesc}`,
             params.country,
-            params.location
+            params.location,
+            params.includeWorldwideRemote
           )
         ) {
           continue;
@@ -571,7 +574,7 @@ export class RemoteOkJobAdapter implements JobProviderAdapter {
         : 'Undisclosed',
       tags: item.tags
     })).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
-      job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location
+      job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
     ));
   }
 }
@@ -600,18 +603,19 @@ export class JobicyJobAdapter implements JobProviderAdapter {
       salary: parseSalaryRange(item.salaryMin, item.salaryMax, item.salaryCurrency, item.salaryPeriod),
       tags: []
     })).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
-      job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location
+      job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
     ));
   }
 }
 
-export function buildLocationScopeNotice(country?: string, location?: string): string {
+export function buildLocationScopeNotice(country?: string, location?: string, includeWorldwideRemote = true): string {
   const cleanLoc = (location || '').trim();
   if (isWorldwideCountryCode(country)) {
     return 'Worldwide remote mode: Remotive, Remote OK, and Jobicy public remote feeds are queried; results depend on each feed and are not an exhaustive global job index.';
   }
   const code = (country || '').trim().toUpperCase();
-  const base = `Target region ${code}: Remotive, Remote OK, and Jobicy return remote postings only; BYOC filters locally by region eligibility (${code} / Worldwide).`;
+  const eligibility = includeWorldwideRemote ? `${code} / explicitly worldwide` : `${code} only`;
+  const base = `Target region ${code}: Remotive, Remote OK, and Jobicy return remote postings only; BYOC filters locally for ${eligibility} eligibility.`;
   if (cleanLoc) {
     return `${base} Local keyword filter applied for "${cleanLoc}". City-specific non-remote boards require a configured regional API or pasted custom JDs.`;
   }
@@ -726,11 +730,13 @@ export class LiveJobSearchEngine {
       }
 
       if (locLower) {
-        const matchesLoc = matchesRemoteCountryAndLocation(
+        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes((job.source || '').toLowerCase());
+        const matchesLoc = !isLiveFeedJob || matchesRemoteCountryAndLocation(
           job.location,
           `${job.title} ${job.jobDescriptionRaw}`,
           normalizedParams.country,
-          normalizedParams.location
+          normalizedParams.location,
+          normalizedParams.includeWorldwideRemote
         );
         if (!matchesLoc) return false;
       }
@@ -759,7 +765,7 @@ export class LiveJobSearchEngine {
       totalFound: filtered.length,
       sourcesQueried: queriedSources,
       providerStatuses,
-      locationNotice: buildLocationScopeNotice(normalizedParams.country, normalizedParams.location),
+      locationNotice: buildLocationScopeNotice(normalizedParams.country, normalizedParams.location, normalizedParams.includeWorldwideRemote),
       lastUpdated: new Date().toISOString(),
       error: providerErrors.length > 0 ? providerErrors.join(' ') : undefined
     };

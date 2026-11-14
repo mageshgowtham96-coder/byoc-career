@@ -417,6 +417,8 @@ describe('Zero Fabricated Defaults & Honest Matching', () => {
     const { matchesRemoteCountryAndLocation } = await import('../services/jobSearchService');
     assert.equal(matchesRemoteCountryAndLocation('Location Unspecified', 'Software Engineer', 'IN'), false);
     assert.equal(matchesRemoteCountryAndLocation('Worldwide', 'Software Engineer', 'IN'), true);
+    assert.equal(matchesRemoteCountryAndLocation('Worldwide', 'Software Engineer', 'IN', undefined, false), false);
+    assert.equal(matchesRemoteCountryAndLocation('Worldwide', 'Software Engineer', 'IN', undefined, true), true);
     assert.equal(matchesRemoteCountryAndLocation('Location Unspecified', 'Software Engineer', 'GLOBAL'), true);
     assert.equal(matchesRemoteCountryAndLocation('Warsaw (Remote)', 'Software Engineer', 'IN'), false);
     assert.equal(matchesRemoteCountryAndLocation('Palo Alto (Remote)', 'Software Engineer', 'IN'), false);

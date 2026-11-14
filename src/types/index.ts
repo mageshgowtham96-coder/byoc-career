@@ -287,6 +287,7 @@ export interface PortalShortcut {
 
 export interface CandidatePreferences {
   country: string; // Default market region (e.g. 'IN', 'US', 'GLOBAL')
+  includeWorldwideRemote?: boolean;
   preferredLocations: string[];
   portals: JobSourcePortal[];
   portalShortcuts?: PortalShortcut[];

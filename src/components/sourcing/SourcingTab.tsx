@@ -116,6 +116,7 @@ export const SourcingTab: React.FC = () => {
           query: searchQuery.trim() || undefined,
           country: candidatePreferences?.country || 'IN',
           location: isWorldwide ? undefined : optionalLocation.trim() || undefined,
+          includeWorldwideRemote: candidatePreferences?.includeWorldwideRemote !== false,
           workplaceType: workplaceFilter,
           portal: portalFilter,
           profession: candidatePreferences?.profession,
@@ -182,12 +183,14 @@ export const SourcingTab: React.FC = () => {
             (job.jobDescriptionRaw && job.jobDescriptionRaw.toLowerCase().includes(qLower));
           if (!matches) return false;
         }
-        if (locFilter) {
+        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes((job.source || '').toLowerCase());
+        if (!isWorldwide && isLiveFeedJob) {
           const matchesLoc = matchesRemoteCountryAndLocation(
             job.location,
             `${job.title} ${job.jobDescriptionRaw}`,
             candidatePreferences?.country,
-            locFilter
+            locFilter,
+            candidatePreferences?.includeWorldwideRemote !== false
           );
           if (!matchesLoc) return false;
         }
@@ -205,7 +208,7 @@ export const SourcingTab: React.FC = () => {
         return true;
       })
       .sort((a, b) => (b.fitScore ?? -1) - (a.fitScore ?? -1));
-  }, [jobs, searchQuery, workplaceFilter, portalFilter, masterResume, isWorldwide, optionalLocation, candidatePreferences?.country]);
+  }, [jobs, searchQuery, workplaceFilter, portalFilter, masterResume, isWorldwide, optionalLocation, candidatePreferences?.country, candidatePreferences?.includeWorldwideRemote]);
 
   const handleSelectJob = (job: JobPosting) => {
     // Check Rejection Deduplication Guard
@@ -389,7 +392,7 @@ export const SourcingTab: React.FC = () => {
           <div className="flex items-center gap-2 flex-wrap">
             <Globe className="w-4 h-4 text-sky-400 shrink-0" />
             <label htmlFor="sourcing-country-select" className="font-bold text-white">
-              Target Job Market:
+              Search Market:
             </label>
             <select
               id="sourcing-country-select"
@@ -433,11 +436,27 @@ export const SourcingTab: React.FC = () => {
                 className="px-2.5 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed w-52"
               />
             </div>
+
+            {!isWorldwide && (
+              <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={candidatePreferences?.includeWorldwideRemote !== false}
+                  onChange={(e) => setCandidatePreferences({ includeWorldwideRemote: e.target.checked })}
+                  className="accent-sky-500"
+                />
+                Include worldwide remote roles
+              </label>
+            )}
           </div>
 
           <div className="flex items-center gap-2 self-start md:self-auto">
             <span className="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-300 border border-sky-500/20 font-mono text-[10px] font-bold">
-              {isWorldwide ? 'Worldwide Remote' : `${candidatePreferences?.country || 'IN'} Region Filter`}
+              {isWorldwide
+                ? 'Worldwide Remote'
+                : candidatePreferences?.includeWorldwideRemote === false
+                  ? `${candidatePreferences?.country || 'IN'} Only`
+                  : `${candidatePreferences?.country || 'IN'} + Worldwide Remote`}
             </span>
           </div>
         </div>
@@ -445,7 +464,7 @@ export const SourcingTab: React.FC = () => {
         <p className="text-[11px] text-slate-400 leading-relaxed">
           {isWorldwide
             ? 'Worldwide mode queries the Remotive, Remote OK, and Jobicy remote feeds. Coverage depends on these feeds and is not an exhaustive global job index.'
-            : `Remotive, Remote OK, and Jobicy provide remote postings only and filter locally for ${candidatePreferences?.country || 'IN'} / Worldwide eligibility${
+            : `Remotive, Remote OK, and Jobicy provide remote postings only and filter locally for ${candidatePreferences?.country || 'IN'}${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' plus explicitly worldwide roles'}${
                 optionalLocation.trim() ? ` + "${optionalLocation.trim()}"` : ''
               }. Non-remote or city-specific roles require pasted JDs.`}
         </p>
@@ -647,7 +666,7 @@ export const SourcingTab: React.FC = () => {
             className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSearchingLive ? 'animate-spin' : ''}`} />
-            <span>{isSearchingLive ? 'Querying public feeds...' : 'Query Live Job Feeds'}</span>
+            <span>{isSearchingLive ? 'Checking public job listings...' : 'Search Job Listings'}</span>
           </button>
         </div>
       </div>
@@ -706,7 +725,7 @@ export const SourcingTab: React.FC = () => {
                   className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
                 >
                   <Search className="w-4 h-4 text-sky-400" />
-                  <span>{isSearchingLive ? 'Querying Remotive...' : 'Discover Live Openings'}</span>
+                  <span>{isSearchingLive ? 'Checking public job listings...' : 'Search Job Listings'}</span>
                 </button>
               </div>
             </div>
