@@ -167,15 +167,24 @@ function collectPdfOperatorText(content: string): string[] {
     if (clean) chunks.push(clean);
   }
 
+  // Standard PDF writers often encode text operands as hexadecimal strings,
+  // including pdf-lib's built-in fonts. Do not scan arbitrary stream bytes for
+  // words; only decode hex strings immediately followed by a text-show operator.
+  const hexTjRegex = /<([0-9a-fA-F\s]+)>\s*Tj/g;
+  while ((match = hexTjRegex.exec(content)) !== null) {
+    const clean = cleanPdfHexString(match[1]);
+    if (clean) chunks.push(clean);
+  }
+
   // Match TJ operator (array of strings)
   const arrayTjRegex = /\[([\s\S]*?)\]\s*TJ/g;
   while ((match = arrayTjRegex.exec(content)) !== null) {
     const inner = match[1];
-    const itemRegex = /\(([^)\\]*(?:\\.[^)\\]*)*)\)/g;
+    const itemRegex = /\(([^)\\]*(?:\\.[^)\\]*)*)\)|<([0-9a-fA-F\s]+)>/g;
     let itemMatch: RegExpExecArray | null;
     let combined = '';
     while ((itemMatch = itemRegex.exec(inner)) !== null) {
-      combined += cleanPdfString(itemMatch[1]);
+      combined += itemMatch[1] !== undefined ? cleanPdfString(itemMatch[1]) : cleanPdfHexString(itemMatch[2]);
     }
     if (combined.trim()) chunks.push(combined.trim());
   }
@@ -237,30 +246,6 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
 
   let fullText = textChunks.join('\n');
 
-  // Secondary scan strictly limited to UNFILTERED uncompressed streams (never binary compressed streams)
-  if (fullText.split(/\s+/).filter(Boolean).length < 15) {
-    const unfilteredBlockRegex = /<<([\s\S]*?)>>\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
-    let blockMatch: RegExpExecArray | null;
-    const secondaryChunks: string[] = [];
-    while ((blockMatch = unfilteredBlockRegex.exec(binaryString)) !== null) {
-      const dict = blockMatch[1];
-      if (/\/Filter\b/.test(dict)) continue;
-      const streamContent = blockMatch[2];
-      const words = streamContent.match(/[A-Za-z0-9,.\-@+/]{3,}/g);
-      if (words && words.length > 15) {
-        const nonPdfWords = words.filter(
-          (w) => !['obj', 'endobj', 'stream', 'endstream', 'xref', 'trailer', 'Font', 'Type'].includes(w)
-        );
-        if (nonPdfWords.length > 10) {
-          secondaryChunks.push(nonPdfWords.join(' '));
-        }
-      }
-    }
-    if (secondaryChunks.length > 0) {
-      fullText = secondaryChunks.join('\n\n');
-    }
-  }
-
   // Normalize page count if 0
   if (pageCount < 1) {
     const words = fullText.split(/\s+/).filter(Boolean).length;
@@ -277,6 +262,28 @@ function cleanPdfString(raw: string): string {
     .replace(/\\t/g, ' ')
     .replace(/\\([()\\])/g, '$1')
     .trim();
+}
+
+function cleanPdfHexString(raw: string): string {
+  const hex = raw.replace(/\s/g, '');
+  if (!hex || hex.length % 2 !== 0) return '';
+
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+
+  try {
+    if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+      return new TextDecoder('utf-16be').decode(bytes.subarray(2)).replace(/\0/g, '').trim();
+    }
+    if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+      return new TextDecoder('utf-8', { fatal: false }).decode(bytes.subarray(3)).trim();
+    }
+    return new TextDecoder('windows-1252', { fatal: false }).decode(bytes).trim();
+  } catch {
+    return '';
+  }
 }
 
 async function decompressBytes(

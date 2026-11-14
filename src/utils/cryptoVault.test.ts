@@ -1116,6 +1116,38 @@ describe('Local Resume Extraction (.docx PKZIP/Deflate & Honest Format/OCR Guard
     assert.ok(extracted.parsedProfile?.skills.technical.includes('TypeScript'));
   });
 
+  it('extracts hex-encoded PDF text and does not mistake XMP metadata for resume content', async () => {
+    const { PDFDocument, StandardFonts } = await import('pdf-lib');
+    const { extractResumeFile } = await import('../services/extractionService');
+
+    const pdf = await PDFDocument.create();
+    const page = pdf.addPage();
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    page.drawText(
+      'Gowtham M\nSoftware Engineer\ngowtham@example.org\nProfessional Summary\nExperienced engineer building reliable web applications with TypeScript, React, Node.js, secure storage, automated testing, and cloud deployment.\nWork Experience\nNorthstar Systems - Software Engineer 2021 - Present\nDesigned and maintained customer-facing applications and improved service reliability through automated regression testing.',
+      { x: 40, y: 740, font, size: 10, lineHeight: 13 }
+    );
+    const pdfBytes = await pdf.save();
+    const readablePdf = new File([new Uint8Array(pdfBytes)], 'resume.pdf', { type: 'application/pdf' });
+    const extracted = await extractResumeFile(readablePdf);
+    assert.equal(extracted.success, true);
+    assert.match(extracted.rawText, /Gowtham M/);
+    assert.match(extracted.rawText, /Software Engineer/);
+    assert.match(extracted.rawText, /TypeScript, React, Node\.js/);
+    assert.doesNotMatch(extracted.rawText, /xpacket/i);
+
+    const xmp = '<?xpacket begin="metadata only words that are not resume content"?><x:xmpmeta>Adobe metadata description creator title keywords language document subject rights dates and source properties</x:xmpmeta><?xpacket end="w"?>';
+    const metadataPdf = new File(
+      [new TextEncoder().encode(`%PDF-1.4\n1 0 obj\n<< /Type /Page >>\n2 0 obj\n<< /Type /Metadata /Subtype /XML /Length ${xmp.length} >>\nstream\n${xmp}\nendstream\nendobj\n%%EOF`) ],
+      'metadata-only.pdf',
+      { type: 'application/pdf' }
+    );
+    const metadataResult = await extractResumeFile(metadataPdf);
+    assert.equal(metadataResult.success, false);
+    assert.match(metadataResult.error || '', /Manual Paste Fallback/i);
+    assert.doesNotMatch(metadataResult.rawText, /xpacket|Adobe metadata/i);
+  });
+
   it('rejects raster images honestly without OCR and rejects unreadable binary .pdf streams cleanly', async () => {
     const { extractResumeFile } = await import('../services/extractionService');
 
