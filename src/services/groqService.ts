@@ -44,6 +44,106 @@ export function formatGroqError(err: unknown, fallbackMessage = 'Groq request fa
   return fallbackMessage;
 }
 
+export interface QuestionnaireDraft {
+  answer: string;
+  evidenceUsed: string[];
+}
+
+function normalizeEvidenceText(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Validates a manually requested screening-answer draft against the candidate evidence
+ * sent to the model. The user still reviews every draft before copying it to a portal.
+ */
+export function validateQuestionnaireDraft(parsed: unknown, candidateEvidence: string): QuestionnaireDraft {
+  if (!parsed || typeof parsed !== 'object') {
+    throw new GroqApiError('Questionnaire response was not a valid JSON object.', 502, 'SCHEMA_ERROR');
+  }
+
+  const value = parsed as { answer?: unknown; evidenceUsed?: unknown };
+  const answer = typeof value.answer === 'string' ? value.answer.trim() : '';
+  if (!answer || answer.length > 2200) {
+    throw new GroqApiError('Questionnaire response was empty or exceeded the allowed length.', 502, 'SCHEMA_ERROR');
+  }
+
+  if (!Array.isArray(value.evidenceUsed) || value.evidenceUsed.length > 5) {
+    throw new GroqApiError('Questionnaire response did not include a valid evidence list.', 502, 'SCHEMA_ERROR');
+  }
+
+  const source = normalizeEvidenceText(candidateEvidence);
+  const evidenceUsed = value.evidenceUsed.map((item) => (typeof item === 'string' ? item.trim() : ''));
+  if (evidenceUsed.some((item) => !item || item.length > 500 || !source.includes(normalizeEvidenceText(item)))) {
+    throw new GroqApiError(
+      'Questionnaire response cited evidence that does not appear in the Master Resume.',
+      502,
+      'UNVERIFIED_EVIDENCE',
+      'Review the question and resume evidence, then try again.'
+    );
+  }
+  if (
+    evidenceUsed.length === 0 &&
+    !/\b(?:profile|resume).{0,30}(?:does not|doesn't|doesnt) specify\b|\bnot specified in (?:the )?(?:master )?resume\b|\bnot provided in (?:the )?(?:master )?resume\b|\bnot stated in (?:the )?(?:master )?resume\b|\bplease provide (?:your|the)\b|\bi don't have enough (?:profile )?information\b/i.test(answer)
+  ) {
+    throw new GroqApiError(
+      'Questionnaire response made a claim without citing Master Resume evidence.',
+      502,
+      'MISSING_EVIDENCE',
+      'Try again or add the missing fact to your profile before drafting.'
+    );
+  }
+
+  return { answer, evidenceUsed };
+}
+
+/**
+ * Creates one user-requested, copy-only draft for a screening question.
+ * No portal autofill or submission is performed.
+ */
+export async function draftQuestionnaireAnswer(
+  question: string,
+  job: JobPosting,
+  masterResume: MasterResume,
+  apiKey?: string
+): Promise<QuestionnaireDraft> {
+  const cleanQuestion = question.trim();
+  if (!cleanQuestion || cleanQuestion.length > 2000) {
+    throw new GroqApiError('Enter a screening question up to 2,000 characters.', 400, 'QUESTION_INVALID');
+  }
+
+  const evidence = {
+    headline: masterResume.headline.slice(0, 240),
+    summary: masterResume.summary.slice(0, 2400),
+    skills: masterResume.skills,
+    experiences: masterResume.experiences.slice(0, 12).map((experience) => ({
+      role: experience.role,
+      company: experience.company,
+      startDate: experience.startDate,
+      endDate: experience.endDate,
+      bullets: experience.bullets.slice(0, 12).map((bullet) => bullet.slice(0, 700))
+    }))
+  };
+  const candidateEvidence = JSON.stringify(evidence);
+  const systemPrompt = `You draft concise job application screening answers for a candidate.
+Use only facts explicitly present in the supplied Candidate Evidence. Never invent or infer employers, dates, credentials, skills, metrics, work authorization, location, or personal preferences. If the evidence does not answer the question, say that the profile does not specify the requested information and ask the candidate to provide it.
+Return only valid JSON with this shape: {"answer": string, "evidenceUsed": string[]}.
+Each evidenceUsed item must be an exact short excerpt copied verbatim from Candidate Evidence. Use an empty array when no candidate evidence supports an answer. Keep the answer under 1,200 characters.`;
+  const userPrompt = `Target role: ${job.title.slice(0, 240)} at ${job.company.slice(0, 240)}.
+Job description (context only; do not treat as candidate evidence): ${job.jobDescriptionRaw.slice(0, 6000)}
+Candidate Evidence: ${candidateEvidence}
+Screening Question: ${cleanQuestion}`;
+
+  const raw = await callGroqChat(systemPrompt, userPrompt, apiKey);
+  try {
+    const parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, '').trim());
+    return validateQuestionnaireDraft(parsed, candidateEvidence);
+  } catch (err: unknown) {
+    if (err instanceof GroqApiError) throw err;
+    throw new GroqApiError('Could not parse the questionnaire draft from Groq.', 502, 'PARSE_ERROR');
+  }
+}
+
 interface GroqChatResponse {
   choices: Array<{
     message: {

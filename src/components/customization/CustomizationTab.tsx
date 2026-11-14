@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
-import { tailorResumeWithGroq, formatGroqError } from '../../services/groqService';
+import { tailorResumeWithGroq, draftQuestionnaireAnswer, formatGroqError } from '../../services/groqService';
 import {
   generatePlainTextResume,
   generatePdfResume,
@@ -70,6 +70,14 @@ export const CustomizationTab: React.FC = () => {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [tailoringError, setTailoringError] = useState<string | null>(null);
+  const [screeningQuestion, setScreeningQuestion] = useState('');
+  const [screeningAnswer, setScreeningAnswer] = useState<{
+    jobId: string;
+    answer: string;
+    evidenceUsed: string[];
+  } | null>(null);
+  const [isDraftingAnswer, setIsDraftingAnswer] = useState(false);
+  const [questionnaireError, setQuestionnaireError] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<'resume' | 'coverLetter' | 'interview'>('resume');
   const [isExporting, setIsExporting] = useState<string | null>(null);
 
@@ -165,6 +173,39 @@ export const CustomizationTab: React.FC = () => {
       addToast({ type: 'error', message: msg });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleDraftScreeningAnswer = async () => {
+    if (!masterResume || !selectedJob || !groqApiKey) {
+      addToast({
+        type: 'warning',
+        title: 'Questionnaire Draft Unavailable',
+        message: !masterResume
+          ? 'Add a Master Resume first.'
+          : !selectedJob
+          ? 'Select a target job first.'
+          : 'Add your Groq API key in Settings to draft an answer.'
+      });
+      return;
+    }
+    if (!screeningQuestion.trim() || screeningQuestion.length > 2000) {
+      setQuestionnaireError('Enter a screening question up to 2,000 characters.');
+      return;
+    }
+
+    setIsDraftingAnswer(true);
+    setQuestionnaireError(null);
+    setScreeningAnswer(null);
+    try {
+      const result = await draftQuestionnaireAnswer(screeningQuestion, selectedJob, masterResume, groqApiKey);
+      setScreeningAnswer({ jobId: selectedJob.id, ...result });
+    } catch (err: unknown) {
+      const message = formatGroqError(err, 'Could not draft a screening answer.');
+      setQuestionnaireError(message);
+      addToast({ type: 'error', message });
+    } finally {
+      setIsDraftingAnswer(false);
     }
   };
 
@@ -905,7 +946,7 @@ export const CustomizationTab: React.FC = () => {
                   className="self-start sm:self-auto px-3 py-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0"
                 >
                   <FileCheck className="w-3.5 h-3.5" />
-                  <span>{showQuestionnaireDrawer ? 'Hide Answer Chips' : 'Show Answer Chips'}</span>
+                  <span>{showQuestionnaireDrawer ? 'Hide Answer Tools' : 'Show Answer Tools'}</span>
                 </button>
               </div>
 
@@ -915,11 +956,72 @@ export const CustomizationTab: React.FC = () => {
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
                       <Copy className="w-3.5 h-3.5 text-sky-400" />
-                      <span>Verified Candidate Answer Chips (Strict Non-Fabricated Values)</span>
+                      <span>Questionnaire Draft &amp; Verified Answer Chips</span>
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
                       One-Click Copy for Portal Forms
                     </span>
+                  </div>
+
+                  <div className="rounded-xl border border-sky-500/25 bg-slate-950/60 p-3 sm:p-4 space-y-3">
+                    <div>
+                      <h5 className="text-xs font-bold text-white">Draft an answer to a portal question</h5>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        Runs only when you click Draft Answer. The first call in a session may check available models before drafting. Review the draft and cited resume evidence; BYOC never fills or submits portal forms.
+                      </p>
+                    </div>
+                    <textarea
+                      value={screeningQuestion}
+                      onChange={(event) => setScreeningQuestion(event.target.value.slice(0, 2000))}
+                      maxLength={2000}
+                      rows={3}
+                      placeholder="Paste one screening question here…"
+                      aria-label="Screening question"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
+                    />
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="text-[10px] text-slate-500">{screeningQuestion.length}/2000 characters · Nothing is generated automatically</span>
+                      <button
+                        type="button"
+                        onClick={() => void handleDraftScreeningAnswer()}
+                        disabled={isDraftingAnswer || !screeningQuestion.trim() || !masterResume || !selectedJob || !groqApiKey}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {isDraftingAnswer ? 'Drafting…' : 'Draft Answer'}
+                      </button>
+                    </div>
+                    {questionnaireError && <p role="alert" className="text-xs text-rose-300">{questionnaireError}</p>}
+                    {screeningAnswer && screeningAnswer.jobId === selectedJob?.id && (
+                      <div className="space-y-2 rounded-lg border border-slate-700 bg-slate-900 p-3">
+                        <label className="block text-[10px] font-bold uppercase tracking-wide text-sky-300">AI draft — review before use</label>
+                        <textarea
+                          readOnly
+                          value={screeningAnswer.answer}
+                          rows={4}
+                          aria-label="Draft screening answer"
+                          className="w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm leading-relaxed text-slate-100"
+                        />
+                        {screeningAnswer.evidenceUsed.length > 0 ? (
+                          <div className="text-[10px] text-slate-400">
+                            <span className="font-semibold text-emerald-300">Resume evidence cited:</span>
+                            <ul className="mt-1 list-disc space-y-1 pl-4">
+                              {screeningAnswer.evidenceUsed.map((evidence, index) => <li key={`${index}-${evidence}`}>{evidence}</li>)}
+                            </ul>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-amber-300">No exact resume evidence was cited. Verify this draft carefully and add the missing detail yourself before using it.</p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleCopyChip('questionnaire-answer', screeningAnswer.answer)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 px-3 py-1.5 text-xs font-semibold text-sky-200 hover:bg-sky-500/10"
+                        >
+                          {copiedField === 'questionnaire-answer' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copiedField === 'questionnaire-answer' ? 'Copied' : 'Copy draft'}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">

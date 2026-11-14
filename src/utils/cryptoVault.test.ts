@@ -55,6 +55,7 @@ import {
   getAvailableGroqModels,
   tailorResumeWithGroq,
   validateTailoredOutput,
+  validateQuestionnaireDraft,
   vetJobWithGroq
 } from '../services/groqService';
 import {
@@ -1319,6 +1320,47 @@ describe('API Layer: Groq Error Handling & Recovery Hints (Mocked Fetch)', () =>
     } finally {
       globalThis.fetch = origFetch;
     }
+  });
+});
+
+describe('Evidence-Referenced Questionnaire Draft Validation', () => {
+  const candidateEvidence = JSON.stringify({
+    summary: 'Operations analyst with experience improving reporting workflows.',
+    experiences: [{ company: 'Northstar', bullets: ['Reduced monthly reporting time by 30%.'] }]
+  });
+
+  it('accepts a concise answer whose quoted evidence is an exact resume excerpt', () => {
+    const result = validateQuestionnaireDraft(
+      {
+        answer: 'I improved a reporting workflow and reduced monthly reporting time by 30%.',
+        evidenceUsed: ['Reduced monthly reporting time by 30%.']
+      },
+      candidateEvidence
+    );
+    assert.equal(result.evidenceUsed.length, 1);
+    assert.equal(result.answer.includes('30%'), true);
+  });
+
+  it('rejects fabricated evidence references and empty answers', () => {
+    assert.throws(
+      () => validateQuestionnaireDraft({ answer: 'Managed a global team of 20.', evidenceUsed: ['Managed a global team of 20.'] }, candidateEvidence),
+      /does not appear in the Master Resume/i
+    );
+    assert.throws(
+      () => validateQuestionnaireDraft({ answer: '  ', evidenceUsed: [] }, candidateEvidence),
+      /empty or exceeded/i
+    );
+    assert.throws(
+      () => validateQuestionnaireDraft({ answer: 'I have 10 years of experience.', evidenceUsed: [] }, candidateEvidence),
+      /without citing Master Resume evidence/i
+    );
+    assert.match(
+      validateQuestionnaireDraft(
+        { answer: 'The Master Resume does not specify this information. Please provide your answer before using this draft.', evidenceUsed: [] },
+        candidateEvidence
+      ).answer,
+      /does not specify/i
+    );
   });
 });
 
