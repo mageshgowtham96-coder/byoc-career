@@ -4,7 +4,7 @@
  * Purpose: Clean provider-agnostic architecture for AI model integration.
  * Strategy:
  *   - Primary provider: Groq (user-configured API key)
- *   - Secondary free providers: OpenRouter, Gemini (via existing dependencies)
+ *   - Secondary free providers: OpenRouter, Gemini (via @google/genai)
  *   - Provider switching requires explicit user approval — never silent
  *   - All providers share the same chat completion interface contract
  *   - API keys stored exclusively in AES-256-GCM encrypted vault
@@ -15,11 +15,6 @@
  * Contract:
  *   All providers must implement: callChat(systemPrompt, userPrompt, apiKey) => Promise<string>
  *   Response must be valid JSON (or parseable text) per the system prompt's response_format
- *
- * Design notes:
- *   - OpenRouter: uses existing @google/genai dependency infrastructure
- *   - Gemini: @google/genai v2 SDK available, but requires server proxy in client-only mode
- *   - Provider state is shared across the app via useWizardStore but persists only in vault
  */
 
 // Provider status enum
@@ -95,7 +90,7 @@ export const PROVIDER_CONFIGS = {
   },
   openrouter: {
     name: 'OpenRouter',
-    // baseURL will be derived from user's configured key domain
+    baseURL: 'https://openrouter.ai/api/v1/chat/completions',
     models: [
       'anthropic/claude-3.5-sonnet',
       'anthropic/claude-3.5-sonnet-100k',
@@ -106,12 +101,8 @@ export const PROVIDER_CONFIGS = {
   },
   gemini: {
     name: 'Gemini',
-    // @google/genai SDK requires server proxy in client-only mode
-    // Client-side: use Groq; Gemini available via backend proxy only
     models: ['gemini-1.5-pro', 'gemini-1.5-flash'],
-    timeoutMs: 30000,
-    // Client-side disabled flag — set true to explicitly disable Gemini client use
-    clientSideDisabled: true
+    timeoutMs: 30000
   }
 } as const;
 
@@ -128,36 +119,21 @@ export function getProviderConfig(name: keyof typeof PROVIDER_CONFIGS): typeof P
 export function isProviderClientUsable(name: keyof typeof PROVIDER_CONFIGS): boolean {
   const cfg = PROVIDER_CONFIGS[name];
   if (!cfg) return false;
-  // Gemini is explicitly client-side disabled because @google/genai needs a server proxy
-  if (name === 'gemini') return false;
-  return true;
+  return true; // All three are client-usable with proper SDKs
 }
 
 /**
- * Provider utility class — holds state and methods for a single provider
+ * Groq provider implementation
  */
-export class ProviderUtils {
-  name: keyof typeof PROVIDER_CONFIGS;
-  config: typeof PROVIDER_CONFIGS[keyof typeof PROVIDER_CONFIGS];
-  state: ProviderState;
-  configVersion: number;
+export class GroqProvider {
+  config = PROVIDER_CONFIGS.groq;
+  state: ProviderState = {
+    status: 'unknown',
+    metadata: null,
+    lastChecked: new Date().toISOString(),
+    errorMessage: undefined
+  };
 
-  constructor(name: keyof typeof PROVIDER_CONFIGS) {
-    this.name = name;
-    this.config = PROVIDER_CONFIGS[name];
-    this.state = {
-      status: 'unknown',
-      metadata: null,
-      lastChecked: new Date().toISOString(),
-      errorMessage: undefined
-    };
-    this.configVersion = 1;
-  }
-
-  /**
-   * Test connectivity and fetch model list from the provider.
-   * Updates this.state with results.
-   */
   async checkAvailability(apiKey: string): Promise<ProviderState> {
     this.state = {
       status: 'unknown',
@@ -166,145 +142,243 @@ export class ProviderUtils {
       errorMessage: undefined
     };
 
+    if (!apiKey || !apiKey.trim()) {
+      this.state.status = 'error';
+      this.state.errorMessage = 'Groq API key is required.';
+      return this.state;
+    }
+
     try {
-      if (this.name === 'gemini' && this.config.clientSideDisabled) {
-        this.state.status = 'unavailable';
-        this.state.errorMessage = 'Gemini requires server-side proxy; not available in client-only BYOC build.';
-        return this.state;
-      }
-
-      if (this.name === 'groq') {
-        // Use existing Groq model discovery
-        const models = await (await import('../services/groqService'))
-          .getAvailableGroqModels(apiKey);
-        this.state.metadata = {
-          id: 'groq',
-          name: 'Groq',
-          contextLength: 8192,
-          costPer1kTokens: null // free-tier varies by account
-        };
-        this.state.status = models.length > 0 ? 'available' : 'unavailable';
-        this.state.modelInUse = models[0] || undefined;
-        this.state.errorMessage = models.length === 0 ? 'No Groq models available. Check API key and quota.' : undefined;
-        return this.state;
-      }
-
-      if (this.name === 'openrouter') {
-        // OpenRouter availability check via generic fetch
-        // Requires API key; we validate with a minimal request
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs!);
-
-        const res = await fetch('https://openrouter.ai/api/v1/models', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${apiKey.trim()}`
-          },
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!res.ok) {
-          this.state.status = 'error';
-          this.state.errorMessage = `OpenRouter returned ${res.status}: ${res.statusText}`;
-          return this.state;
-        }
-
-        const data = await res.json();
-        const modelIds = (data.data || []).map((m: any) => m.id);
-        this.state.metadata = {
-          id: 'openrouter',
-          name: 'OpenRouter',
-          contextLength: 32768,
-          costPer1kTokens: null
-        };
-        this.state.status = modelIds.length > 0 ? 'available' : 'unavailable';
-        this.state.errorMessage = modelIds.length === 0 ? 'No models returned from OpenRouter.' : undefined;
-        return this.state;
-      }
-
-      this.state.status = 'unavailable';
-      this.state.errorMessage = `Unknown provider: ${this.name}`;
+      const { getAvailableGroqModels } = await import('../services/groqService');
+      const models = await getAvailableGroqModels(apiKey.trim());
+      
+      this.state.metadata = {
+        id: 'groq',
+        name: 'Groq',
+        contextLength: 8192,
+        costPer1kTokens: null
+      };
+      this.state.status = models.length > 0 ? 'available' : 'unavailable';
+      this.state.modelInUse = models[0] || undefined;
+      this.state.errorMessage = models.length === 0 ? 'No Groq models available. Check API key and quota.' : undefined;
       return this.state;
     } catch (err: unknown) {
       this.state.status = 'error';
-      this.state.errorMessage =
-        err instanceof Error ? err.message : 'Unknown provider error';
+      this.state.errorMessage = err instanceof Error ? err.message : 'Groq connectivity check failed';
       return this.state;
     }
   }
 
-  /**
-   * Attempt a chat completion using this provider.
-   * Returns ProviderCompletionResponse or throws GroqApiError.
-   */
-  async callChat(
-    systemPrompt: string,
-    userPrompt: string,
-    apiKey: string
-  ): Promise<ProviderCompletionResponse> {
-    // Input validation
+  async callChat(systemPrompt: string, userPrompt: string, apiKey: string): Promise<ProviderCompletionResponse> {
     if (!apiKey || !apiKey.trim()) {
-      throw new Error('API key is required for provider chat.');
+      throw new Error('Groq API key is required.');
     }
 
-    // Provider-specific routing
-    if (this.name === 'groq') {
-      const { callGroqChat } = (await import('../services/groqService')).callGroqChat;
-      const content = await callGroqChat(systemPrompt, userPrompt, apiKey, this.config.models[0]);
-      return {
-        content,
-        model: this.config.models[0] || 'unknown',
-        usage: undefined,
-        finishReason: 'stop'
-      };
+    const { callGroqChat } = await import('../services/groqService');
+    const model = this.config.models[0];
+    const content = await callGroqChat(systemPrompt, userPrompt, apiKey.trim(), model);
+    
+    return {
+      content,
+      model,
+      usage: undefined,
+      finishReason: 'stop'
+    };
+  }
+}
+
+/**
+ * OpenRouter provider implementation
+ */
+export class OpenRouterProvider {
+  config = PROVIDER_CONFIGS.openrouter;
+  state: ProviderState = {
+    status: 'unknown',
+    metadata: null,
+    lastChecked: new Date().toISOString(),
+    errorMessage: undefined
+  };
+
+  async checkAvailability(apiKey: string): Promise<ProviderState> {
+    this.state = {
+      status: 'unknown',
+      metadata: null,
+      lastChecked: new Date().toISOString(),
+      errorMessage: undefined
+    };
+
+    if (!apiKey || !apiKey.trim()) {
+      this.state.status = 'error';
+      this.state.errorMessage = 'OpenRouter API key is required.';
+      return this.state;
     }
 
-    if (this.name === 'openrouter') {
-      // Generic OpenRouter chat via fetch
+    try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs!);
 
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
+      const res = await fetch('https://openrouter.ai/api/v1/models', {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey.trim()}`
         },
-        body: JSON.stringify({
-          model: this.config.models[0],
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: 0.15,
-          max_tokens: 3800
-        }),
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        const errBody = await res.text();
-        throw new Error(`OpenRouter ${res.status}: ${errBody}`);
+        this.state.status = 'error';
+        this.state.errorMessage = `OpenRouter returned ${res.status}: ${res.statusText}`;
+        return this.state;
       }
 
       const data = await res.json();
-      return {
-        content: data.choices?.[0]?.message?.content || '',
-        model: data.model || this.config.models[0],
-        usage: data.usage,
-        finishReason: data.finish_reason || 'stop'
+      const modelIds = (data.data || []).map((m: any) => m.id);
+      
+      this.state.metadata = {
+        id: 'openrouter',
+        name: 'OpenRouter',
+        contextLength: 32768,
+        costPer1kTokens: null
       };
+      this.state.status = modelIds.length > 0 ? 'available' : 'unavailable';
+      this.state.errorMessage = modelIds.length === 0 ? 'No models returned from OpenRouter.' : undefined;
+      return this.state;
+    } catch (err: unknown) {
+      this.state.status = 'error';
+      this.state.errorMessage = err instanceof Error ? err.message : 'OpenRouter connectivity check failed';
+      return this.state;
+    }
+  }
+
+  async callChat(systemPrompt: string, userPrompt: string, apiKey: string): Promise<ProviderCompletionResponse> {
+    if (!apiKey || !apiKey.trim()) {
+      throw new Error('OpenRouter API key is required.');
     }
 
-    if (this.name === 'gemini') {
-      throw new Error('Gemini provider is not available in client-only mode. Use Groq or configure a backend proxy for Gemini.');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs!);
+
+    const res = await fetch(this.config.baseURL!, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey.trim()}`
+      },
+      body: JSON.stringify({
+        model: this.config.models[0],
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.15,
+        max_tokens: 3800
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`OpenRouter ${res.status}: ${errBody}`);
     }
 
-    throw new Error(`Unsupported provider: ${this.name}`);
+    const data = await res.json();
+    return {
+      content: data.choices?.[0]?.message?.content || '',
+      model: data.model || this.config.models[0],
+      usage: data.usage,
+      finishReason: data.finish_reason || 'stop'
+    };
+  }
+}
+
+/**
+ * Gemini provider implementation using @google/genai SDK
+ */
+export class GeminiProvider {
+  config = PROVIDER_CONFIGS.gemini;
+  state: ProviderState = {
+    status: 'unknown',
+    metadata: null,
+    lastChecked: new Date().toISOString(),
+    errorMessage: undefined
+  };
+
+  private genaiClient: any = null;
+
+  async checkAvailability(apiKey: string): Promise<ProviderState> {
+    this.state = {
+      status: 'unknown',
+      metadata: null,
+      lastChecked: new Date().toISOString(),
+      errorMessage: undefined
+    };
+
+    if (!apiKey || !apiKey.trim()) {
+      this.state.status = 'error';
+      this.state.errorMessage = 'Gemini API key is required.';
+      return this.state;
+    }
+
+    try {
+      const { GoogleGenAI } = await import('@google/genai');
+      this.genaiClient = new GoogleGenAI({ apiKey: apiKey.trim() });
+      
+      // Test with a minimal request
+      const result = await this.genaiClient.models.generateContent({
+        model: this.config.models[0],
+        contents: 'test'
+      });
+
+      this.state.metadata = {
+        id: 'gemini',
+        name: 'Gemini',
+        contextLength: 1048576, // 1M tokens for 1.5 Pro
+        costPer1kTokens: null
+      };
+      this.state.status = 'available';
+      this.state.modelInUse = this.config.models[0];
+      return this.state;
+    } catch (err: unknown) {
+      this.state.status = 'error';
+      this.state.errorMessage = err instanceof Error ? err.message : 'Gemini connectivity check failed';
+      return this.state;
+    }
+  }
+
+  async callChat(systemPrompt: string, userPrompt: string, apiKey: string): Promise<ProviderCompletionResponse> {
+    if (!apiKey || !apiKey.trim()) {
+      throw new Error('Gemini API key is required.');
+    }
+
+    if (!this.genaiClient) {
+      const { GoogleGenAI } = await import('@google/genai');
+      this.genaiClient = new GoogleGenAI({ apiKey: apiKey.trim() });
+    }
+
+    const result = await this.genaiClient.models.generateContent({
+      model: this.config.models[0],
+      contents: `${systemPrompt}\n\n${userPrompt}`,
+      config: {
+        temperature: 0.15,
+        maxOutputTokens: 3800,
+        responseMimeType: 'application/json'
+      }
+    });
+
+    return {
+      content: result.text || '',
+      model: this.config.models[0],
+      usage: result.usageMetadata ? {
+        promptTokens: result.usageMetadata.promptTokenCount || 0,
+        completionTokens: result.usageMetadata.candidatesTokenCount || 0,
+        totalTokens: result.usageMetadata.totalTokenCount || 0
+      } : undefined,
+      finishReason: 'stop'
+    };
   }
 }
 
@@ -312,22 +386,22 @@ export class ProviderUtils {
  * Provider manager — tracks all providers and their states
  */
 export class ProviderManager {
-  private providers: Map<keyof typeof PROVIDER_CONFIGS, ProviderUtils> = new Map();
+  private providers: Map<keyof typeof PROVIDER_CONFIGS, GroqProvider | OpenRouterProvider | GeminiProvider> = new Map();
   private selectedProvider: keyof typeof PROVIDER_CONFIGS | null = null;
 
   /**
    * Initialize all known providers
    */
   init(): void {
-    for (const name of Object.keys(PROVIDER_CONFIGS) as keyof typeof PROVIDER_CONFIGS[]) {
-      this.providers.set(name, new ProviderUtils(name));
-    }
+    this.providers.set('groq', new GroqProvider());
+    this.providers.set('openrouter', new OpenRouterProvider());
+    this.providers.set('gemini', new GeminiProvider());
   }
 
   /**
    * Get a provider by name
    */
-  getProvider(name: keyof typeof PROVIDER_CONFIGS): ProviderUtils | undefined {
+  getProvider(name: keyof typeof PROVIDER_CONFIGS): GroqProvider | OpenRouterProvider | GeminiProvider | undefined {
     return this.providers.get(name);
   }
 
@@ -336,8 +410,6 @@ export class ProviderManager {
    */
   setSelectedProvider(name: keyof typeof PROVIDER_CONFIGS | null): void {
     this.selectedProvider = name;
-    // Persist selection in vault via store
-    // (caller responsibility: write to useWizardState.groqProviderSelection or similar)
   }
 
   /**
@@ -350,10 +422,12 @@ export class ProviderManager {
   /**
    * Check availability of all providers
    */
-  async checkAllProviders(apiKey: string): Promise<Map<keyof typeof PROVIDER_CONFIGS, ProviderState>> {
+  async checkAllProviders(apiKeys: Record<string, string>): Promise<Map<keyof typeof PROVIDER_CONFIGS, ProviderState>> {
     const results = new Map<keyof typeof PROVIDER_CONFIGS, ProviderState>();
-    for (const [name, utils] of this.providers) {
-      const state = await utils.checkAvailability(apiKey);
+    
+    for (const [name, provider] of this.providers) {
+      const apiKey = apiKeys[name] || '';
+      const state = await provider.checkAvailability(apiKey);
       results.set(name, state);
     }
     return results;
@@ -365,30 +439,32 @@ export class ProviderManager {
   async attemptChat(
     systemPrompt: string,
     userPrompt: string,
-    apiKey: string
+    apiKeys: Record<string, string>
   ): Promise<{ content: string; model: string; provider: keyof typeof PROVIDER_CONFIGS } | null> {
     // Try selected provider first
     if (this.selectedProvider) {
-      const utils = this.providers.get(this.selectedProvider);
-      if (utils) {
+      const provider = this.providers.get(this.selectedProvider);
+      if (provider) {
         try {
-          const response = await utils.callChat(systemPrompt, userPrompt, apiKey);
+          const apiKey = apiKeys[this.selectedProvider] || '';
+          const response = await provider.callChat(systemPrompt, userPrompt, apiKey);
           return { content: response.content, model: response.model, provider: this.selectedProvider };
         } catch (err: unknown) {
           console.warn(`Provider ${this.selectedProvider} failed:`, err);
-          // Fall through to try other providers
         }
       }
     }
 
-    // Fallback: try available providers in preference order (Groq > OpenRouter)
-    const fallbackOrder: keyof typeof PROVIDER_CONFIGS[] = ['groq', 'openrouter'];
+    // Fallback: try available providers in preference order
+    const fallbackOrder: keyof typeof PROVIDER_CONFIGS[] = ['groq', 'openrouter', 'gemini'];
     for (const name of fallbackOrder) {
-      const utils = this.providers.get(name);
-      if (!utils) continue;
+      const provider = this.providers.get(name);
+      if (!provider) continue;
+      const apiKey = apiKeys[name] || '';
+      if (!apiKey) continue;
+      
       try {
-        const response = await utils.callChat(systemPrompt, userPrompt, apiKey);
-        // Switch selection to the working provider
+        const response = await provider.callChat(systemPrompt, userPrompt, apiKey);
         this.setSelectedProvider(name);
         return { content: response.content, model: response.model, provider: name };
       } catch (err: unknown) {
@@ -397,7 +473,11 @@ export class ProviderManager {
       }
     }
 
-    // All providers failed
     return null;
   }
 }
+
+// Re-export types
+export type { ProviderStatus, ProviderMetadata, ProviderMessage, ProviderCompletionResponse, ProviderConfig, ProviderState };
+export { PROVIDER_CONFIGS, getProviderConfig, isProviderClientUsable };
+export { GroqProvider, OpenRouterProvider, GeminiProvider, ProviderManager };
