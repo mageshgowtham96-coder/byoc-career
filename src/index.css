@@ -5,6 +5,9 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+/* Design Token CSS — do NOT remove */
+@import './styles/designTokens.css';
+
 :root {
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -15,7 +18,7 @@
 @layer base {
   html {
     color-scheme: dark;
-    background-color: #070B14;
+    background-color: var(--obsidian);
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
@@ -24,13 +27,13 @@
   }
 
   body {
-    background-color: #070B14;
+    background-color: var(--obsidian);
     color: #f8fafc;
     overflow-x: hidden;
     width: 100%;
     min-height: 100vh;
     min-height: 100dvh;
-    font-family: var(--font-sans);
+    font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     touch-action: manipulation;
@@ -55,14 +58,13 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #070B14;
+    background: var(--obsidian);
   }
   ::-webkit-scrollbar-thumb {
-    background: #1e293b;
+    background: var(--slate-800);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: var(--slate-700);
   }
 }
-
