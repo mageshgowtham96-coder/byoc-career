@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { recordFailedAttempt, checkPassphraseLockout, resetPassphraseAttemptCounter, clearPassphraseLockout, exportAttemptState } from './rateLimit';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { recordFailedAttempt, checkPassphraseLockout, resetPassphraseAttemptCounter, clearPassphraseLockout, exportAttemptState, getLockoutDescription } from './rateLimit';
 
 describe('Passphrase Rate Limiting', () => {
   beforeEach(() => {
-    // Clean state before each test
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.removeItem('byoc_passphrase_attempts');
     }
+    vi.clearAllMocks();
   });
 
   describe('recordFailedAttempt', () => {
@@ -22,23 +22,46 @@ describe('Passphrase Rate Limiting', () => {
       recordFailedAttempt();
       recordFailedAttempt();
       const result = recordFailedAttempt();
-      expect(result.attempts).toBe(4); // 3 previous + 1 new
+      expect(result.attempts).toBe(4);
     });
 
-    it('respects 2-minute sliding window cleanup', () => {
-      // Simulate very old attempts
+    it('respects 30-minute sliding window cleanup', () => {
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.setItem(
           'byoc_passphrase_attempts',
           JSON.stringify([
-            { timestamp: Date.now() - 10_000_000, success: false }, // 100 min ago
-            { timestamp: Date.now() - 10_000_000, success: false }
+            { timestamp: Date.now() - 45 * 60 * 1000, success: false },
+            { timestamp: Date.now() - 45 * 60 * 1000, success: false }
           ])
         );
       }
       const result = recordFailedAttempt();
-      // Old attempts should be filtered out; only the new one remains
       expect(result.attempts).toBe(1);
+    });
+
+    it('calculates progressive delays correctly', () => {
+      // 3 attempts → 30s
+      for (let i = 0; i < 3; i++) recordFailedAttempt();
+      let result = recordFailedAttempt();
+      expect(result.delayMs).toBe(30000);
+
+      // Clear and test 5 attempts → 2min
+      clearPassphraseLockout();
+      for (let i = 0; i < 5; i++) recordFailedAttempt();
+      result = recordFailedAttempt();
+      expect(result.delayMs).toBe(120000);
+
+      // Clear and test 10 attempts → 15min
+      clearPassphraseLockout();
+      for (let i = 0; i < 10; i++) recordFailedAttempt();
+      result = recordFailedAttempt();
+      expect(result.delayMs).toBe(900000);
+
+      // Clear and test 11 attempts → 1hr
+      clearPassphraseLockout();
+      for (let i = 0; i < 11; i++) recordFailedAttempt();
+      result = recordFailedAttempt();
+      expect(result.delayMs).toBe(3600000);
     });
   });
 
@@ -63,11 +86,11 @@ describe('Passphrase Rate Limiting', () => {
       const result = checkPassphraseLockout();
       expect(result.isLocked).toBe(false);
       expect(result.attemptsInWindow).toBe(2);
+      expect(result.delayMs).toBe(0);
     });
 
     it('returns locked when 3+ failed attempts within cooldown', () => {
       if (typeof window !== 'undefined' && window.localStorage) {
-        // Set 3 failed attempts with current timestamps
         window.localStorage.setItem(
           'byoc_passphrase_attempts',
           JSON.stringify([
@@ -82,13 +105,13 @@ describe('Passphrase Rate Limiting', () => {
       expect(result.attemptsInWindow).toBe(3);
       expect(result.cooldownEndsAt).toBeDefined();
       expect(result.secondsRemaining).toBeGreaterThan(0);
+      expect(result.delayMs).toBe(30000);
     });
 
     it('calculates correct seconds remaining', () => {
       if (typeof window !== 'undefined' && window.localStorage) {
-        // Force cooldown end to be 15 seconds from now
         const fixedNow = Date.now();
-        const oldTimestamp = fixedNow - 60_000; // 1 min ago
+        const oldTimestamp = fixedNow - 60000;
         window.localStorage.setItem(
           'byoc_passphrase_attempts',
           JSON.stringify([
@@ -97,13 +120,13 @@ describe('Passphrase Rate Limiting', () => {
             { timestamp: oldTimestamp, success: false }
           ])
         );
-        // Monkey-patch Date.now for test
+        // Mock Date.now for test
         const originalNow = global.Date.now;
         // @ts-expect-error testing only
-        global.Date.now = () => fixedNow + 30_000; // 30s into cooldown (COOLDOWN_MS = 30_000)
+        global.Date.now = () => fixedNow + 15000;
         try {
           const result = checkPassphraseLockout();
-          expect(result.secondsRemaining).toBe(30);
+          expect(result.secondsRemaining).toBe(15);
         } finally {
           global.Date.now = originalNow;
         }
@@ -164,10 +187,48 @@ describe('Passphrase Rate Limiting', () => {
 
     it('returns null when no localStorage', () => {
       // @ts-expect-error testing only
-      // Simulate no window
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const result = exportAttemptState();
-      expect(result).toBeNull();
+      const originalWindow = global.window;
+      global.window = undefined;
+      try {
+        const result = exportAttemptState();
+        expect(result).toBeNull();
+      } finally {
+        global.window = originalWindow;
+      }
+    });
+  });
+
+  describe('getLockoutDescription', () => {
+    it('returns descriptive text for different states', () => {
+      // No attempts
+      clearPassphraseLockout();
+      expect(getLockoutDescription()).toBe('No failed attempts recorded.');
+
+      // Below threshold
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(
+          'byoc_passphrase_attempts',
+          JSON.stringify([
+            { timestamp: Date.now(), success: false }
+          ])
+        );
+      }
+      expect(getLockoutDescription()).toContain('2 attempts remaining');
+
+      // Locked
+      clearPassphraseLockout();
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(
+          'byoc_passphrase_attempts',
+          JSON.stringify([
+            { timestamp: Date.now(), success: false },
+            { timestamp: Date.now(), success: false },
+            { timestamp: Date.now(), success: false }
+          ])
+        );
+      }
+      const desc = getLockoutDescription();
+      expect(desc).toContain('Locked');
     });
   });
 });
