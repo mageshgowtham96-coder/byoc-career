@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ExportedMaterialRecord, TailoredArtifact, MasterResume } from '../types';
+import { generatePlainTextResume, generatePdfResume, generateDocxResume } from '../services/exporterService';
 
 // Mock the docx and pdf-lib modules
 vi.mock('docx', () => ({
@@ -55,21 +56,16 @@ vi.mock('../utils/tailoredBulletResolver', () => ({
     summary: resume.summary,
     skills: resume.skills.technical,
     contactLinks: [],
-    experiences: artifact.variants[0]?.optimizedBullets?.map(b => ({
+    experiences: artifact.variants[0]?.optimizedBullets?.map((b: any) => ({
       experience: { role: b.role, company: b.company, startDate: b.startDate, endDate: b.endDate, location: b.location },
       bullets: [{ text: b.tailoredBullet || b.originalBullet }]
     })) || [],
     projects: resume.projects,
     education: resume.education,
     certifications: resume.certifications,
-    coverLetter: artifact.coverLetter,
     coverLetter: artifact.coverLetter
   }))
 }));
-
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ExportedMaterialRecord, TailoredArtifact, MasterResume } from '../types';
-import { generatePlainTextResume, generatePdfResume, generateDocxResume } from '../services/exporterService';
 
 describe('Export Service', () => {
   beforeEach(() => {

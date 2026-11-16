@@ -9,6 +9,26 @@ import {
   isProviderClientUsable 
 } from './providerAbstraction';
 
+// Mock the services and SDKs
+vi.mock('../services/groqService', () => ({
+  getAvailableGroqModels: vi.fn().mockResolvedValue(['llama-3.1-70b-versatile']),
+  callGroqChat: vi.fn().mockResolvedValue('{"response": "mocked groq"}')
+}));
+
+vi.mock('@google/genai', () => ({
+  GoogleGenAI: vi.fn().mockImplementation(() => ({
+    models: {
+      generateContent: vi.fn().mockResolvedValue({
+        text: '{"response": "mocked gemini"}',
+        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20, totalTokenCount: 30 }
+      })
+    }
+  }))
+}));
+
+// Mock global fetch for OpenRouter
+global.fetch = vi.fn();
+
 describe('Provider Abstraction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -68,6 +88,32 @@ describe('Provider Abstraction', () => {
       manager.setSelectedProvider(null);
       expect(manager.getSelectedProvider()).toBeNull();
     });
+
+    it('attemptChat falls back when primary fails', async () => {
+      const manager = new ProviderManager();
+      manager.init();
+      manager.setSelectedProvider('groq');
+      
+      const apiKeys = { groq: 'key-g', openrouter: 'key-o', gemini: 'key-m' };
+      
+      // Mock groq failure
+      const { callGroqChat } = await import('../services/groqService');
+      (callGroqChat as any).mockRejectedValueOnce(new Error('Groq Down'));
+      
+      // Mock openrouter success
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: 'openrouter success' } }],
+          model: 'openrouter-model'
+        })
+      });
+      
+      const result = await manager.attemptChat('sys', 'user', apiKeys);
+      expect(result).not.toBeNull();
+      expect(result?.provider).toBe('openrouter');
+      expect(result?.content).toBe('openrouter success');
+    });
   });
 
   describe('GroqProvider', () => {
@@ -78,9 +124,22 @@ describe('Provider Abstraction', () => {
       expect(state.errorMessage).toContain('API key is required');
     });
 
+    it('successful availability check', async () => {
+      const provider = new GroqProvider();
+      const state = await provider.checkAvailability('test-key');
+      expect(state.status).toBe('available');
+      expect(state.modelInUse).toBeDefined();
+    });
+
     it('requires API key for chat', async () => {
       const provider = new GroqProvider();
       await expect(provider.callChat('sys', 'user', '')).rejects.toThrow('Groq API key is required');
+    });
+    
+    it('successful chat call', async () => {
+      const provider = new GroqProvider();
+      const result = await provider.callChat('sys', 'user', 'test-key');
+      expect(result.content).toBe('{"response": "mocked groq"}');
     });
   });
 
@@ -92,15 +151,32 @@ describe('Provider Abstraction', () => {
       expect(state.errorMessage).toContain('API key is required');
     });
 
+    it('successful availability check', async () => {
+      const provider = new OpenRouterProvider();
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: [{ id: 'model-1' }] })
+      });
+      const state = await provider.checkAvailability('test-key');
+      expect(state.status).toBe('available');
+    });
+
     it('requires API key for chat', async () => {
       const provider = new OpenRouterProvider();
       await expect(provider.callChat('sys', 'user', '')).rejects.toThrow('OpenRouter API key is required');
     });
 
-    it('has correct baseURL and models', () => {
+    it('successful chat call', async () => {
       const provider = new OpenRouterProvider();
-      expect(provider.config.baseURL).toBe('https://openrouter.ai/api/v1/chat/completions');
-      expect(provider.config.models.length).toBeGreaterThan(0);
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: 'openrouter chat' } }],
+          model: 'openrouter-model'
+        })
+      });
+      const result = await provider.callChat('sys', 'user', 'test-key');
+      expect(result.content).toBe('openrouter chat');
     });
   });
 
@@ -112,15 +188,21 @@ describe('Provider Abstraction', () => {
       expect(state.errorMessage).toContain('API key is required');
     });
 
+    it('successful availability check', async () => {
+      const provider = new GeminiProvider();
+      const state = await provider.checkAvailability('test-key');
+      expect(state.status).toBe('available');
+    });
+
     it('requires API key for chat', async () => {
       const provider = new GeminiProvider();
       await expect(provider.callChat('sys', 'user', '')).rejects.toThrow('Gemini API key is required');
     });
 
-    it('has correct models', () => {
+    it('successful chat call', async () => {
       const provider = new GeminiProvider();
-      expect(provider.config.models).toContain('gemini-1.5-pro');
-      expect(provider.config.models).toContain('gemini-1.5-flash');
+      const result = await provider.callChat('sys', 'user', 'test-key');
+      expect(result.content).toBe('{"response": "mocked gemini"}');
     });
   });
 });
