@@ -27,7 +27,7 @@ const draft: CareerApplicationFormState = {
     duration: '2024–Present',
     startDate: '2024',
     endDate: 'Present',
-    keyResponsibilities: ['வாராந்திர அறிக்கைகளை உருவாக்கினேன்']
+    keyResponsibilities: ['வாராந்திர அறிக்கைகளை 3 குழுக்களுக்கு உருவாக்கினேன்']
   }],
   skills: ['SQL', 'Power BI'],
   education: [{
@@ -62,7 +62,7 @@ describe('translateCareerDraftToEnglish', () => {
       targetRole: 'Data Analyst',
       currentRole: 'Data Intern',
       professionalSummary: 'Early-career professional interested in data analysis.',
-      workExperience: [{ role: 'Data Intern', keyResponsibilities: ['Created weekly reports'] }],
+      workExperience: [{ role: 'Data Intern', keyResponsibilities: ['Created weekly reports for 3 teams'] }],
       education: [{ degree: "Bachelor's degree in Statistics", field: 'Statistics' }],
       projects: [{ title: 'Sales Report', description: 'Created a report for a college project.' }],
       certifications: [{ name: 'Power BI Certificate' }]
@@ -92,6 +92,20 @@ describe('translateCareerDraftToEnglish', () => {
     }));
 
     await expect(translateCareerDraftToEnglish(draft, 'Tamil', 'test-groq-key')).rejects.toThrow(/translation response/i);
+  });
+
+  it('rejects a translation that changes a user-provided number or metric', async () => {
+    vi.mocked(callGroqChat).mockResolvedValue(JSON.stringify({
+      targetRole: 'Data Analyst',
+      currentRole: 'Data Intern',
+      professionalSummary: 'Early-career professional interested in data analysis.',
+      workExperience: [{ role: 'Data Intern', keyResponsibilities: ['Created weekly reports for 5 teams'] }],
+      education: [{ degree: "Bachelor's degree in Statistics", field: 'Statistics' }],
+      projects: [{ title: 'Sales Report', description: 'Created a report for a college project.' }],
+      certifications: [{ name: 'Power BI Certificate' }]
+    }));
+
+    await expect(translateCareerDraftToEnglish(draft, 'Tamil', 'test-groq-key')).rejects.toThrow(/changed a number or metric/i);
   });
 
   it('does not make a Groq request when the API key is missing', async () => {
