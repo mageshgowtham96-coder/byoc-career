@@ -889,7 +889,7 @@ export class LiveJobSearchEngine {
       }
 
       if (locLower) {
-        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live', 'groq browser search — verify before applying'].includes((job.source || '').toLowerCase());
+        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes((job.source || '').toLowerCase());
         const matchesLoc = !isLiveFeedJob || matchesRemoteCountryAndLocation(
           job.location,
           `${job.title} ${job.jobDescriptionRaw}`,
