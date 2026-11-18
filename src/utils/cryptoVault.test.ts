@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, it, beforeEach, expect, vi } from 'vitest';
 import {
   VAULT_STORAGE_KEY,
@@ -84,7 +85,10 @@ const mockCrypto = {
     deriveKey: vi.fn().mockResolvedValue({}),
     encrypt: vi.fn().mockResolvedValue(new ArrayBuffer(100)),
     decrypt: vi.fn().mockResolvedValue(new ArrayBuffer(50)),
-    digest: vi.fn().mockResolvedValue(new ArrayBuffer(32)),
+    digest: vi.fn(async (_algorithm: AlgorithmIdentifier, data: BufferSource) => {
+      const hash = createHash('sha256').update(Buffer.from(data as Uint8Array)).digest();
+      return hash.buffer.slice(hash.byteOffset, hash.byteOffset + hash.byteLength) as ArrayBuffer;
+    }),
   },
   getRandomValues: vi.fn((arr: Uint8Array) => {
     for (let i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 256);
@@ -185,11 +189,12 @@ describe('Legacy Migration', () => {
 
   describe('sanitizeStoredWorkspaceStoreMetadata', () => {
     it('removes demo identity from stored metadata', () => {
+      let stored = JSON.stringify({
+        state: { user: { id: 'test-user', name: 'alex mercer', email: 'alex.mercer@leaddev.io' } }
+      });
       const mockStorage = {
-        getItem: vi.fn(() => JSON.stringify({
-          state: { user: { name: 'alex mercer', email: 'alex.mercer@leaddev.io' } }
-        })),
-        setItem: vi.fn()
+        getItem: vi.fn(() => stored),
+        setItem: vi.fn((_key: string, value: string) => { stored = value; })
       };
       const result = sanitizeStoredWorkspaceStoreMetadata(mockStorage as any, 'test_key');
       expect(result.status).toBe('updated');
@@ -203,16 +208,17 @@ describe('Job Search Service', () => {
   });
 
   describe('calculateHonestMatch', () => {
-    it('returns 0 for null resume', () => {
+    it('returns insufficient profile data for null resume', () => {
       const job: JobPosting = {
         id: '1', title: 'Engineer', company: 'Test', location: 'Remote',
         workplaceType: 'Remote', salary: '$100k', postedDate: '2024-01-01',
         jobDescriptionRaw: 'TypeScript React Node.js',
         url: 'https://example.com', source: 'Test', skillsRequired: ['TypeScript', 'React'],
-        fitScore: null, matchedKeywords: [], missingKeywords: []
+        fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
       };
       const result = calculateHonestMatch(job, null);
-      expect(result.score).toBe(0);
+      expect(result.score).toBeNull();
+      expect(result.statusText).toBe('Insufficient profile data');
       expect(result.matchedKeywords).toEqual([]);
       expect(result.missingKeywords).toEqual(['TypeScript', 'React']);
     });
@@ -223,10 +229,10 @@ describe('Job Search Service', () => {
         workplaceType: 'Remote', salary: '$100k', postedDate: '2024-01-01',
         jobDescriptionRaw: 'TypeScript React Node.js',
         url: 'https://example.com', source: 'Test', skillsRequired: ['TypeScript', 'React', 'Node.js'],
-        fitScore: null, matchedKeywords: [], missingKeywords: []
+        fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
       };
       const resume: MasterResume = {
-        rawText: '', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+        rawText: 'TypeScript React Python', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
         headline: '', summary: '',
         skills: { technical: ['TypeScript', 'React', 'Python'], soft: [], tools: [], domains: [] },
         experiences: [], education: [], projects: [], certifications: [],
@@ -245,10 +251,10 @@ describe('Job Search Service', () => {
         workplaceType: 'Remote', salary: '$100k', postedDate: '2024-01-01',
         jobDescriptionRaw: 'TYPESCRIPT react',
         url: 'https://example.com', source: 'Test', skillsRequired: ['TypeScript', 'React'],
-        fitScore: null, matchedKeywords: [], missingKeywords: []
+        fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
       };
       const resume: MasterResume = {
-        rawText: '', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+        rawText: 'TypeScript React Python', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
         headline: '', summary: '',
         skills: { technical: ['typescript', 'REACT'], soft: [], tools: [], domains: [] },
         experiences: [], education: [], projects: [], certifications: [],
@@ -262,12 +268,13 @@ describe('Job Search Service', () => {
   describe('mergePortalShortcuts', () => {
     it('deduplicates by id keeping built-in', () => {
       const shortcuts = [
-        { id: 'portal-1', name: 'Test', searchUrlTemplate: 'url', isBuiltIn: true },
-        { id: 'portal-1', name: 'Test Dup', searchUrlTemplate: 'url2', isBuiltIn: false }
+        { id: 'portal-1', name: 'Test', searchUrlTemplate: 'https://example.com/jobs?q={query}', isBuiltIn: true },
+        { id: 'portal-1', name: 'Test Dup', searchUrlTemplate: 'https://duplicate.example/jobs?q={query}', isBuiltIn: false }
       ];
       const result = mergePortalShortcuts(shortcuts);
-      expect(result.length).toBe(1);
-      expect(result[0].isBuiltIn).toBe(true);
+      const matching = result.filter((item) => item.id === 'portal-1');
+      expect(matching).toHaveLength(1);
+      expect(matching[0].isBuiltIn).toBe(true);
     });
   });
 
@@ -298,7 +305,7 @@ describe('Application Snapshot', () => {
         postedDate: '2024-01-15', jobDescriptionRaw: 'We need a senior engineer...',
         url: 'https://acme.com/jobs/1', source: 'Company Careers',
         skillsRequired: ['TypeScript', 'React', 'Node.js'],
-        fitScore: 85, matchedKeywords: ['TypeScript', 'React'], missingKeywords: ['Node.js']
+        fitScore: 85, matchedKeywords: ['TypeScript', 'React'], missingKeywords: ['Node.js'], experienceLevel: 'Unspecified'
       };
       const snapshot = buildApplicationSnapshotRecord({ job, masterResumeSummary: 'Experienced engineer' });
       

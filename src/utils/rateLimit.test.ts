@@ -41,25 +41,25 @@ describe('Passphrase Rate Limiting', () => {
 
     it('calculates progressive delays correctly', () => {
       // 3 attempts → 30s
-      for (let i = 0; i < 3; i++) recordFailedAttempt();
+      for (let i = 0; i < 2; i++) recordFailedAttempt();
       let result = recordFailedAttempt();
       expect(result.delayMs).toBe(30000);
 
       // Clear and test 5 attempts → 2min
       clearPassphraseLockout();
-      for (let i = 0; i < 5; i++) recordFailedAttempt();
+      for (let i = 0; i < 4; i++) recordFailedAttempt();
       result = recordFailedAttempt();
       expect(result.delayMs).toBe(120000);
 
       // Clear and test 10 attempts → 15min
       clearPassphraseLockout();
-      for (let i = 0; i < 10; i++) recordFailedAttempt();
+      for (let i = 0; i < 9; i++) recordFailedAttempt();
       result = recordFailedAttempt();
       expect(result.delayMs).toBe(900000);
 
       // Clear and test 11 attempts → 1hr
       clearPassphraseLockout();
-      for (let i = 0; i < 11; i++) recordFailedAttempt();
+      for (let i = 0; i < 10; i++) recordFailedAttempt();
       result = recordFailedAttempt();
       expect(result.delayMs).toBe(3600000);
     });
@@ -111,7 +111,7 @@ describe('Passphrase Rate Limiting', () => {
     it('calculates correct seconds remaining', () => {
       if (typeof window !== 'undefined' && window.localStorage) {
         const fixedNow = Date.now();
-        const oldTimestamp = fixedNow - 60000;
+        const oldTimestamp = fixedNow;
         window.localStorage.setItem(
           'byoc_passphrase_attempts',
           JSON.stringify([
@@ -122,7 +122,6 @@ describe('Passphrase Rate Limiting', () => {
         );
         // Mock Date.now for test
         const originalNow = global.Date.now;
-        // @ts-expect-error testing only
         global.Date.now = () => fixedNow + 15000;
         try {
           const result = checkPassphraseLockout();
@@ -181,19 +180,17 @@ describe('Passphrase Rate Limiting', () => {
       }
       const result = exportAttemptState();
       expect(typeof result).toBe('string');
-      const parsed = JSON.parse(result);
+      const parsed = JSON.parse(result ?? 'null');
       expect(parsed).toHaveLength(1);
     });
 
     it('returns null when no localStorage', () => {
-      // @ts-expect-error testing only
-      const originalWindow = global.window;
-      global.window = undefined;
+      vi.stubGlobal('window', undefined);
       try {
         const result = exportAttemptState();
         expect(result).toBeNull();
       } finally {
-        global.window = originalWindow;
+        vi.unstubAllGlobals();
       }
     });
   });

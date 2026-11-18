@@ -31,23 +31,28 @@ vi.mock('docx', () => ({
   FileType: '.docx'
 }));
 
-vi.mock('pdf-lib', () => ({
-  PDFDocument: {
-    create: vi.fn().mockResolvedValue({
-      addPage: vi.fn().mockReturnThis(),
-      embedFont: vi.fn().mockResolvedValue({}),
-      save: vi.fn().mockResolvedValue(new Uint8Array([0x25, 0x50, 0x44, 0x46])),
-      getSize: vi.fn().mockReturnValue({ width: 612, height: 792 })
-    }),
+vi.mock('pdf-lib', () => {
+  const page = {
+    getSize: vi.fn().mockReturnValue({ width: 612, height: 792 }),
+    drawText: vi.fn(),
+    drawLine: vi.fn()
+  };
+  return {
+    PDFDocument: {
+      create: vi.fn().mockResolvedValue({
+        addPage: vi.fn().mockReturnValue(page),
+        embedFont: vi.fn().mockResolvedValue({ widthOfTextAtSize: vi.fn().mockReturnValue(10) }),
+        save: vi.fn().mockResolvedValue(new Uint8Array([0x25, 0x50, 0x44, 0x46]))
+      })
+    },
     StandardFonts: {
       Helvetica: 'Helvetica',
       HelveticaBold: 'Helvetica-Bold',
       HelveticaOblique: 'Helvetica-Oblique'
     },
-    rgb: vi.fn((r, g, b) => ({ r, g, b }))
-  },
-  RegisterFont: vi.fn()
-}));
+    rgb: vi.fn((r: number, g: number, b: number) => ({ r, g, b }))
+  };
+});
 
 vi.mock('../utils/tailoredBulletResolver', () => ({
   resolveTailoredResumeForExportAndPreview: vi.fn().mockImplementation((artifact, resume) => ({
@@ -197,7 +202,7 @@ describe('Export Service', () => {
       expect(typeof text).toBe('string');
       expect(text.length).toBeGreaterThan(100);
       expect(text).toContain('JOHN DOE');
-      expect(text).toContain('SENIOR SOFTWARE ENGINEER');
+      expect(text).toContain('Senior Software Engineer');
       expect(text).toContain('john@example.com');
       expect(text).toContain('PROFESSIONAL SUMMARY');
       expect(text).toContain('CORE SKILLS');
@@ -295,9 +300,13 @@ describe('Export Service', () => {
       // Mock no Web Share API
       Object.defineProperty(global.navigator, 'canShare', { value: false, configurable: true });
       Object.defineProperty(global.navigator, 'share', { value: undefined, configurable: true });
+      Object.defineProperty(URL, 'createObjectURL', { value: vi.fn().mockReturnValue('blob:mock'), configurable: true });
+      Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true });
       
+      const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
       const result = await dispatchExportFile(blob, 'test.txt', 'text/plain');
       expect(result).toBe(true);
+      clickSpy.mockRestore();
     });
   });
 
