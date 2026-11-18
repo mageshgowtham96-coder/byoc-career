@@ -25,8 +25,8 @@ function assertFaithfulText(source: string, translated: string): void {
   if (source.trim() && !translated.trim()) {
     throw new Error('Groq omitted text from the translation. Your original draft has not changed.');
   }
-  const sourceNumbers = source.match(/\\d+(?:[.,]\\d+)?%?/g) || [];
-  const translatedNumbers = translated.match(/\\d+(?:[.,]\\d+)?%?/g) || [];
+  const sourceNumbers = source.match(/\d+(?:[.,]\d+)?%?/g) || [];
+  const translatedNumbers = translated.match(/\d+(?:[.,]\d+)?%?/g) || [];
   if (sourceNumbers.join('|') !== translatedNumbers.join('|')) {
     throw new Error('Groq changed a number or metric during translation. Your original draft has not changed.');
   }
