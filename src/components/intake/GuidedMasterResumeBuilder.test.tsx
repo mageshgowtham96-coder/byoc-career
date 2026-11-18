@@ -118,6 +118,42 @@ describe('GuidedMasterResumeBuilder privacy and translation flow', () => {
     expect(onDraftChange).toHaveBeenCalledWith(initialDraft);
   });
 
+  it('stages a profile only after the user reaches the final review and confirms creation', async () => {
+    await act(async () => {
+      root.render(
+        <GuidedMasterResumeBuilder
+          initialDraft={initialDraft}
+          groqApiKey=""
+          onDraftChange={onDraftChange}
+          onComplete={onComplete}
+          onCancel={onCancel}
+        />
+      );
+    });
+
+    for (let index = 0; index < 4; index += 1) {
+      const continueButton = Array.from(container.querySelectorAll('button')).find((button) =>
+        button.textContent?.includes('Continue')
+      );
+      await act(async () => {
+        continueButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+    }
+
+    const createButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Create Master Resume draft')
+    );
+    expect(createButton).toBeTruthy();
+
+    await act(async () => {
+      createButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(onComplete).toHaveBeenCalledOnce();
+    expect(onComplete.mock.calls[0][0].contactInfo.name).toBe('Asha');
+    expect(onComplete.mock.calls[0][0].headline).toBe('Data Analyst');
+  });
+
   it('keeps the translation as a preview until the user accepts it', async () => {
     const translatedDraft: CareerApplicationFormState = {
       ...initialDraft,
