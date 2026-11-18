@@ -48,6 +48,7 @@ import {
   scrubAndVerifyStoredWorkspace,
   type LegacyPlaintextCapture
 } from '../utils/vaultMigration';
+import { sanitizeCareerFormState } from '../utils/storagePersistence';
 
 export const DEFAULT_CANDIDATE_PREFERENCES: CandidatePreferences = {
   country: 'IN',
