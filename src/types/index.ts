@@ -60,6 +60,7 @@ export interface MasterResume {
   certifications: CertificationItem[];
   sourceLanguage?: string;
   sourceLanguageOther?: string;
+  currentRole?: string;
   roleFamily?: string;
   experienceLevel?: string;
   translatedToEnglish?: boolean;
@@ -406,6 +407,7 @@ export interface CareerApplicationFormState {
   lastExtractedTimestamp: string | null;
   rawSourceText: string;
   targetRole?: string;
+  currentRole?: string;
   roleFamily?: string;
   experienceLevel?: string;
   sourceLanguage?: string;
