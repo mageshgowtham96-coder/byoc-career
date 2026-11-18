@@ -4,7 +4,7 @@
 Help BYOC users distinguish a public vacancy record from an unverified job-search result, without pretending that AI can certify an employer or vacancy. Checks must be deterministic, explainable, and local-first.
 
 ## Scope for the first implementation
-- Support exact public-posting checks for Greenhouse URLs through Greenhouse's documented public Job Board GET endpoint, using its documented JSONP callback mechanism so the browser/Android app does not need a proxy server.
+- Support exact public-posting checks for Greenhouse URLs through the [official Greenhouse Job Board API](https://docs.greenhouse.io/job-board). Its GET endpoints are public and its documented JSONP callback mechanism lets the browser/Android app check a posting without a proxy server or API key.
 - For Lever, Ashby, Workday, SmartRecruiters, custom career sites, and other unsupported URLs, return **Manual review required**. Do not bypass CORS, scrape login pages, or introduce a backend proxy.
 - Check only the posting URL's board token and job ID. Do not send the user's resume, profile, contact details, or application history anywhere.
 - Compare the returned ATS posting ID, title, and company name with the selected job. Preserve the official title/company and publication/update/deadline timestamps as evidence.
