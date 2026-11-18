@@ -9,6 +9,8 @@ import { formatGroqError, parseResumeWithGroq } from '../../services/groqService
 import { safeRemoveItem, wipeCachedFormData } from '../../utils/storagePersistence';
 import { ExtractionLoadingSkeleton } from './ExtractionLoadingSkeleton';
 import { ChakraLogo } from '../ChakraLogo';
+import { GuidedMasterResumeBuilder } from './GuidedMasterResumeBuilder';
+import { createCareerDraftFromMasterResume } from '../../utils/guidedResumeMapper';
 import type { MasterResume, ExperienceItem } from '../../types';
 import {
   UploadCloud,
@@ -30,6 +32,8 @@ import {
 export const IntakeTab: React.FC = () => {
   const {
     masterResume,
+    careerFormDraft,
+    setCareerFormDraft,
     groqApiKey,
     stagedParsedResume,
     setStagedParsedResume,
@@ -63,6 +67,7 @@ export const IntakeTab: React.FC = () => {
 
   // Half-Built Resume Builder State
   const [showBuilderModal, setShowBuilderModal] = useState(false);
+  const [showGuidedBuilder, setShowGuidedBuilder] = useState(false);
   const [newRole, setNewRole] = useState('');
   const [newCompany, setNewCompany] = useState('');
   const [newDates, setNewDates] = useState('');
@@ -74,6 +79,7 @@ export const IntakeTab: React.FC = () => {
   const handleClearMasterResume = () => {
     // 1. Execute deep structural reset in store & force persistent storage sync
     clearMasterResume();
+    setCareerFormDraft(null);
     safeRemoveItem('byoc_career_form_draft');
     wipeCachedFormData({ wipeAllKeys: true });
 
@@ -275,7 +281,24 @@ export const IntakeTab: React.FC = () => {
 
     useWizardStore.setState({ stagedParsedResume: finalStaged });
     confirmStagedResume();
+    setCareerFormDraft(null);
     setShowReplaceMasterConfirm(false);
+  };
+
+  const handleGuidedBuilderComplete = (profile: MasterResume) => {
+    setStagedParsedResume(profile);
+    setLocalStagedProfile(profile);
+    setEditableStagedSummary(profile.summary);
+    setEditableHeadline(profile.headline);
+    setEditableName(profile.contactInfo.name || '');
+    setEditableEmail(profile.contactInfo.email || '');
+    setAiStructuringError(null);
+    setShowGuidedBuilder(false);
+    addToast({
+      type: 'success',
+      title: 'Master Resume Draft Ready',
+      message: 'Review the details below. Your active profile will change only after you confirm.'
+    });
   };
 
   const handleApproveStaged = () => {
@@ -798,6 +821,13 @@ export const IntakeTab: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setShowGuidedBuilder(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-200 text-xs font-semibold transition"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Guided Editor</span>
+              </button>
+                            <button
                 onClick={() => setShowBuilderModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
               >
@@ -903,10 +933,18 @@ export const IntakeTab: React.FC = () => {
           </div>
           <button
             type="button"
+            onClick={() => setShowGuidedBuilder(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-950/30 transition hover:bg-indigo-500"
+          >
+            <Sparkles className="h-4 w-4" />
+            Build my Master Resume step by step
+          </button>
+          <button
+            type="button"
             onClick={() => {
               manualPasteRef.current?.focus();
               manualPasteRef.current?.scrollIntoView({ behavior: 'smooth' });
-            }}
+            }
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer"
           >
             <span>Focus Manual Paste Fallback</span>
@@ -1047,6 +1085,16 @@ export const IntakeTab: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {showGuidedBuilder && (
+        <GuidedMasterResumeBuilder
+          initialDraft={careerFormDraft || (masterResume ? createCareerDraftFromMasterResume(masterResume) : null)}
+          groqApiKey={groqApiKey}
+          onDraftChange={setCareerFormDraft}
+          onComplete={handleGuidedBuilderComplete}
+          onCancel={() => setShowGuidedBuilder(false)}
+        />
       )}
     </div>
   );
