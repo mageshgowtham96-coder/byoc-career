@@ -299,7 +299,9 @@ describe('Export Service', () => {
       
       // Mock no Web Share API
       Object.defineProperty(global.navigator, 'canShare', { value: false, configurable: true });
-      Object.defineProperty(global.navigator, 'share', { value: undefined, configurable: true });\n      Object.defineProperty(URL, 'createObjectURL', { value: vi.fn().mockReturnValue('blob:mock'), configurable: true });\n      Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true });
+      Object.defineProperty(global.navigator, 'share', { value: undefined, configurable: true });
+      Object.defineProperty(URL, 'createObjectURL', { value: vi.fn().mockReturnValue('blob:mock'), configurable: true });
+      Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true });
       
       const result = await dispatchExportFile(blob, 'test.txt', 'text/plain');
       expect(result).toBe(true);
