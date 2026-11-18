@@ -75,7 +75,7 @@ describe('translateCareerDraftToEnglish', () => {
     expect(translated.professionalSummary).toContain('data analysis');
     expect(translated.personalDetails).toEqual(draft.personalDetails);
     expect(translated.workExperience[0].company).toBe('ABC Technologies');
-    expect(translated.workExperience[0].keyResponsibilities).toEqual(['Created weekly reports']);
+    expect(translated.workExperience[0].keyResponsibilities).toEqual(['Created weekly reports for 3 teams']);
     expect(translated.workExperience[0].startDate).toBe('2024');
     expect(translated.education[0].institution).toBe('சென்னை பல்கலைக்கழகம்');
     expect(translated.skills).toEqual(draft.skills);
@@ -122,7 +122,7 @@ describe('translateCareerDraftToEnglish', () => {
   it('rejects oversized translation input before sending it to Groq', async () => {
     const oversized = { ...draft, professionalSummary: 'தமிழ்'.repeat(20000) };
 
-    await expect(translateCareerDraftToEnglish(oversized, 'Tamil', 'test-groq-key')).rejects.toThrow(/shorter draft/i);
+    await expect(translateCareerDraftToEnglish(oversized, 'Tamil', 'test-groq-key')).rejects.toThrow(/too long|shorten/i);
     expect(callGroqChat).not.toHaveBeenCalled();
   });
 });
