@@ -268,8 +268,8 @@ describe('Job Search Service', () => {
   describe('mergePortalShortcuts', () => {
     it('deduplicates by id keeping built-in', () => {
       const shortcuts = [
-        { id: 'portal-1', name: 'Test', searchUrlTemplate: 'url', isBuiltIn: true },
-        { id: 'portal-1', name: 'Test Dup', searchUrlTemplate: 'url2', isBuiltIn: false }
+        { id: 'portal-1', name: 'Test', searchUrlTemplate: 'https://example.com/jobs?q={query}', isBuiltIn: true },
+        { id: 'portal-1', name: 'Test Dup', searchUrlTemplate: 'https://duplicate.example/jobs?q={query}', isBuiltIn: false }
       ];
       const result = mergePortalShortcuts(shortcuts);
       const matching = result.filter((item) => item.id === 'portal-1');
