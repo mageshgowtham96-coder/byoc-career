@@ -41,7 +41,7 @@ vi.mock('pdf-lib', () => {
     PDFDocument: {
       create: vi.fn().mockResolvedValue({
         addPage: vi.fn().mockReturnValue(page),
-        embedFont: vi.fn().mockResolvedValue({}),
+        embedFont: vi.fn().mockResolvedValue({ widthOfTextAtSize: vi.fn().mockReturnValue(10) }),
         save: vi.fn().mockResolvedValue(new Uint8Array([0x25, 0x50, 0x44, 0x46]))
       })
     },
