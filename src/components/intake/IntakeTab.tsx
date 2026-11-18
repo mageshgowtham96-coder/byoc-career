@@ -800,7 +800,7 @@ export const IntakeTab: React.FC = () => {
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-bold text-white">{masterResume.contactInfo.name}</h3>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 text-[10px] font-mono font-bold">
-                  Vault Ingested
+                  Saved in Vault
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-mono">
                   {completenessScore}% Complete
@@ -858,7 +858,7 @@ export const IntakeTab: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Verified Experience Milestones ({masterResume.experiences.length})
+                Experience History ({masterResume.experiences.length})
               </h4>
               <button
                 onClick={() => setShowBuilderModal(true)}
@@ -890,7 +890,7 @@ export const IntakeTab: React.FC = () => {
           {/* Skills Badges & Quick Skill Adder */}
           <div>
             <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-              Verified Technical Skills ({masterResume.skills.technical.length})
+              Technical Skills ({masterResume.skills.technical.length})
             </h4>
             <div className="flex flex-wrap gap-1.5 mb-3">
               {masterResume.skills.technical.map((s, i) => (
