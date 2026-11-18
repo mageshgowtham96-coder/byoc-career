@@ -34,7 +34,6 @@ export const IntakeTab: React.FC = () => {
     masterResume,
     careerFormDraft,
     setCareerFormDraft,
-    vaultPersistenceError,
     groqApiKey,
     stagedParsedResume,
     setStagedParsedResume,
@@ -1093,7 +1092,6 @@ export const IntakeTab: React.FC = () => {
           initialDraft={careerFormDraft || (masterResume ? createCareerDraftFromMasterResume(masterResume) : null)}
           groqApiKey={groqApiKey}
           isEditingExisting={Boolean(masterResume)}
-          vaultPersistenceError={vaultPersistenceError}
           onDraftChange={setCareerFormDraft}
           onComplete={handleGuidedBuilderComplete}
           onCancel={() => setShowGuidedBuilder(false)}
