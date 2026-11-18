@@ -38,6 +38,7 @@ import {
   type DecryptedVaultData,
   type VaultEnvelope
 } from '../utils/cryptoVault';
+import { transitionVaultPersistenceStatus } from './vaultPersistenceStatus';
 import {
   WORKSPACE_STORE_KEY,
   extractLegacyPlaintextFromRawStore,
@@ -144,6 +145,7 @@ interface WizardState {
   user: UserWorkspace | null;
   isAuthenticated: boolean;
   isBiometricLocked: boolean;
+  vaultPersistenceError: string | null;
   setUser: (user: UserWorkspace | null) => void;
   unlockBiometric: () => void;
   lockBiometric: () => void;
@@ -337,6 +339,7 @@ export const useWizardStore = create<WizardState>()(
       user: null,
       isAuthenticated: false,
       isBiometricLocked: false,
+      vaultPersistenceError: null,
       setUser: (user) =>
         set({
           user: sanitizeUserMetadata(user)
@@ -382,6 +385,14 @@ export const useWizardStore = create<WizardState>()(
         });
       },
       signOut: () => {
+        if (get().vaultPersistenceError) {
+          get().addToast({
+            type: 'error',
+            title: 'Cannot Sign Out Yet',
+            message: 'Your latest changes are not safely saved. Retry the vault save before signing out.'
+          });
+          return;
+        }
         const currentUser = get().user;
         lockVaultSession();
         set({
@@ -1104,6 +1115,29 @@ export const useWizardStore = create<WizardState>()(
 // Serialized vault sync queue prevents concurrent writes from clobbering latest store state
 let vaultSyncChain: Promise<boolean> = Promise.resolve(true);
 
+function applyVaultPersistenceTransition(succeeded: boolean): void {
+  const current = useWizardStore.getState();
+  const transition = transitionVaultPersistenceStatus(current.vaultPersistenceError, succeeded);
+
+  if (transition.error !== current.vaultPersistenceError) {
+    useWizardStore.setState({ vaultPersistenceError: transition.error });
+  }
+
+  if (transition.notifyFailure) {
+    current.addToast({
+      type: 'error',
+      title: 'Encrypted Vault Save Failed',
+      message: 'Your latest changes may exist only in memory. Keep BYOC open and retry saving before closing.'
+    });
+  } else if (transition.notifyRecovered) {
+    current.addToast({
+      type: 'success',
+      title: 'Vault Saving Restored',
+      message: 'Your latest changes are now encrypted and saved on this device.'
+    });
+  }
+}
+
 export function syncVaultFromStoreNow(): Promise<boolean> {
   vaultSyncChain = vaultSyncChain
     .catch(() => false)
@@ -1116,10 +1150,13 @@ export function syncVaultFromStoreNow(): Promise<boolean> {
         buildVaultDataFromState(state),
         buildVaultMetaFromUser(state.user)
       );
-      return writeStoredVaultEnvelope(envelope);
+      const saved = writeStoredVaultEnvelope(envelope);
+      applyVaultPersistenceTransition(saved);
+      return saved;
     })
     .catch((err) => {
       console.warn('Encrypted vault sync skipped:', err);
+      applyVaultPersistenceTransition(false);
       return false;
     });
   return vaultSyncChain;
