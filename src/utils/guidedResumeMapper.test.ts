@@ -13,6 +13,7 @@ const baseDraft: CareerApplicationFormState = {
     portfolio: ''
   },
   targetRole: 'Data Analyst',
+  currentRole: 'Reporting Intern',
   roleFamily: 'data-analytics',
   experienceLevel: 'Entry',
   sourceLanguage: 'English',
@@ -61,6 +62,8 @@ describe('buildMasterResumeFromCareerDraft', () => {
     expect(profile.contactInfo.name).toBe('Asha');
     expect(profile.contactInfo.linkedin).toBe('https://linkedin.com/in/asha');
     expect(profile.headline).toBe('Data Analyst');
+    expect(profile.currentRole).toBe('Reporting Intern');
+    expect(profile.roleFamily).toBe('data-analytics');
     expect(profile.summary).toBe(baseDraft.professionalSummary);
     expect(profile.experiences[0]).toMatchObject({
       id: 'exp-1',
@@ -104,6 +107,7 @@ describe('buildMasterResumeFromCareerDraft', () => {
 
     expect(draft.personalDetails.fullName).toBe(profile.contactInfo.name);
     expect(draft.targetRole).toBe(profile.headline);
+    expect(draft.currentRole).toBe(profile.currentRole);
     expect(draft.professionalSummary).toBe(profile.summary);
     expect(draft.workExperience[0].keyResponsibilities).toEqual(profile.experiences[0].bullets);
     expect(draft.skills).toEqual(profile.skills.technical);
