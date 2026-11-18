@@ -167,7 +167,15 @@ export const SettingsTab: React.FC = () => {
   };
 
   const handleExportEncryptedVault = async () => {
-    await syncVaultFromStoreNow();
+    const synced = await syncVaultFromStoreNow();
+    if (!synced) {
+      addToast({
+        type: 'error',
+        title: 'Encrypted Backup Not Exported',
+        message: 'BYOC could not confirm that the latest changes were saved. Retry the vault save before exporting a current backup.'
+      });
+      return;
+    }
     const envelope = readStoredVaultEnvelope();
     if (!envelope) {
       addToast({
