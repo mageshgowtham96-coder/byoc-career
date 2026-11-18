@@ -11,7 +11,7 @@ interface TranslatedCareerText {
   certifications: Array<{ name: string }>;
 }
 
-const MAX_TRANSLATION_INPUT_CHARS = 18000;
+const MAX_TRANSLATION_INPUT_CHARS = 12000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
