@@ -118,7 +118,7 @@ export const VettingTab: React.FC = () => {
   }
 
   const vetting = selectedJob.vetting;
-  const verification = __SELECTED_VERIFICATION__
+  const verification = selectedJob.verification;
 
   return (
     <div className="space-y-6 pb-8">
