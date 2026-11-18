@@ -390,5 +390,13 @@ export interface CareerApplicationFormState {
   isAutoFilled: boolean;
   lastExtractedTimestamp: string | null;
   rawSourceText: string;
+  targetRole?: string;
+  roleFamily?: string;
+  experienceLevel?: string;
+  sourceLanguage?: string;
+  translatedToEnglish?: boolean;
+  originalLanguageSnapshot?: string;
+  projects?: ProjectItem[];
+  certifications?: CertificationItem[];
 }
 
