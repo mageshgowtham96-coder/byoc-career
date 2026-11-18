@@ -21,7 +21,6 @@ interface GuidedMasterResumeBuilderProps {
   initialDraft: CareerApplicationFormState | null;
   groqApiKey: string;
   isEditingExisting?: boolean;
-  vaultPersistenceError?: string | null;
   onDraftChange: (draft: CareerApplicationFormState) => void;
   onComplete: (profile: MasterResume) => void;
   onCancel: () => void;
@@ -46,7 +45,6 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
   initialDraft,
   groqApiKey,
   isEditingExisting = false,
-  vaultPersistenceError = null,
   onDraftChange,
   onComplete,
   onCancel
@@ -242,12 +240,6 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
             <X className="h-5 w-5" />
           </button>
         </div>
-
-        {vaultPersistenceError && (
-          <div role="alert" className="mb-4 rounded-xl border border-rose-500/40 bg-rose-950/50 px-3 py-2.5 text-xs leading-relaxed text-rose-100">
-            {vaultPersistenceError} Close the builder only after the save succeeds; the Retry Save control is in the BYOC header.
-          </div>
-        )}
 
         <div className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-3 sm:p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
