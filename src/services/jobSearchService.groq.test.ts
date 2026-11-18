@@ -43,6 +43,7 @@ describe('GroqBrowserSearchJobAdapter', () => {
     const request = fetchMock.mock.calls[0][1] as RequestInit;
     const body = JSON.parse(String(request.body));
     expect(body.model).toBe('openai/gpt-oss-20b');
+    expect(body.reasoning_effort).toBe('low');
     expect(body.tools).toEqual([{ type: 'browser_search' }]);
     expect(body.messages[0].content).toContain('Frontend Engineer');
     expect(body.messages[0].content).toContain('Chennai');
