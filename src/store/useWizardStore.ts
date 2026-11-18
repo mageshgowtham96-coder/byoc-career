@@ -179,6 +179,7 @@ interface WizardState {
   addJob: (job: JobPosting) => void;
   setSelectedJobId: (id: string | null) => void;
   updateJobVetting: (jobId: string, vetting: JobPosting['vetting']) => void;
+  updateJobVerification: (jobId: string, evidence: JobVerificationEvidence) => void;
   updateJobUrl: (jobId: string, url: string, source?: string) => boolean;
   isJobPreviouslyTracked: (company: string, role: string) => boolean;
 
@@ -515,6 +516,11 @@ export const useWizardStore = create<WizardState>()(
       updateJobVetting: (jobId, vetting) => {
         set((state) => ({
           jobs: state.jobs.map((j) => (j.id === jobId ? { ...j, vetting } : j))
+        }));
+      },
+      updateJobVerification: (jobId, evidence) => {
+        set((state) => ({
+          jobs: state.jobs.map((j) => (j.id === jobId ? { ...j, verification: evidence } : j))
         }));
       },
       updateJobUrl: (jobId, url, source) => {
