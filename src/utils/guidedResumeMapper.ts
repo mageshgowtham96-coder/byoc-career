@@ -102,6 +102,9 @@ export function buildMasterResumeFromCareerDraft(
     education,
     projects,
     certifications,
+    sourceLanguage: draft.sourceLanguage || 'English',
+    translatedToEnglish: Boolean(draft.translatedToEnglish),
+    originalLanguageSnapshot: draft.originalLanguageSnapshot || '',
     stats: {
       wordCount,
       pageCount: wordCount > 0 ? Math.max(1, Math.ceil(wordCount / 450)) : 0,
@@ -128,8 +131,9 @@ export function createCareerDraftFromMasterResume(profile: MasterResume): Career
     targetRole: profile.headline,
     roleFamily: 'general',
     experienceLevel: 'Unspecified',
-    sourceLanguage: 'English',
-    translatedToEnglish: false,
+    sourceLanguage: profile.sourceLanguage || 'English',
+    translatedToEnglish: Boolean(profile.translatedToEnglish),
+    originalLanguageSnapshot: profile.originalLanguageSnapshot || '',
     professionalSummary: profile.summary,
     workExperience: profile.experiences.map((item) => ({
       id: item.id,
