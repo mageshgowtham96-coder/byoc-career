@@ -85,7 +85,10 @@ const mockCrypto = {
     deriveKey: vi.fn().mockResolvedValue({}),
     encrypt: vi.fn().mockResolvedValue(new ArrayBuffer(100)),
     decrypt: vi.fn().mockResolvedValue(new ArrayBuffer(50)),
-    digest: vi.fn(async (_algorithm: AlgorithmIdentifier, data: BufferSource) => {\n      const hash = createHash('sha256').update(Buffer.from(data as Uint8Array)).digest();\n      return hash.buffer.slice(hash.byteOffset, hash.byteOffset + hash.byteLength) as ArrayBuffer;\n    }),
+    digest: vi.fn(async (_algorithm: AlgorithmIdentifier, data: BufferSource) => {
+      const hash = createHash('sha256').update(Buffer.from(data as Uint8Array)).digest();
+      return hash.buffer.slice(hash.byteOffset, hash.byteOffset + hash.byteLength) as ArrayBuffer;
+    }),
   },
   getRandomValues: vi.fn((arr: Uint8Array) => {
     for (let i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 256);
@@ -186,11 +189,12 @@ describe('Legacy Migration', () => {
 
   describe('sanitizeStoredWorkspaceStoreMetadata', () => {
     it('removes demo identity from stored metadata', () => {
+      let stored = JSON.stringify({
+        state: { user: { id: 'test-user', name: 'alex mercer', email: 'alex.mercer@leaddev.io' } }
+      });
       const mockStorage = {
-        getItem: vi.fn(() => JSON.stringify({
-          state: { user: { name: 'alex mercer', email: 'alex.mercer@leaddev.io' } }
-        })),
-        setItem: vi.fn()
+        getItem: vi.fn(() => stored),
+        setItem: vi.fn((_key: string, value: string) => { stored = value; })
       };
       const result = sanitizeStoredWorkspaceStoreMetadata(mockStorage as any, 'test_key');
       expect(result.status).toBe('updated');
@@ -213,7 +217,8 @@ describe('Job Search Service', () => {
         fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
       };
       const result = calculateHonestMatch(job, null);
-      expect(result.score).toBeNull();\n      expect(result.statusText).toBe('Insufficient profile data');
+      expect(result.score).toBeNull();
+      expect(result.statusText).toBe('Insufficient profile data');
       expect(result.matchedKeywords).toEqual([]);
       expect(result.missingKeywords).toEqual(['TypeScript', 'React']);
     });
@@ -249,7 +254,7 @@ describe('Job Search Service', () => {
         fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
       };
       const resume: MasterResume = {
-        rawText: '', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+        rawText: 'TypeScript React Python', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
         headline: '', summary: '',
         skills: { technical: ['typescript', 'REACT'], soft: [], tools: [], domains: [] },
         experiences: [], education: [], projects: [], certifications: [],
@@ -267,8 +272,9 @@ describe('Job Search Service', () => {
         { id: 'portal-1', name: 'Test Dup', searchUrlTemplate: 'url2', isBuiltIn: false }
       ];
       const result = mergePortalShortcuts(shortcuts);
-      expect(result.length).toBe(1);
-      expect(result[0].isBuiltIn).toBe(true);
+      const matching = result.filter((item) => item.id === 'portal-1');
+      expect(matching).toHaveLength(1);
+      expect(matching[0].isBuiltIn).toBe(true);
     });
   });
 
