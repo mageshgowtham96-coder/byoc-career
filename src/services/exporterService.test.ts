@@ -303,8 +303,10 @@ describe('Export Service', () => {
       Object.defineProperty(URL, 'createObjectURL', { value: vi.fn().mockReturnValue('blob:mock'), configurable: true });
       Object.defineProperty(URL, 'revokeObjectURL', { value: vi.fn(), configurable: true });
       
+      const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
       const result = await dispatchExportFile(blob, 'test.txt', 'text/plain');
       expect(result).toBe(true);
+      clickSpy.mockRestore();
     });
   });
 
