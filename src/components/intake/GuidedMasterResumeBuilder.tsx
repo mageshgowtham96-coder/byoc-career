@@ -20,6 +20,7 @@ import { sanitizeCareerFormState } from '../../utils/storagePersistence';
 interface GuidedMasterResumeBuilderProps {
   initialDraft: CareerApplicationFormState | null;
   groqApiKey: string;
+  isEditingExisting?: boolean;
   onDraftChange: (draft: CareerApplicationFormState) => void;
   onComplete: (profile: MasterResume) => void;
   onCancel: () => void;
@@ -43,6 +44,7 @@ const textAreaClass = `${inputClass} min-h-24 resize-y leading-relaxed`;
 export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps> = ({
   initialDraft,
   groqApiKey,
+  isEditingExisting = false,
   onDraftChange,
   onComplete,
   onCancel
@@ -231,7 +233,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
         <div className="mb-5 flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300">Build Your Own Career</p>
-            <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">Create your Master Resume</h2>
+            <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">{isEditingExisting ? 'Update your Master Resume' : 'Create your Master Resume'}</h2>
             <p className="mt-1 text-xs text-slate-400">Your draft autosaves inside your encrypted BYOC vault.</p>
           </div>
           <button type="button" onClick={handleClose} aria-label="Save draft and close" className="rounded-xl border border-slate-700 p-2 text-slate-300 hover:bg-slate-800">
@@ -412,7 +414,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
               {step < STEP_NAMES.length - 1 ? (
                 <button type="button" onClick={handleNext} className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-indigo-500">Continue <ArrowRight className="h-3.5 w-3.5" /></button>
               ) : (
-                <button type="button" onClick={handleComplete} disabled={!hasResumeContent} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-950/40 hover:brightness-110 disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> Create Master Resume draft</button>
+                <button type="button" onClick={handleComplete} disabled={!hasResumeContent} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-950/40 hover:brightness-110 disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> {isEditingExisting ? 'Review updated Master Resume' : 'Create Master Resume draft'}</button>
               )}
             </div>
           </div>
