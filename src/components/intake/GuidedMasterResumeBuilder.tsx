@@ -157,10 +157,17 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
       setError('Add your Groq API key in Settings to use optional translation. You can still complete the resume in your chosen language.');
       return;
     }
+    const sourceLanguage = draft.sourceLanguage === 'Other'
+      ? (draft.sourceLanguageOther || '').trim()
+      : (draft.sourceLanguage || 'English');
+    if (!sourceLanguage || sourceLanguage === 'Other') {
+      setError('Enter the name of your source language before translating.');
+      return;
+    }
     setIsTranslating(true);
     setError('');
     try {
-      const translated = await translateCareerDraftToEnglish(draft, draft.sourceLanguage || 'Other', groqApiKey);
+      const translated = await translateCareerDraftToEnglish(draft, sourceLanguage, groqApiKey);
       setTranslationPreview(translated);
     } catch (err) {
       setError(formatGroqError(err));
@@ -198,7 +205,10 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
     onCancel();
   };
 
-  const canTranslate = (draft.sourceLanguage || 'English').toLowerCase() !== 'english' && hasResumeContent;
+  const selectedSourceLanguage = draft.sourceLanguage === 'Other'
+    ? (draft.sourceLanguageOther || '').trim()
+    : (draft.sourceLanguage || 'English');
+  const canTranslate = selectedSourceLanguage.toLowerCase() !== 'english' && selectedSourceLanguage.length > 0 && hasResumeContent;
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#070B14]/95 backdrop-blur-md">
@@ -245,6 +255,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
                 <div><FieldLabel htmlFor="guided-phone" optional>Phone</FieldLabel><input id="guided-phone" className={inputClass} value={draft.personalDetails.phone} onChange={(e) => updatePersonal('phone', e.target.value)} placeholder="Phone number" /></div>
                 <div><FieldLabel htmlFor="guided-location" optional>Location</FieldLabel><input id="guided-location" className={inputClass} value={draft.personalDetails.location} onChange={(e) => updatePersonal('location', e.target.value)} placeholder="City, country" /></div>
                 <div><FieldLabel htmlFor="guided-language">Language you will write in</FieldLabel><select id="guided-language" className={inputClass} value={draft.sourceLanguage || 'English'} onChange={(e) => updateDraft({ sourceLanguage: e.target.value })}>{LANGUAGE_OPTIONS.map((language) => <option key={language} value={language}>{language}</option>)}</select></div>
+                {draft.sourceLanguage === 'Other' && <div><FieldLabel htmlFor="guided-language-other">Name your language</FieldLabel><input id="guided-language-other" className={inputClass} value={draft.sourceLanguageOther || ''} onChange={(e) => updateDraft({ sourceLanguageOther: e.target.value })} placeholder="e.g. Odia, Punjabi, Sinhala" /></div>}
                 <div><FieldLabel htmlFor="guided-role-family">Role area</FieldLabel><select id="guided-role-family" className={inputClass} value={draft.roleFamily || 'general'} onChange={(e) => updateDraft({ roleFamily: e.target.value })}>{ROLE_FAMILY_OPTIONS.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}</select></div>
                 <div><FieldLabel htmlFor="guided-experience-level">Experience level</FieldLabel><select id="guided-experience-level" className={inputClass} value={draft.experienceLevel || 'Unspecified'} onChange={(e) => updateDraft({ experienceLevel: e.target.value })}>{EXPERIENCE_LEVEL_OPTIONS.map((level) => <option key={level.value} value={level.value}>{level.label}</option>)}</select></div>
                 <div><FieldLabel htmlFor="guided-linkedin" optional>LinkedIn URL</FieldLabel><input id="guided-linkedin" className={inputClass} value={draft.personalDetails.linkedin || ''} onChange={(e) => updatePersonal('linkedin', e.target.value)} placeholder="https://linkedin.com/in/..." /></div>
@@ -277,7 +288,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
                     <div><FieldLabel htmlFor={`exp-start-${index}`} optional>Start date</FieldLabel><input id={`exp-start-${index}`} className={inputClass} value={experience.startDate || ''} onChange={(e) => updateExperience(index, { startDate: e.target.value, duration: `${e.target.value} – ${experience.endDate || ''}` })} placeholder="e.g. Jan 2023" /></div>
                     <div><FieldLabel htmlFor={`exp-end-${index}`} optional>End date</FieldLabel><input id={`exp-end-${index}`} className={inputClass} disabled={Boolean(experience.isCurrent)} value={experience.isCurrent ? 'Present' : experience.endDate || ''} onChange={(e) => updateExperience(index, { endDate: e.target.value, duration: `${experience.startDate || ''} – ${e.target.value}` })} placeholder="e.g. Dec 2024" /></div>
                     <div><FieldLabel htmlFor={`exp-location-${index}`} optional>Location</FieldLabel><input id={`exp-location-${index}`} className={inputClass} value={experience.location || ''} onChange={(e) => updateExperience(index, { location: e.target.value })} placeholder="City / Remote" /></div>
-                    <label className="flex items-center gap-2 self-end pb-2 text-xs text-slate-300"><input type="checkbox" checked={Boolean(experience.isCurrent)} onChange={(e) => updateExperience(index, { isCurrent: e.target.checked, endDate: e.target.checked ? 'Present' : '' })} /> I currently work here</label>
+                    <label className="flex items-center gap-2 self-end pb-2 text-xs text-slate-300"><input type="checkbox" checked={Boolean(experience.isCurrent)} onChange={(e) => updateExperience(index, { isCurrent: e.target.checked, endDate: e.target.checked ? 'Present' : '', duration: `${experience.startDate || ''} – ${e.target.checked ? 'Present' : ''}` })} /> I currently work here</label>
                   </div>
                   <div><FieldLabel htmlFor={`exp-bullets-${index}`}>What did you actually do? One point per line</FieldLabel><textarea id={`exp-bullets-${index}`} className={textAreaClass} value={experience.keyResponsibilities.join('\n')} onChange={(e) => updateExperience(index, { keyResponsibilities: e.target.value.split('\n').map((line) => line.trim()).filter(Boolean) })} placeholder="Handled customer enquiries\nPrepared weekly reports\nSupported daily operations" /></div>
                 </div>
@@ -397,6 +408,8 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
               <div><p className="text-[10px] uppercase text-slate-500">Summary</p><p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-200">{translationPreview.professionalSummary}</p></div>
               {(translationPreview.workExperience || []).map((item) => <div key={item.id}><p className="text-[10px] uppercase text-slate-500">{item.role}</p><ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-slate-200">{item.keyResponsibilities.map((bullet, index) => <li key={index}>{bullet}</li>)}</ul></div>)}
               {(translationPreview.projects || []).map((item) => <div key={item.id}><p className="text-[10px] uppercase text-slate-500">{item.title}</p><p className="mt-1 text-xs text-slate-200">{item.description}</p></div>)}
+              {(translationPreview.education || []).map((item) => <div key={item.id}><p className="text-[10px] uppercase text-slate-500">Education</p><p className="mt-1 text-xs text-slate-200">{item.degree}{item.field ? ` — ${item.field}` : ''}</p></div>)}
+              {(translationPreview.certifications || []).map((item) => <div key={item.id}><p className="text-[10px] uppercase text-slate-500">Certification</p><p className="mt-1 text-xs text-slate-200">{item.name}</p></div>)}
             </div>
             <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setTranslationPreview(null)} className="rounded-xl border border-slate-700 px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-800">Keep original</button>
