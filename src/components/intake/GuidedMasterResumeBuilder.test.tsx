@@ -74,6 +74,12 @@ describe('GuidedMasterResumeBuilder privacy and translation flow', () => {
     });
 
     expect(translateCareerDraftToEnglish).not.toHaveBeenCalled();
+    const continueButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Continue')
+    );
+    await act(async () => {
+      continueButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
     expect(container.textContent).toContain('What data did you work with');
 
     const translateButton = Array.from(container.querySelectorAll('button')).find((button) =>
