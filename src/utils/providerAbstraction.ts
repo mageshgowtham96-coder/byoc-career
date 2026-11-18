@@ -458,6 +458,7 @@ export class ProviderManager {
     // Fallback: try available providers in preference order
     const fallbackOrder: (keyof typeof PROVIDER_CONFIGS)[] = ['groq', 'openrouter', 'gemini'];
     for (const name of fallbackOrder) {
+      if (name === this.selectedProvider) continue;
       const provider = this.providers.get(name);
       if (!provider) continue;
       const apiKey = apiKeys[name] || '';
