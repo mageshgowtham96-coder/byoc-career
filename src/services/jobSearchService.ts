@@ -163,7 +163,10 @@ export function mergePortalShortcuts(saved?: PortalShortcut[]): PortalShortcut[]
   if (Array.isArray(saved)) {
     for (const item of saved) {
       if (item && item.id && item.name && sanitizeExternalHttpUrl(item.searchUrlTemplate.replace('{query}', 'engineer'))) {
-        byId.set(item.id, item);
+        const existing = byId.get(item.id);
+        if (!existing || !existing.isBuiltIn || item.isBuiltIn) {
+          byId.set(item.id, item);
+        }
       }
     }
   }
