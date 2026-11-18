@@ -284,13 +284,15 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
   const r = raw as Record<string, unknown>;
   const personal = (r.personalDetails || r.personal_details || {}) as Record<string, unknown>;
 
-  const experiences = Array.isArray(r.workExperience)
+  const experiences = (Array.isArray(r.workExperience)
     ? r.workExperience
     : Array.isArray(r.work_experience)
     ? r.work_experience
-    : [];
+    : []).filter((item) => item && typeof item === 'object');
 
-  const education = Array.isArray(r.education) ? r.education : [];
+  const education = Array.isArray(r.education)
+    ? r.education.filter((item) => item && typeof item === 'object')
+    : [];
   const projects = Array.isArray(r.projects)
     ? r.projects.filter((project) => project && typeof project === 'object')
     : [];
