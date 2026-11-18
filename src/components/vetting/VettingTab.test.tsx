@@ -5,7 +5,7 @@ import { VettingTab } from './VettingTab';
 import { useWizardStore } from '../../store/useWizardStore';
 import { vetJobWithGroq } from '../../services/groqService';
 import { verifyJobPosting } from '../../services/jobVerificationService';
-import type { JobPosting } from '../../types';
+import type { JobPosting, JobVerificationEvidence } from '../../types';
 
 vi.mock('../../store/useWizardStore', () => ({ useWizardStore: vi.fn() }));
 vi.mock('../../services/jobVerificationService', () => ({ verifyJobPosting: vi.fn() }));
@@ -65,14 +65,14 @@ describe('VettingTab privacy gate', () => {
   });
 
   it('does not check public ATS records until the user explicitly asks', async () => {
-    const evidence = {
+    const evidence: JobVerificationEvidence = {
       status: 'manual_review',
       provider: 'unsupported',
       checkedAt: '2026-11-19T00:00:00.000Z',
       explanation: 'Manual review required.',
       riskFlags: [],
       employerIdentityVerified: false
-    } as const;
+    };
     vi.mocked(verifyJobPosting).mockResolvedValue(evidence);
 
     await act(async () => {
