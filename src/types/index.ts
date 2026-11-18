@@ -136,6 +136,7 @@ export interface JobPosting {
   department?: string;
   experienceLevel: 'Entry' | 'Mid' | 'Senior' | 'Staff' | 'Lead' | 'Unspecified';
   vetting?: JobVetting;
+  verification?: JobVerificationEvidence;
 
   // Autonomous "Role Upgrade" Engine
   isRoleUpgrade?: boolean;
