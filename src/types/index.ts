@@ -58,6 +58,9 @@ export interface MasterResume {
   education: EducationItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
+  sourceLanguage?: string;
+  translatedToEnglish?: boolean;
+  originalLanguageSnapshot?: string;
   stats: {
     wordCount: number;
     pageCount: number;
