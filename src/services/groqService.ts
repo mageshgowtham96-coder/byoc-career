@@ -410,7 +410,7 @@ async function resolveOptimalModel(apiKey: string): Promise<string> {
 /**
  * Core reliable Groq chat execution with 30s timeout and typed HTTP error handling
  */
-async function callGroqChat(
+export async function callGroqChat(
   systemPrompt: string,
   userPrompt: string,
   apiKey?: string,
