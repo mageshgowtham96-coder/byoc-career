@@ -209,7 +209,7 @@ describe('Job Search Service', () => {
         workplaceType: 'Remote', salary: '$100k', postedDate: '2024-01-01',
         jobDescriptionRaw: 'TypeScript React Node.js',
         url: 'https://example.com', source: 'Test', skillsRequired: ['TypeScript', 'React'],
-        fitScore: null, matchedKeywords: [], missingKeywords: []
+        fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
       };
       const result = calculateHonestMatch(job, null);
       expect(result.score).toBe(0);
@@ -298,7 +298,7 @@ describe('Application Snapshot', () => {
         postedDate: '2024-01-15', jobDescriptionRaw: 'We need a senior engineer...',
         url: 'https://acme.com/jobs/1', source: 'Company Careers',
         skillsRequired: ['TypeScript', 'React', 'Node.js'],
-        fitScore: 85, matchedKeywords: ['TypeScript', 'React'], missingKeywords: ['Node.js']
+        fitScore: 85, matchedKeywords: ['TypeScript', 'React'], missingKeywords: ['Node.js'], experienceLevel: 'Unspecified'
       };
       const snapshot = buildApplicationSnapshotRecord({ job, masterResumeSummary: 'Experienced engineer' });
       
