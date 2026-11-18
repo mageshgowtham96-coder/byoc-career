@@ -50,6 +50,7 @@ describe('GuidedMasterResumeBuilder privacy and translation flow', () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    vi.useRealTimers();
   });
 
   it('does not call Groq when the builder opens; translation requires an explicit click', async () => {
@@ -94,6 +95,27 @@ describe('GuidedMasterResumeBuilder privacy and translation flow', () => {
     expect(translateCareerDraftToEnglish).toHaveBeenCalledOnce();
     expect(container.textContent).toContain('Review English translation');
     expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it('autosaves the draft through the existing encrypted-store callback', async () => {
+    vi.useFakeTimers();
+    await act(async () => {
+      root.render(
+        <GuidedMasterResumeBuilder
+          initialDraft={initialDraft}
+          groqApiKey=""
+          onDraftChange={onDraftChange}
+          onComplete={onComplete}
+          onCancel={onCancel}
+        />
+      );
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(400);
+    });
+
+    expect(onDraftChange).toHaveBeenCalledWith(initialDraft);
   });
 
   it('keeps the translation as a preview until the user accepts it', async () => {
