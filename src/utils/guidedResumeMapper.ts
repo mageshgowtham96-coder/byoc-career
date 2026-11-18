@@ -50,6 +50,7 @@ export function buildMasterResumeFromCareerDraft(
 
   const headline =
     draft.targetRole?.trim() ||
+    draft.currentRole?.trim() ||
     experiences.find((experience) => experience.role)?.role ||
     '';
 
@@ -102,6 +103,7 @@ export function buildMasterResumeFromCareerDraft(
     education,
     projects,
     certifications,
+    currentRole: draft.currentRole || '',
     sourceLanguage: draft.sourceLanguage || 'English',
     sourceLanguageOther: draft.sourceLanguageOther || '',
     roleFamily: draft.roleFamily || 'general',
@@ -132,6 +134,7 @@ export function createCareerDraftFromMasterResume(profile: MasterResume): Career
       portfolio: profile.contactInfo.portfolio
     },
     targetRole: profile.headline,
+    currentRole: profile.currentRole || '',
     roleFamily: 'general',
     experienceLevel: 'Unspecified',
     sourceLanguage: profile.sourceLanguage || 'English',
