@@ -43,6 +43,8 @@ export default function App() {
     setVisitedTabs((current) => includeVisitedTab(current, activeTab));
   }, [activeTab]);
 
+  const shouldRenderTab = (tab: ActiveTab) => visitedTabs.has(tab) || activeTab === tab;
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [activeTab]);
@@ -87,28 +89,28 @@ export default function App() {
               className="flex-1 min-w-0 px-4 pt-5 sm:px-6 lg:px-8 md:pb-10"
             >
               <div className={activeTab === 'dashboard' ? 'block animate-in fade-in duration-150' : 'hidden'}>
-                {visitedTabs.has('dashboard') && <Suspense fallback={<TabLoadingFallback />}><DashboardTab /></Suspense>}
+                {shouldRenderTab('dashboard') && <Suspense fallback={<TabLoadingFallback />}><DashboardTab /></Suspense>}
               </div>
               <div className={activeTab === 'intake' ? 'block animate-in fade-in duration-150' : 'hidden'}>
-                {visitedTabs.has('intake') && <Suspense fallback={<TabLoadingFallback />}><IntakeTab /></Suspense>}
+                {shouldRenderTab('intake') && <Suspense fallback={<TabLoadingFallback />}><IntakeTab /></Suspense>}
               </div>
               <div className={activeTab === 'sourcing' ? 'block animate-in fade-in duration-150' : 'hidden'}>
-                {visitedTabs.has('sourcing') && <Suspense fallback={<TabLoadingFallback />}><SourcingTab /></Suspense>}
+                {shouldRenderTab('sourcing') && <Suspense fallback={<TabLoadingFallback />}><SourcingTab /></Suspense>}
               </div>
               <div className={activeTab === 'vetting' ? 'block animate-in fade-in duration-150' : 'hidden'}>
-                {visitedTabs.has('vetting') && <Suspense fallback={<TabLoadingFallback />}><VettingTab /></Suspense>}
+                {shouldRenderTab('vetting') && <Suspense fallback={<TabLoadingFallback />}><VettingTab /></Suspense>}
               </div>
               <div className={activeTab === 'customization' ? 'block animate-in fade-in duration-150' : 'hidden'}>
-                {visitedTabs.has('customization') && <Suspense fallback={<TabLoadingFallback />}><CustomizationTab /></Suspense>}
+                {shouldRenderTab('customization') && <Suspense fallback={<TabLoadingFallback />}><CustomizationTab /></Suspense>}
               </div>
               <div className={activeTab === 'tracking' ? 'block animate-in fade-in duration-150' : 'hidden'}>
-                {visitedTabs.has('tracking') && <Suspense fallback={<TabLoadingFallback />}><TrackingTab /></Suspense>}
+                {shouldRenderTab('tracking') && <Suspense fallback={<TabLoadingFallback />}><TrackingTab /></Suspense>}
               </div>
               <div className={activeTab === 'prepzone' ? 'block animate-in fade-in duration-150' : 'hidden'}>
-                {visitedTabs.has('prepzone') && <Suspense fallback={<TabLoadingFallback />}><PrepZone /></Suspense>}
+                {shouldRenderTab('prepzone') && <Suspense fallback={<TabLoadingFallback />}><PrepZone /></Suspense>}
               </div>
               <div className={activeTab === 'settings' ? 'block animate-in fade-in duration-150' : 'hidden'}>
-                {visitedTabs.has('settings') && <Suspense fallback={<TabLoadingFallback />}><SettingsTab /></Suspense>}
+                {shouldRenderTab('settings') && <Suspense fallback={<TabLoadingFallback />}><SettingsTab /></Suspense>}
               </div>
             </main>
           </div>
