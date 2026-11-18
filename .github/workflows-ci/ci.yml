@@ -50,7 +50,8 @@ jobs:
     timeout-minutes: 15
     needs: lint-and-test
     steps:
-      - name: Checkout repository
+      - name:
+        Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
