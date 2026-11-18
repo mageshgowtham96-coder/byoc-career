@@ -118,6 +118,7 @@ export const VettingTab: React.FC = () => {
   }
 
   const vetting = selectedJob.vetting;
+  const verification = __SELECTED_VERIFICATION__
 
   return (
     <div className="space-y-6 pb-8">
@@ -184,13 +185,13 @@ export const VettingTab: React.FC = () => {
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3.5 py-2.5 text-xs font-bold text-sky-200 transition hover:bg-sky-500/20 disabled:opacity-60"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isVerificationLoading ? 'animate-spin' : ''}`} />
-            {isVerificationLoading ? 'Checking public record…' : selectedJob.verification ? 'Recheck posting' : 'Check public posting'}
+            {isVerificationLoading ? 'Checking public record…' : verification ? 'Recheck posting' : 'Check public posting'}
           </button>
         </div>
 
         {verificationError && <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{verificationError}</p>}
 
-        {selectedJob.verification ? (
+        {verification ? (
           <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3 sm:p-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-bold text-white">
@@ -201,25 +202,25 @@ export const VettingTab: React.FC = () => {
                   not_found: 'No matching public record',
                   manual_review: 'Manual review required',
                   check_failed: 'Check could not complete'
-                }[selectedJob.verification.status]}
+                }[verification.status]}
               </span>
               <span className="text-[10px] text-slate-500">
-                Checked {new Date(selectedJob.verification.checkedAt).toLocaleString()}
+                Checked {new Date(verification.checkedAt).toLocaleString()}
               </span>
             </div>
-            <p className="text-xs leading-relaxed text-slate-300">{selectedJob.verification.explanation}</p>
-            {(selectedJob.verification.officialTitle || selectedJob.verification.officialCompany) && (
+            <p className="text-xs leading-relaxed text-slate-300">{verification.explanation}</p>
+            {(verification.officialTitle || verification.officialCompany) && (
               <div className="grid gap-2 sm:grid-cols-2">
-                <div><p className="text-[10px] uppercase tracking-wide text-slate-500">ATS title</p><p className="mt-0.5 text-xs text-white">{selectedJob.verification.officialTitle || 'Not supplied'}</p></div>
-                <div><p className="text-[10px] uppercase tracking-wide text-slate-500">ATS company</p><p className="mt-0.5 text-xs text-white">{selectedJob.verification.officialCompany || 'Not supplied'}</p></div>
-                {selectedJob.verification.firstPublishedAt && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">First published</p><p className="mt-0.5 text-xs text-slate-200">{selectedJob.verification.firstPublishedAt}</p></div>}
-                {selectedJob.verification.updatedAt && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">ATS last updated</p><p className="mt-0.5 text-xs text-slate-200">{selectedJob.verification.updatedAt}</p></div>}
-                {selectedJob.verification.applicationDeadline && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">Application deadline</p><p className="mt-0.5 text-xs text-slate-200">{selectedJob.verification.applicationDeadline}</p></div>}
-                {selectedJob.verification.postingId && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">Public posting ID</p><p className="mt-0.5 text-xs font-mono text-slate-200">{selectedJob.verification.postingId}</p></div>}
+                <div><p className="text-[10px] uppercase tracking-wide text-slate-500">ATS title</p><p className="mt-0.5 text-xs text-white">{verification.officialTitle || 'Not supplied'}</p></div>
+                <div><p className="text-[10px] uppercase tracking-wide text-slate-500">ATS company</p><p className="mt-0.5 text-xs text-white">{verification.officialCompany || 'Not supplied'}</p></div>
+                {verification.firstPublishedAt && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">First published</p><p className="mt-0.5 text-xs text-slate-200">{verification.firstPublishedAt}</p></div>}
+                {verification.updatedAt && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">ATS last updated</p><p className="mt-0.5 text-xs text-slate-200">{verification.updatedAt}</p></div>}
+                {verification.applicationDeadline && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">Application deadline</p><p className="mt-0.5 text-xs text-slate-200">{verification.applicationDeadline}</p></div>}
+                {verification.postingId && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">Public posting ID</p><p className="mt-0.5 text-xs font-mono text-slate-200">{verification.postingId}</p></div>}
               </div>
             )}
             <div className="flex flex-wrap gap-3 text-[11px]">
-              {selectedJob.verification.evidenceUrl && <a href={selectedJob.verification.evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-sky-300 underline underline-offset-2">Open ATS evidence</a>}
+              {verification.evidenceUrl && <a href={verification.evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-sky-300 underline underline-offset-2">Open ATS evidence</a>}
               <a href={selectedJob.url} target="_blank" rel="noopener noreferrer" className="text-sky-300 underline underline-offset-2">Open original posting</a>
             </div>
             <p className="text-[10px] font-semibold text-amber-200">Employer identity: Not verified</p>
@@ -230,11 +231,11 @@ export const VettingTab: React.FC = () => {
 
         <div className="border-t border-slate-800 pt-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Local description risk signals</p>
-          {selectedJob.verification?.riskFlags.length ? (
-            <ul className="mt-2 space-y-1.5">{selectedJob.verification.riskFlags.map((flag, index) => <li key={index} className="flex gap-2 text-[11px] leading-relaxed text-amber-200"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{flag}</li>)}</ul>
+          {verification?.riskFlags.length ? (
+            <ul className="mt-2 space-y-1.5">{verification.riskFlags.map((flag, index) => <li key={index} className="flex gap-2 text-[11px] leading-relaxed text-amber-200"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{flag}</li>)}</ul>
           ) : (
             <p className="mt-1 text-[11px] text-slate-500">
-              {selectedJob.verification ? 'No predefined risk phrases were found. This is not a safety guarantee.' : 'Risk phrases are checked locally when you run the public posting check.'}
+              {verification ? 'No predefined risk phrases were found. This is not a safety guarantee.' : 'Risk phrases are checked locally when you run the public posting check.'}
             </p>
           )}
         </div>
