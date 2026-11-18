@@ -1136,7 +1136,7 @@ export function restoreVaultDataToStore(
     groqApiKey: data.groqApiKey || '',
     geminiApiKey: data.geminiApiKey || '',
     masterResume: data.masterResume || null,
-    careerFormDraft: data.careerFormDraft || null,
+    careerFormDraft: data.careerFormDraft ? sanitizeCareerFormState(data.careerFormDraft) : null,
     emailInteractions: Array.isArray(data.emailInteractions) ? data.emailInteractions : [],
     jobs: Array.isArray(data.jobs) ? data.jobs : [],
     selectedJobId: data.selectedJobId || null,
