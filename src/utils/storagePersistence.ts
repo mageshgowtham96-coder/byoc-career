@@ -257,7 +257,7 @@ export function safeRemoveItem(key: string): void {
  */
 export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormState {
   const initial: CareerApplicationFormState = {
-    personalDetails: { fullName: '', email: '', phone: '', location: '' },
+    personalDetails: { fullName: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
     professionalSummary: '',
     workExperience: [],
     skills: [],
@@ -269,6 +269,7 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
     roleFamily: 'general',
     experienceLevel: 'Unspecified',
     sourceLanguage: 'English',
+    sourceLanguageOther: '',
     translatedToEnglish: false,
     originalLanguageSnapshot: '',
     projects: [],
@@ -348,6 +349,7 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
     roleFamily: String(r.roleFamily ?? 'general').trim() || 'general',
     experienceLevel: String(r.experienceLevel ?? 'Unspecified').trim() || 'Unspecified',
     sourceLanguage: String(r.sourceLanguage ?? 'English').trim() || 'English',
+    sourceLanguageOther: String(r.sourceLanguageOther ?? '').trim(),
     translatedToEnglish: Boolean(r.translatedToEnglish),
     originalLanguageSnapshot: String(r.originalLanguageSnapshot ?? ''),
     projects: projects.map((project: unknown, idx: number) => {
