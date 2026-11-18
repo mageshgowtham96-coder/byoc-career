@@ -403,6 +403,7 @@ export interface CareerApplicationFormState {
   roleFamily?: string;
   experienceLevel?: string;
   sourceLanguage?: string;
+  sourceLanguageOther?: string;
   translatedToEnglish?: boolean;
   originalLanguageSnapshot?: string;
   projects?: ProjectItem[];
