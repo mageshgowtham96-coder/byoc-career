@@ -748,7 +748,7 @@ export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
           ? item.workplaceType
           : 'Unspecified';
         const skills = Array.isArray(item.skillsRequired)
-          ? item.skillsRequired.filter((skill: unknown): skill is string => typeof skill === 'string' && skill.trim()).slice(0, 12)
+          ? item.skillsRequired.filter((skill: unknown): skill is string => typeof skill === 'string' && skill.trim().length > 0).slice(0, 12)
           : [];
         return [{
           id: `groq-search-${encodeURIComponent(url).slice(-90)}-${index}`,
@@ -812,7 +812,7 @@ export class LiveJobSearchEngine {
     ];
     const providerErrors: string[] = [];
 
-    const activeProviders = groqApiKey?.trim()
+    const activeProviders: JobProviderAdapter[] = groqApiKey?.trim()
       ? [...this.providers, new GroqBrowserSearchJobAdapter(groqApiKey)]
       : this.providers;
 
