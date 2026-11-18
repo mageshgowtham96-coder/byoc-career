@@ -22,8 +22,8 @@ function requireString(value: unknown): value is string {
 }
 
 function assertFaithfulText(source: string, translated: string): void {
-  if (source.trim() && !translated.trim()) {
-    throw new Error('Groq omitted text from the translation. Your original draft has not changed.');
+  if (Boolean(source.trim()) !== Boolean(translated.trim())) {
+    throw new Error('Groq added or omitted text during translation. Your original draft has not changed.');
   }
   const sourceNumbers = source.match(/\d+(?:[.,]\d+)?%?/g) || [];
   const translatedNumbers = translated.match(/\d+(?:[.,]\d+)?%?/g) || [];
