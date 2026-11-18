@@ -87,32 +87,29 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
     return { role: item.role, keyResponsibilities: item.keyResponsibilities as string[] };
   });
 
-  const translatedEducation = education.map((item) => {
+  const translatedEducation = education.map((item, index) => {
     if (!isRecord(item) || !requireString(item.degree) || !requireString(item.field)) {
       throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
     }
-    const index = education.indexOf(item);
     assertFaithfulText(draft.education[index].degree, item.degree);
     assertFaithfulText(draft.education[index].field || '', item.field);
     return { degree: item.degree, field: item.field };
   });
 
-  const translatedProjects = projects.map((item) => {
+  const translatedProjects = projects.map((item, index) => {
     if (!isRecord(item) || !requireString(item.title) || !requireString(item.description)) {
       throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
     }
-    const index = projects.indexOf(item);
     const original = (draft.projects || [])[index];
     assertFaithfulText(original.title, item.title);
     assertFaithfulText(original.description, item.description);
     return { title: item.title, description: item.description };
   });
 
-  const translatedCertifications = certifications.map((item) => {
+  const translatedCertifications = certifications.map((item, index) => {
     if (!isRecord(item) || !requireString(item.name)) {
       throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
     }
-    const index = certifications.indexOf(item);
     assertFaithfulText((draft.certifications || [])[index].name, item.name);
     return { name: item.name };
   });
