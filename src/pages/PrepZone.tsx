@@ -67,13 +67,13 @@ export const PrepZone: React.FC = () => {
   const primaryExp = experienceBullets[0] || null;
   const secondaryExp = experienceBullets[1] || primaryExp;
 
-  const hasVerifiedSkills = candidateSkills.length > 0;
-  const hasVerifiedExperience = experienceBullets.length > 0 || Boolean(primaryCompany);
-  const hasVerifiedProfile = Boolean(
+  const hasSkills = candidateSkills.length > 0;
+  const hasExperience = experienceBullets.length > 0 || Boolean(primaryCompany);
+  const hasCareerProfile = Boolean(
     masterResume &&
       (primaryDomain ||
-        hasVerifiedSkills ||
-        hasVerifiedExperience ||
+        hasSkills ||
+        hasExperience ||
         masterResume.summary?.trim() ||
         masterResume.rawText?.trim())
   );
@@ -106,7 +106,7 @@ export const PrepZone: React.FC = () => {
       ],
       suggestedFramework: 'Architecture Framework (Context -> Requirements -> Trade-Offs -> Implementation -> Metrics)',
       sampleEvidencePrompt: primaryExp
-        ? `Ground your response in your verified experience${primaryExp.company ? ` at ${primaryExp.company}` : ''}: "${primaryExp.bullet}".`
+        ? `Ground your response in your recorded experience${primaryExp.company ? ` at ${primaryExp.company}` : ''}: "${primaryExp.bullet}".`
         : '',
       isGenericPractice: !skill1,
       hasEvidence: Boolean(primaryExp)
@@ -129,7 +129,7 @@ export const PrepZone: React.FC = () => {
       ],
       suggestedFramework: 'Resilience Paradigm (Proactive Isolation -> Graceful Degradation -> Recovery Strategy)',
       sampleEvidencePrompt: secondaryExp
-        ? `Cite your verified milestone${secondaryExp.company ? ` from ${secondaryExp.company}` : ''}: "${secondaryExp.bullet}".`
+        ? `Cite your recorded experience detail${secondaryExp.company ? ` from ${secondaryExp.company}` : ''}: "${secondaryExp.bullet}".`
         : '',
       isGenericPractice: !skill2,
       hasEvidence: Boolean(secondaryExp)
@@ -152,11 +152,11 @@ export const PrepZone: React.FC = () => {
       difficulty: 'Senior',
       keyConcepts: ['Telemetry & Profiling', 'Root Cause Analysis', 'Targeted Optimization', 'Regression Prevention'],
       suggestedFramework: 'Optimization Loop (Baseline Benchmark -> Trace Profiling -> Targeted Refactor -> Verification)',
-      sampleEvidencePrompt: hasVerifiedSkills
-        ? `Leverage your verified technical skills: ${candidateSkills.slice(0, 4).join(', ')}.`
+      sampleEvidencePrompt: hasSkills
+        ? `Leverage your listed technical skills: ${candidateSkills.slice(0, 4).join(', ')}.`
         : '',
       isGenericPractice: !skill1,
-      hasEvidence: hasVerifiedSkills
+      hasEvidence: hasSkills
     },
     {
       id: 'q-tech-2',
@@ -171,9 +171,9 @@ export const PrepZone: React.FC = () => {
       keyConcepts: ['Automated Testing Suites', 'Boundary Validation', 'CI/CD Gateways', 'Rollback Preparedness'],
       suggestedFramework: 'Quality Matrix (Unit Contract -> Integration Validation -> End-to-End Auditing)',
       sampleEvidencePrompt: primaryCompany
-        ? `Reference your verified deliverables from ${primaryCompany}.`
+        ? `Reference your recorded deliverables from ${primaryCompany}.`
         : primaryExp
-        ? `Reference your verified deliverable: "${primaryExp.bullet}".`
+        ? `Reference your recorded deliverable: "${primaryExp.bullet}".`
         : '',
       isGenericPractice: !primaryDomain,
       hasEvidence: Boolean(primaryCompany || primaryExp)
@@ -187,7 +187,7 @@ export const PrepZone: React.FC = () => {
       keyConcepts: ['STAR Method', 'Stakeholder Negotiation', 'Data-Driven Trade-offs', 'Transparent Communication'],
       suggestedFramework: 'STAR Method (Situation -> Task -> Action -> Quantifiable Result)',
       sampleEvidencePrompt: primaryCompany
-        ? `Focus on genuine collaboration during your verified tenure at ${primaryCompany}.`
+        ? `Focus on genuine collaboration during your recorded tenure at ${primaryCompany}.`
         : '',
       isGenericPractice: true,
       hasEvidence: Boolean(primaryCompany)
@@ -201,7 +201,7 @@ export const PrepZone: React.FC = () => {
       keyConcepts: ['Scaffolded Autonomy', 'Constructive Review Culture', 'Knowledge Documentation', 'Mentorship'],
       suggestedFramework: 'Empowerment Framework (Scaffolding -> Delegated Ownership -> Retrospective Coaching)',
       sampleEvidencePrompt: primaryCompany
-        ? `Highlight your verified collaboration record at ${primaryCompany}.`
+        ? `Highlight your recorded collaboration examples at ${primaryCompany}.`
         : '',
       isGenericPractice: true,
       hasEvidence: Boolean(primaryCompany)
@@ -265,8 +265,8 @@ export const PrepZone: React.FC = () => {
             <span>Prep-Zone & Interview Intelligence</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            {hasVerifiedProfile
-              ? 'Domain practice and role-specific interview preparation anchored in your verified profile.'
+            {hasCareerProfile
+              ? 'Domain practice and role-specific interview preparation anchored in your Master Resume.'
               : 'Generic practice exercises until you ingest a master resume in Intake.'}
           </p>
         </div>
@@ -306,7 +306,7 @@ export const PrepZone: React.FC = () => {
           {/* Domain Overview Slab */}
           <div className="p-5 rounded-3xl bg-slate-800/90 border border-slate-700 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              {hasVerifiedProfile ? (
+              {hasCareerProfile ? (
                 <>
                   <span className="text-[10px] font-mono font-bold text-sky-400 uppercase tracking-wider block mb-1">
                     Active Domain Profile
@@ -315,18 +315,18 @@ export const PrepZone: React.FC = () => {
                     <span>{primaryDomain || 'Master Profile Loaded'}</span>
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
-                        hasVerifiedSkills
+                        hasSkills
                           ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
                           : 'bg-amber-500/15 border-amber-500/30 text-amber-300'
                       }`}
                     >
-                      {hasVerifiedSkills ? 'Verified Skills Grounded' : 'Add Technical Skills in Intake'}
+                      {hasSkills ? 'Skills in Master Resume' : 'Add Technical Skills in Intake'}
                     </span>
                   </h3>
                   <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
-                    {hasVerifiedSkills
-                      ? `Practicing architecture, quality workflows, and execution depth grounded in your verified profile${primaryDomain ? ` (${primaryDomain})` : ''}.`
-                      : 'Your master profile is loaded without verified technical skill tags. Prompts lacking specific profile evidence are labeled as Generic Practice.'}
+                    {hasSkills
+                      ? `Practicing architecture, quality workflows, and execution depth grounded in your Master Resume${primaryDomain ? ` (${primaryDomain})` : ''}.`
+                      : 'Your master profile is loaded without technical skills listed. Prompts lacking specific profile evidence are labeled as Generic Practice.'}
                   </p>
                 </>
               ) : (
@@ -335,13 +335,13 @@ export const PrepZone: React.FC = () => {
                     Generic Practice Mode
                   </span>
                   <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2 flex-wrap">
-                    <span>No Verified Profile Loaded</span>
+                    <span>No Master Resume Loaded</span>
                     <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-mono">
-                      Unverified / Generic Prompts Only
+                      Generic Practice Only
                     </span>
                   </h3>
                   <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
-                    Verified career, skill, and company evidence is missing. The prompts below are generic practice exercises—never your background. Upload and confirm your master resume in Intake to anchor talking points to real experience.
+                    Master Resume details are missing. The prompts below are generic practice exercises—never your background. Upload and confirm your master resume in Intake to anchor talking points to real experience.
                   </p>
                   <button
                     type="button"
@@ -461,7 +461,7 @@ export const PrepZone: React.FC = () => {
                           ) : (
                             <span className="font-bold text-amber-300 flex items-center gap-1.5">
                               <AlertCircle className="w-4 h-4 text-amber-400" />
-                              <span>Verified Profile Evidence Missing</span>
+                              <span>Master Resume Evidence Missing</span>
                             </span>
                           )}
                           <button
@@ -470,8 +470,8 @@ export const PrepZone: React.FC = () => {
                             aria-disabled={!q.hasEvidence}
                             title={
                               q.hasEvidence
-                                ? 'Copy verified talking point'
-                                : 'Add verified resume evidence in Intake to enable copying'
+                                ? 'Copy profile-backed talking point'
+                                : 'Add relevant resume details in Intake to enable copying'
                             }
                             onClick={() => handleCopy(q.id, q.sampleEvidencePrompt)}
                             className={`text-[11px] flex items-center gap-1 font-mono transition ${
@@ -491,7 +491,7 @@ export const PrepZone: React.FC = () => {
                         ) : (
                           <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <p className="leading-relaxed text-slate-400 font-sans">
-                              No verified skill or experience milestone is available in your profile for this question. Configure your Master Resume in Intake before copying personalized talking points.
+                              No recorded skill or experience details is available in your profile for this question. Configure your Master Resume in Intake before copying personalized talking points.
                             </p>
                             <button
                               type="button"
@@ -549,9 +549,9 @@ export const PrepZone: React.FC = () => {
                     {selectedJob.title}
                   </h3>
                   <p className="text-xs text-slate-300 mt-1">
-                    {hasVerifiedProfile
-                      ? 'Role-specific interview round structure based on the selected job listing, your verified profile, and compensation settings.'
-                      : 'Generic role-specific interview round structure based on the selected job listing (add a resume in Intake to include verified profile evidence).'}
+                    {hasCareerProfile
+                      ? 'Role-specific interview round structure based on the selected job listing, your Master Resume, and compensation settings.'
+                      : 'Generic role-specific interview round structure based on the selected job listing (add a resume in Intake to include Master Resume evidence).'}
                   </p>
                 </div>
 
@@ -585,7 +585,7 @@ export const PrepZone: React.FC = () => {
                     </p>
                   </div>
 
-                  {hasVerifiedProfile && (
+                  {hasCareerProfile && (
                     <button
                       type="button"
                       disabled={isGeneratingPrep || !groqApiKey.trim()}
@@ -674,13 +674,13 @@ export const PrepZone: React.FC = () => {
                 ) : (
                   <div className="p-3.5 rounded-2xl bg-slate-900/70 border border-slate-800 text-xs text-slate-400 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <span>
-                      {!hasVerifiedProfile
-                        ? 'Upload your Master Resume in Intake first so AI prep questions anchor strictly to your verified experience.'
+                      {!hasCareerProfile
+                        ? 'Upload your Master Resume in Intake first so AI prep questions anchor strictly to your recorded experience.'
                         : !groqApiKey.trim()
                         ? 'No Groq API key configured. Add your key in Settings to generate AI prep questions, or use the offline interview blueprint and Domain Role Practice below.'
                         : 'No AI prep questions generated for this role yet. Click "Generate AI Prep Questions" above or synthesize a 3-variant kit in Customization.'}
                     </span>
-                    {!hasVerifiedProfile ? (
+                    {!hasCareerProfile ? (
                       <button
                         type="button"
                         onClick={() => setActiveTab('intake')}
@@ -738,7 +738,7 @@ export const PrepZone: React.FC = () => {
                     <div className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-[10px] text-slate-400">
                       <strong>Focus:</strong>{' '}
                       {skill1
-                        ? `Practical scenario walkthroughs grounded in your verified skill (${skill1}) and requirements at ${selectedJob.company}.`
+                        ? `Practical scenario walkthroughs grounded in your listed skill (${skill1}) and requirements at ${selectedJob.company}.`
                         : selectedJob.skillsRequired.length > 0
                         ? `Generic practice walkthroughs for listed job requirements (${selectedJob.skillsRequired.slice(0, 2).join(', ')}) at ${selectedJob.company}.`
                         : `Generic practice walkthroughs for ${selectedJob.title} constraints at ${selectedJob.company} (add your resume in Intake to anchor to your own skills).`}
