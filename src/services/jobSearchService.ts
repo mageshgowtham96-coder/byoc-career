@@ -667,7 +667,7 @@ export function buildLocationScopeNotice(country?: string, location?: string, in
  * candidate resumes, contact details, and application history are never included.
  * Returned listings are discovery candidates, not independently verified vacancies.
  */
-export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
+export export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
   id = 'groq_browser_search';
   name = 'Groq Browser Search';
   requiresAuth = true;
@@ -709,6 +709,7 @@ export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
           }],
           temperature: 0.1,
           reasoning_effort: 'low',
+          citation_options: 'disabled',
           max_completion_tokens: 5000,
           tool_choice: 'required',
           tools: [{ type: 'browser_search' }]
