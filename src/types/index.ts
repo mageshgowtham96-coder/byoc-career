@@ -84,6 +84,40 @@ export interface JobVetting {
   summaryVerdict: string;
 }
 
+export type JobVerificationStatus =
+  | 'confirmed'
+  | 'expired'
+  | 'mismatch'
+  | 'not_found'
+  | 'manual_review'
+  | 'check_failed';
+
+export type JobVerificationProvider =
+  | 'greenhouse'
+  | 'lever'
+  | 'ashby'
+  | 'workday'
+  | 'smartrecruiters'
+  | 'unsupported';
+
+export interface JobVerificationEvidence {
+  status: JobVerificationStatus;
+  provider: JobVerificationProvider;
+  checkedAt: string;
+  postingId?: string;
+  boardToken?: string;
+  officialTitle?: string;
+  officialCompany?: string;
+  firstPublishedAt?: string;
+  updatedAt?: string;
+  applicationDeadline?: string;
+  evidenceUrl?: string;
+  explanation: string;
+  riskFlags: string[];
+  /** Always false: a public ATS record is not proof of legal employer identity. */
+  employerIdentityVerified: false;
+}
+
 export interface JobPosting {
   id: string;
   title: string;
