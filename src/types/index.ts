@@ -355,6 +355,9 @@ export interface PersonalDetailsState {
   email: string;
   phone: string;
   location: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
 }
 
 /**
@@ -366,6 +369,10 @@ export interface WorkExperienceStateItem {
   role: string;
   duration: string;
   keyResponsibilities: string[];
+  startDate?: string;
+  endDate?: string;
+  location?: string;
+  isCurrent?: boolean;
 }
 
 /**
@@ -376,6 +383,8 @@ export interface EducationStateItem {
   degree: string;
   institution: string;
   year: string;
+  field?: string;
+  gpa?: string;
 }
 
 /**
