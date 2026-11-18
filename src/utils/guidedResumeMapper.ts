@@ -62,6 +62,7 @@ export function buildMasterResumeFromCareerDraft(
     draft.personalDetails.linkedin,
     draft.personalDetails.github,
     draft.personalDetails.portfolio,
+    draft.currentRole || '',
     headline,
     draft.professionalSummary,
     ...experiences.flatMap((experience) => [
