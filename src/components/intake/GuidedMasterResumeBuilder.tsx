@@ -427,6 +427,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
             <h3 className="text-base font-bold text-white">Review English translation</h3>
             <p className="mt-1 text-xs text-slate-400">Check the wording carefully. Nothing changes until you accept this preview.</p>
             <div className="mt-4 max-h-[55vh] space-y-3 overflow-y-auto rounded-xl border border-slate-700 bg-slate-950/60 p-3">
+              <div><p className="text-[10px] uppercase text-slate-500">Current / most recent role</p><p className="mt-1 text-sm text-white">{translationPreview.currentRole || '—'}</p></div>
               <div><p className="text-[10px] uppercase text-slate-500">Target role</p><p className="mt-1 text-sm text-white">{translationPreview.targetRole}</p></div>
               <div><p className="text-[10px] uppercase text-slate-500">Summary</p><p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-200">{translationPreview.professionalSummary}</p></div>
               {(translationPreview.workExperience || []).map((item) => <div key={item.id}><p className="text-[10px] uppercase text-slate-500">{item.role}</p><ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-slate-200">{item.keyResponsibilities.map((bullet, index) => <li key={index}>{bullet}</li>)}</ul></div>)}
