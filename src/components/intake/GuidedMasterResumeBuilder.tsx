@@ -250,6 +250,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div><FieldLabel htmlFor="guided-name">Name on resume</FieldLabel><input id="guided-name" className={inputClass} value={draft.personalDetails.fullName} onChange={(e) => updatePersonal('fullName', e.target.value)} placeholder="Your full name" /></div>
+                <div><FieldLabel htmlFor="guided-current-role" optional>Current / most recent role</FieldLabel><input id="guided-current-role" className={inputClass} value={draft.currentRole || ''} onChange={(e) => updateDraft({ currentRole: e.target.value })} placeholder="e.g. Customer Support Associate" /></div>
                 <div><FieldLabel htmlFor="guided-target-role">Target role</FieldLabel><input id="guided-target-role" className={inputClass} value={draft.targetRole || ''} onChange={(e) => updateDraft({ targetRole: e.target.value })} placeholder="e.g. Junior Data Analyst" /></div>
                 <div><FieldLabel htmlFor="guided-email" optional>Email</FieldLabel><input id="guided-email" type="email" className={inputClass} value={draft.personalDetails.email} onChange={(e) => updatePersonal('email', e.target.value)} placeholder="you@example.com" /></div>
                 <div><FieldLabel htmlFor="guided-phone" optional>Phone</FieldLabel><input id="guided-phone" className={inputClass} value={draft.personalDetails.phone} onChange={(e) => updatePersonal('phone', e.target.value)} placeholder="Phone number" /></div>
@@ -276,7 +277,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
                 <p className="mt-1 text-xs text-slate-400">Formal jobs are not required. Internships, volunteering, family business work, and relevant activities can count when described accurately.</p>
               </div>
               <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-3">
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-sky-300">Prompts for {ROLE_FAMILY_OPTIONS.find((role) => role.value === draft.roleFamily)?.label || 'your role'}</p>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-sky-300">Prompts for {draft.currentRole || draft.targetRole || ROLE_FAMILY_OPTIONS.find((role) => role.value === draft.roleFamily)?.label || 'your role'}</p>
                 <ul className="space-y-2">{roleQuestions.map((question) => <li key={question} className="flex gap-2 text-xs leading-relaxed text-slate-300"><span className="mt-0.5 text-sky-400">•</span><span>{question}</span></li>)}</ul>
               </div>
               {draft.workExperience.map((experience, index) => (
