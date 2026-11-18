@@ -8,6 +8,8 @@ describe('sanitizeCareerFormState guided builder fields', () => {
       workExperience: [{ id: 'exp-1', company: 'Example', role: 'Analyst', duration: '2022–Present', startDate: '2022', endDate: 'Present', location: 'Chennai', isCurrent: true, keyResponsibilities: ['Built reports'] }],
       education: [{ id: 'edu-1', degree: 'BSc', institution: 'Example University', year: '2022', field: 'Statistics', gpa: '8.4' }],
       targetRole: 'Data Analyst',
+      currentRole: 'Reporting Intern',
+      sourceLanguageOther: 'Odia',
       roleFamily: 'data-analytics',
       experienceLevel: 'Entry',
       sourceLanguage: 'Tamil',
@@ -36,6 +38,8 @@ describe('sanitizeCareerFormState guided builder fields', () => {
     expect(result.education[0].field).toBe('Statistics');
     expect(result.education[0].gpa).toBe('8.4');
     expect(result.targetRole).toBe('Data Analyst');
+    expect(result.currentRole).toBe('Reporting Intern');
+    expect(result.sourceLanguageOther).toBe('Odia');
     expect(result.roleFamily).toBe('data-analytics');
     expect(result.experienceLevel).toBe('Entry');
     expect(result.sourceLanguage).toBe('Tamil');
