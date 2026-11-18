@@ -926,9 +926,9 @@ export const IntakeTab: React.FC = () => {
             <FileText className="w-6 h-6" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-white">Master Resume Baseline Purged / Unassigned</h4>
+            <h4 className="text-sm font-bold text-white">Start your Master Resume</h4>
             <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
-              Your candidate profile is currently cleared. Drop your resume file in the upload zone above, or paste raw text in the manual fallback slab to begin.
+              You do not need an existing resume or a computer. Build your profile step by step, include projects or study if you are new to work, or upload/paste a resume you already have.
             </p>
           </div>
           <button
