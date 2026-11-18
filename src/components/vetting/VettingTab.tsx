@@ -238,6 +238,7 @@ export const VettingTab: React.FC = () => {
               {verification ? 'No predefined risk phrases were found. This is not a safety guarantee.' : 'Risk phrases are checked locally when you run the public posting check.'}
             </p>
           )}
+          <p className="mt-2 text-[10px] text-slate-500">These are automated text signals only — they are not proof that a job is fraudulent or safe.</p>
         </div>
       </section>
 
