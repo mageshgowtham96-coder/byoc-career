@@ -234,7 +234,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300">Build Your Own Career</p>
             <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">{isEditingExisting ? 'Update your Master Resume' : 'Create your Master Resume'}</h2>
-            <p className="mt-1 text-xs text-slate-400">Your draft autosaves inside your encrypted BYOC vault.</p>
+            <p className="mt-1 text-xs text-slate-400">Write in the language you are comfortable with — English is not required. Your draft autosaves inside the encrypted BYOC vault; translation is optional.</p>
           </div>
           <button type="button" onClick={handleClose} aria-label="Save draft and close" className="rounded-xl border border-slate-700 p-2 text-slate-300 hover:bg-slate-800">
             <X className="h-5 w-5" />
