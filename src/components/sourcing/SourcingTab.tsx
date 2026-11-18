@@ -41,6 +41,7 @@ export const SourcingTab: React.FC = () => {
     selectedJobId,
     setSelectedJobId,
     masterResume,
+    groqApiKey,
     hasMasterResume,
     setActiveTab,
     addJob,
@@ -124,7 +125,8 @@ export const SourcingTab: React.FC = () => {
           skills: masterResume?.skills.technical
         },
         masterResume,
-        jobs
+        jobs,
+        groqApiKey
       );
       setLiveSearchReport(res);
       if (res.jobs.length > 0) {
