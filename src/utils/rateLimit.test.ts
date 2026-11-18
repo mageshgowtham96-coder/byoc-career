@@ -122,7 +122,6 @@ describe('Passphrase Rate Limiting', () => {
         );
         // Mock Date.now for test
         const originalNow = global.Date.now;
-        // @ts-expect-error testing only
         global.Date.now = () => fixedNow + 15000;
         try {
           const result = checkPassphraseLockout();
@@ -181,19 +180,17 @@ describe('Passphrase Rate Limiting', () => {
       }
       const result = exportAttemptState();
       expect(typeof result).toBe('string');
-      const parsed = JSON.parse(result);
+      const parsed = JSON.parse(result ?? 'null');
       expect(parsed).toHaveLength(1);
     });
 
     it('returns null when no localStorage', () => {
-      // @ts-expect-error testing only
-      const originalWindow = global.window;
-      global.window = undefined;
+      vi.stubGlobal('window', undefined);
       try {
         const result = exportAttemptState();
         expect(result).toBeNull();
       } finally {
-        global.window = originalWindow;
+        vi.unstubAllGlobals();
       }
     });
   });
