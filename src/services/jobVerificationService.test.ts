@@ -107,6 +107,15 @@ describe('verifyJobPosting', () => {
     expect(evidence.employerIdentityVerified).toBe(false);
   });
 
+  it('does not confirm a public record when the company differs', async () => {
+    mockGreenhouseJsonp({ ...greenhouseRecord, company_name: 'Different Company' });
+
+    const evidence = await verifyJobPosting(baseJob, new Date('2026-11-19T00:00:00Z'));
+
+    expect(evidence.status).toBe('mismatch');
+    expect(evidence.officialCompany).toBe('Different Company');
+  });
+
   it('marks an explicitly past application deadline as expired', async () => {
     mockGreenhouseJsonp({
       ...greenhouseRecord,
@@ -135,6 +144,18 @@ describe('verifyJobPosting', () => {
     expect(evidence.status).toBe('manual_review');
     expect(evidence.provider).toBe('lever');
     expect(evidence.explanation).toMatch(/manual/i);
+  });
+
+  it('times out cleanly when the JSONP callback never arrives', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document.head, 'appendChild').mockImplementation((node: Node) => node);
+
+    const resultPromise = verifyJobPosting(baseJob, new Date('2026-11-19T00:00:00Z'));
+    await vi.advanceTimersByTimeAsync(12_000);
+    const evidence = await resultPromise;
+
+    expect(evidence.status).toBe('check_failed');
+    vi.useRealTimers();
   });
 
   it('returns check_failed when the Greenhouse JSONP request fails', async () => {
