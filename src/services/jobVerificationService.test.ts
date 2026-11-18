@@ -74,6 +74,7 @@ describe('verifyJobPosting', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
