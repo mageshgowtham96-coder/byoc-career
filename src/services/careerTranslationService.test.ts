@@ -83,6 +83,12 @@ describe('translateCareerDraftToEnglish', () => {
     expect(translated.certifications[0].issuer).toBe('Microsoft');
     expect(translated.translatedToEnglish).toBe(true);
     expect(translated.originalLanguageSnapshot).toContain('தரவு');
+    const groqPrompt = vi.mocked(callGroqChat).mock.calls[0][1];
+    expect(groqPrompt).not.toContain('asha@example.com');
+    expect(groqPrompt).not.toContain('123');
+    expect(groqPrompt).not.toContain('ABC Technologies');
+    expect(groqPrompt).not.toContain('சென்னை பல்கலைக்கழகம்');
+    expect(groqPrompt).toContain('தரவு');
   });
 
   it('rejects incomplete or malformed translation output without returning a partial draft', async () => {
