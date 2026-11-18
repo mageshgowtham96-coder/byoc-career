@@ -415,7 +415,7 @@ export const useWizardStore = create<WizardState>()(
       masterResume: null,
       stagedParsedResume: null,
       careerFormDraft: null,
-      setCareerFormDraft: (draft) => set({ careerFormDraft: draft }),
+      setCareerFormDraft: (draft) => set({ careerFormDraft: draft ? sanitizeCareerFormState(draft) : null }),
       setStagedParsedResume: (resume) => set({ stagedParsedResume: resume }),
       confirmStagedResume: () => {
         const staged = get().stagedParsedResume;
