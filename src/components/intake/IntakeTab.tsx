@@ -1091,6 +1091,7 @@ export const IntakeTab: React.FC = () => {
         <GuidedMasterResumeBuilder
           initialDraft={careerFormDraft || (masterResume ? createCareerDraftFromMasterResume(masterResume) : null)}
           groqApiKey={groqApiKey}
+          isEditingExisting={Boolean(masterResume)}
           onDraftChange={setCareerFormDraft}
           onComplete={handleGuidedBuilderComplete}
           onCancel={() => setShowGuidedBuilder(false)}
