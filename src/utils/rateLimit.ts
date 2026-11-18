@@ -225,28 +225,3 @@ export function getLockoutDescription(): string {
   const hours = Math.ceil(mins / 60);
   return `Locked for ${hours} hour${hours === 1 ? '' : 's'}.`;
 }
-
-/**
- * Calculate the current cooldown delay based on failed attempt count.
- */
-function getCooldownDelay(failedCount: number): number {
-  for (const tier of COOLDOWN_TIERS) {
-    if (failedCount < tier.threshold) {
-      return tier.delay;
-    }
-  }
-  return COOLDOWN_TIERS[COOLDOWN_TIERS.length - 1].delay;
-}
-
-const STORAGE_KEY = 'byoc_passphrase_attempts';
-const MAX_ATTEMPTS_BEFORE_COOLDOWN = 3;
-
-// Progressive delay tiers (milliseconds)
-const COOLDOWN_TIERS = [
-  { threshold: 3, delay: 30_000 },    // 3 attempts → 30 seconds
-  { threshold: 5, delay: 120_000 },   // 5 attempts → 2 minutes
-  { threshold: 10, delay: 900_000 },  // 10 attempts → 15 minutes
-  { threshold: Infinity, delay: 3_600_000 } // beyond → 1 hour
-];
-
-const WINDOW_MS = 30 * 60 * 1000; // 30-minute sliding window for attempt tracking
