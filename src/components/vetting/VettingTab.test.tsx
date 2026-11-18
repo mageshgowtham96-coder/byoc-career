@@ -35,19 +35,21 @@ const job = {
 describe('VettingTab privacy gate', () => {
   let container: HTMLDivElement;
   let root: Root;
+  let updateJobVerification: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+    updateJobVerification = vi.fn();
     vi.mocked(useWizardStore).mockReturnValue({
       activeTab: 'vetting',
       selectedJobId: job.id,
       jobs: [job],
       masterResume: null,
       updateJobVetting: vi.fn(),
-      updateJobVerification: vi.fn(),
+      updateJobVerification,
       groqApiKey: 'test-groq-key',
       setActiveTab: vi.fn(),
       addToast: vi.fn()
@@ -88,7 +90,7 @@ describe('VettingTab privacy gate', () => {
     });
 
     expect(verifyJobPosting).toHaveBeenCalledOnce();
-    expect(vi.mocked(useWizardStore).mock.results[0].value).toBeTruthy();
+    expect(updateJobVerification).toHaveBeenCalledWith(job.id, evidence);
   });
 
   it('does not send job or candidate data to Groq until the user explicitly starts the audit', async () => {
