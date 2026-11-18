@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   MasterResume,
   JobPosting,
+  JobVerificationEvidence,
   TailoredArtifact,
   ApplicationRecord,
   UserWorkspace,
