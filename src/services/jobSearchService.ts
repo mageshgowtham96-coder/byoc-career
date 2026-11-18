@@ -708,6 +708,7 @@ export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
             content: `Search the live web for up to 12 current job vacancies matching these constraints. Prefer direct employer career pages and official ATS postings (Greenhouse, Lever, Ashby, Workday, SmartRecruiters). Do not use recruiter reposts where an employer posting is available. Never invent a vacancy, company, date, or URL. Include only listings where you found a direct job-posting URL. Do not claim that a listing is verified or guaranteed active. Return ONLY a JSON object with this exact shape: {"jobs":[{"title":"string","company":"string","location":"string","workplaceType":"Remote|Hybrid|On-site|Unspecified","salary":"string","postedDate":"string","description":"string","url":"https://...","skillsRequired":["string"]}]}. If no reliable listings are found, return {"jobs":[]}. Search constraints:\n${searchContext}`
           }],
           temperature: 0.1,
+          reasoning_effort: 'low',
           max_completion_tokens: 5000,
           tool_choice: 'required',
           tools: [{ type: 'browser_search' }]
