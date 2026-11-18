@@ -15,6 +15,7 @@ const draft: CareerApplicationFormState = {
     location: 'சென்னை'
   },
   targetRole: 'தரவு ஆய்வாளர்',
+  currentRole: 'தரவு பயிற்சியாளர்',
   roleFamily: 'data-analytics',
   experienceLevel: 'Entry',
   sourceLanguage: 'Tamil',
@@ -59,6 +60,7 @@ describe('translateCareerDraftToEnglish', () => {
   it('translates only resume text fields and preserves personal/contact and factual fields', async () => {
     vi.mocked(callGroqChat).mockResolvedValue(JSON.stringify({
       targetRole: 'Data Analyst',
+      currentRole: 'Data Intern',
       professionalSummary: 'Early-career professional interested in data analysis.',
       workExperience: [{ role: 'Data Intern', keyResponsibilities: ['Created weekly reports'] }],
       education: [{ degree: "Bachelor's degree in Statistics", field: 'Statistics' }],
@@ -69,6 +71,7 @@ describe('translateCareerDraftToEnglish', () => {
     const translated = await translateCareerDraftToEnglish(draft, 'Tamil', 'test-groq-key');
 
     expect(translated.targetRole).toBe('Data Analyst');
+    expect(translated.currentRole).toBe('Data Intern');
     expect(translated.professionalSummary).toContain('data analysis');
     expect(translated.personalDetails).toEqual(draft.personalDetails);
     expect(translated.workExperience[0].company).toBe('ABC Technologies');
