@@ -179,7 +179,8 @@ export async function translateCareerDraftToEnglish(
       ...item,
       name: translated.certifications[index].name
     })),
-    sourceLanguage,
+    sourceLanguage: draft.sourceLanguage || sourceLanguage,
+    sourceLanguageOther: draft.sourceLanguageOther || '',
     translatedToEnglish: true,
     originalLanguageSnapshot
   };
