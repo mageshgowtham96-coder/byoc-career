@@ -124,15 +124,21 @@ export function buildMasterResumeFromCareerDraft(
 
 /** Converts an existing profile into an editable guided-builder draft without losing its facts. */
 export function createCareerDraftFromMasterResume(profile: MasterResume): CareerApplicationFormState {
+  const contactInfo = profile.contactInfo || { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' };
+  const experiences = Array.isArray(profile.experiences) ? profile.experiences : [];
+  const educationItems = Array.isArray(profile.education) ? profile.education : [];
+  const technicalSkills = Array.isArray(profile.skills?.technical) ? profile.skills.technical : [];
+  const projects = Array.isArray(profile.projects) ? profile.projects : [];
+  const certifications = Array.isArray(profile.certifications) ? profile.certifications : [];
   return {
     personalDetails: {
-      fullName: profile.contactInfo.name,
-      email: profile.contactInfo.email,
-      phone: profile.contactInfo.phone,
-      location: profile.contactInfo.location,
-      linkedin: profile.contactInfo.linkedin,
-      github: profile.contactInfo.github,
-      portfolio: profile.contactInfo.portfolio
+      fullName: contactInfo.name || '',
+      email: contactInfo.email || '',
+      phone: contactInfo.phone || '',
+      location: contactInfo.location || '',
+      linkedin: contactInfo.linkedin || '',
+      github: contactInfo.github || '',
+      portfolio: contactInfo.portfolio || ''
     },
     targetRole: profile.headline,
     currentRole: profile.currentRole || '',
@@ -145,7 +151,7 @@ export function createCareerDraftFromMasterResume(profile: MasterResume): Career
     translatedToEnglish: Boolean(profile.translatedToEnglish),
     originalLanguageSnapshot: profile.originalLanguageSnapshot || '',
     professionalSummary: profile.summary,
-    workExperience: profile.experiences.map((item) => ({
+    workExperience: experiences.map((item) => ({
       id: item.id,
       company: item.company,
       role: item.role,
@@ -156,8 +162,8 @@ export function createCareerDraftFromMasterResume(profile: MasterResume): Career
       isCurrent: Boolean(item.isCurrent),
       keyResponsibilities: [...item.bullets]
     })),
-    skills: [...profile.skills.technical],
-    education: profile.education.map((item) => ({
+    skills: [...technicalSkills],
+    education: educationItems.map((item) => ({
       id: item.id,
       degree: item.degree,
       institution: item.institution,
@@ -165,8 +171,8 @@ export function createCareerDraftFromMasterResume(profile: MasterResume): Career
       field: item.field,
       gpa: item.gpa || ''
     })),
-    projects: profile.projects.map((item) => ({ ...item, technologies: [...item.technologies] })),
-    certifications: profile.certifications.map((item) => ({ ...item })),
+    projects: projects.map((item) => ({ ...item, technologies: [...(item.technologies || [])] })),
+    certifications: certifications.map((item) => ({ ...item })),
     isAutoFilled: false,
     lastExtractedTimestamp: null,
     rawSourceText: profile.rawText
