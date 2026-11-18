@@ -1,113 +1,124 @@
-# BYOC — Bring Your Own Career
+# BYOC — Build Your Own Career
 ### Local-First Career Search and Application Workspace
 
-BYOC is a client-side career workspace for resume intake, remote-job discovery, evidence-grounded AI drafts, document export, and manually tracked applications. Sensitive career records are kept in an AES-256-GCM encrypted local vault. BYOC does not provide a backend inbox connection or a complete global job-board index. AI actions explicitly send the selected content to Groq from the browser; local vault and manual workflows do not require AI.
+BYOC is a mobile-first career workspace for resume intake, remote-job discovery, evidence-grounded AI assistance, document export, and manually tracked applications. Sensitive career records are stored in an AES-256-GCM encrypted local vault. BYOC has no BYOC-hosted backend, no inbox connection, and no complete global job-board index.
+
+**BYOC is designed for personal use and small-circle sharing.** It does not automatically apply to jobs, scrape authenticated job portals, or guarantee that a discovered vacancy or employer is genuine.
 
 ---
 
-## 1. System Architecture Overview
+## 1. System Architecture
 
-- **Frontend Core**: React 19 + TypeScript + Vite.
-- **Styling**: Tailwind CSS with dark-mode primary palette (`#0f172a` deep navy).
-- **Client State**: Zustand with encrypted-vault persistence and versioned workspace metadata migrations (`version: 4`).
-- **Mobile Container**: Native Android Capacitor 8 project (`com.byoc.career`).
-- **AI Intelligence**: Optional, user-triggered Groq BYOK requests for resume structuring, tailoring, vetting, and interview preparation. Generated content must be reviewed.
-- **Session Security**: WebAuthn is an in-session screen lock. Cold starts require the vault passphrase or Emergency Recovery Phrase to unlock the encrypted vault.
-- **Document Engine**: Client-side extraction for supported selectable-text PDF, DOCX, TXT, and Markdown files. Raster OCR is not included.
-- **Export Formats**: Authentic Plain Text (`.txt`), styled PDF (`.pdf` via `pdf-lib`), and Microsoft Word (`.docx` via `docx`).
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS.
+- **Client state:** Zustand with encrypted-vault persistence and versioned workspace metadata migration.
+- **Android:** Capacitor 8, package ID `com.byoc.career`.
+- **AI:** Optional Groq BYOK requests initiated by the user. AI-generated content must be reviewed before use.
+- **Documents:** Selectable-text PDF, DOCX, TXT, and Markdown intake; TXT, PDF, and DOCX export.
+- **Offline:** Local vault and previously downloaded app assets remain available offline. Live feeds, Groq actions, and first-time downloads of unvisited workspace modules require connectivity.
 
----
+## 2. Career Workflow
 
-## 2. Parts 1–14 Architecture & Feature Matrix
+### Resume intake and Master Profile
+- Supported intake formats: PDF, DOCX, TXT, and MD.
+- Selectable-text extraction is supported; scanned/image-only PDFs and raster OCR are not.
+- File size is limited to 10 MB. Corrupt or empty files are rejected.
+- Extracted facts are staged for user review before replacing the Master Resume.
+- Experience bullets and skills are grounded in user-provided source material; missing facts must not be invented.
 
-### Part 1: Permanent Production Mock Removal
-- **Zero Mock Mode**: All Smart Mock Mode toggles, labels, and synthetic mock fixtures (`INITIAL_MOCK_JOBS`) have been purged from production.
-- **Honest Feedback**: Provider errors, rate limits, or missing keys result in visible, actionable configuration prompts rather than fabricated fallback data.
+### Job discovery
+- **Public live feeds:** Remotive, Remote OK, and Jobicy are queried on demand. They are not a complete global index.
+- **Groq Browser Search:** Optional discovery through Groq's hosted browser-search capability, using role/skill search terms and location filters. Results are candidates, not verified vacancies.
+- **Manual portals:** LinkedIn, Glassdoor, Indeed, Naukri, Foundit, Instahyre, and custom shortcuts open external sites. Users select and import listings themselves; BYOC does not scrape those portals.
+- **Adzuna:** Not active in this client-only build because protected server-side credentials would be required.
+- **Matching:** Candidate/job overlap is calculated locally. Insufficient profile data is shown as such rather than replaced with a fabricated score.
 
-### Part 2: Genuine Live Job Sourcing & Dashboard Sync
-- **Live Feeds**: Remotive, Remote OK, and Jobicy public remote feeds are queried on demand. They are not a complete global index. Adzuna is unavailable in this client-only build because it needs server-side credentials.
-- **Manual Portals**: LinkedIn, Glassdoor, Indeed, Naukri, Foundit, Instahyre, and custom shortcuts open external sites; users paste selected listings into BYOC. BYOC does not scrape these portals.
-- **Location and Work Mode**: Country and optional city filters apply to returned remote listings. Worldwide remote inclusion is explicit. Hybrid and on-site filters apply to saved or pasted listings because connected live feeds are remote-only.
-- **Honest Scoring**: Computes genuine mathematical overlap between candidate's ingested skills and job requirements. Displays `"Insufficient Profile Data"` when no master resume is available.
-- **Dashboard Synchronization**: Dashboard and Sourcing share the same validated job records and support instant on-demand live synchronization.
+### Vetting and tailoring
+- AI vetting is explicitly user-triggered. The selected job details and relevant Master Resume evidence are sent to Groq only after the user chooses **Run AI Vetting**.
+- Vetting is career-fit guidance. It does **not** independently verify employer identity, company legitimacy, vacancy status, or salary claims.
+- Three tailored variants are available: Leadership & Scale, Systems & Reliability, and ATS Alignment.
+- AI-generated summaries, cover letters, screening answers, and interview prompts require user review.
+- Tailored application snapshots preserve the selected job description and generated materials. Moving a saved application to Applied requires explicit confirmation.
 
-### Part 3: Candidate Data Integrity
-- **No Fabricated Defaults**: Purged hardcoded assumptions (e.g., 8 years of experience, software engineer universal role, ₹40-65 LPA salary, 30-day notice period, Bengaluru location).
-- **Separation of Concerns**: User account name (`user.name`) and resume candidate name (`masterResume.contactInfo.name`) are maintained as separate entities.
+### Tracking and preparation
+- Application stages, notes, interview stages, and follow-up dates are managed manually.
+- Local email records may be stored in the encrypted vault, but Gmail/Workspace OAuth is not connected and no inbox messages are fetched.
+- Interview preparation is available as an optional AI-assisted workflow.
 
-### Part 4: Master Resume and Local Document Extraction
-- **Supported Formats**: PDF, DOCX, TXT, and MD.
-- **Memory & File Guards**: File size limit enforced at 10MB; 0-byte corrupt files rejected with descriptive error notifications.
-- **Extraction Limits**: Raster images and scanned/image-only PDFs are not OCR-processed. Encrypted PDFs and some complex CID/custom-font PDFs may require manual paste.
-- **Traceable Extraction**: Regex-driven and header-indexed extraction with zero synthetic milestones.
+## 3. Privacy and Security
 
-### Part 5: Groq AI Provider Reliability
-- **Model Resolution**: Resolves `llama-3.3-70b-versatile` dynamically from the live Groq catalog.
-- **Systemic Experience Originality Lock**: Every LLM prompt constructor enforces strict anti-fabrication rules: the AI can only emphasize or reorder verified evidence.
-- **Schema Validation**: Validates structured outputs with fallback handling for malformed JSON, timeouts (30s), and HTTP rate limits (429).
+- Career records and the Groq API key are stored in the local encrypted vault using AES-256-GCM. The current vault format derives wrapping keys with PBKDF2-HMAC-SHA256 (100,000 iterations).
+- A passphrase or Emergency Recovery Phrase is required to unlock the vault after a cold start.
+- Platform biometrics are an in-session convenience gate for an already-unlocked session. They do not unlock the encrypted vault and are not server-verified identity proof.
+- BYOC sends no career data to Groq merely because the app is opened. Each AI action is user-triggered. Job discovery sends search terms; vetting and tailoring send the selected job and relevant resume content. Contact details are excluded from those AI prompts.
+- Groq processes requests under its own service terms. BYOC does not control the provider's processing or retention policies. Do not use AI features on a shared device if you are not comfortable sending the selected content to Groq.
+- The encrypted vault backup is the preferred backup. **Readable Workspace Snapshot exports are unencrypted** and may contain personal career information; store them carefully.
+- If BYOC reports a vault save failure, keep the app open and retry before closing. Sign-out is blocked while an unsaved-vault warning is active.
 
-### Part 6: Master Profile, Tailor & Immutable Application Snapshots
-- **3 Sibling Variants**:
-  1. *Variant A*: Leadership & Measurable Metric Outcomes.
-  2. *Variant B*: Systems Architecture & Reliability.
-  3. *Variant C*: Direct ATS Keyword Alignment.
-- **Immutable Snapshots**: Saving or submitting an application freezes a deep copy of the tailored kit and original job description (`jobDescriptionRaw`). Subsequent edits to the Master Profile never mutate past records.
-- **User-Confirmed Applications**: Saving a kit creates a `Saved` draft; transitioning to `Applied` requires explicit confirmation.
+## 4. Known Limits
 
-### Part 7: Local Email Records and Tracking Pipeline
-- **Encrypted Local Records**: Email interaction records, if present, are stored inside the encrypted vault. Gmail/Workspace OAuth is not connected; the local mail check does not fetch new messages.
-- **Application Tracking**: Users update application stages manually. Follow-up reminders are calculated from the recorded application date.
+- No scanned-document OCR.
+- No Gmail/Workspace inbox integration.
+- No automatic applications or authenticated job-portal scraping.
+- No independent guarantee of employer legitimacy or vacancy freshness.
+- No BYOC cloud account, cloud sync, or server-side data recovery. Keep an encrypted backup and protect the recovery phrase.
+- The Android debug APK is suitable for installation/testing, not a signed production release. A release signing key has not been configured in this repository.
 
-### Part 8: Credential Security and Session Biometrics
-- **Separation of Credentials**: Workspace passkey login is separate from Groq BYOK API key validation.
-- **WebAuthn Scope**: Platform biometrics protect an active unlocked session only; they do not unwrap the vault key or replace cold-start passphrase/recovery unlock.
+## 5. Local Development
 
-### Part 9: Persistence & Safe Migrations
-- **Zustand Version 4**: Safe migration strips obsolete mock properties, normalizes preference objects, and preserves genuine candidate data.
-- **Storage Limits**: Try-catch guards protect `localStorage` and `IndexedDB` against quota limits.
+This repository uses **Bun 1.4.4** and the committed `bun.lock`.
 
-### Part 10: Native Android & Capacitor Integration
-- **Package ID**: Preserved as `com.byoc.career`.
-- **Version Tracking**: `versionCode 2`, `versionName "2.0.0"`.
-- **Branding**: Sri Sudarsana Chakra adaptive vector drawables (`drawable/ic_launcher_foreground.xml` and `ic_launcher_background.xml`), adaptive XML configurations (`mipmap-anydpi-v26`), and multi-density raster mipmaps (`mdpi` to `xxxhdpi`).
-
-### Part 11: Service Worker & PWA Reliability
-- **Cache Version**: `byoc-cache-v3`.
-- **Privacy Protections**: The service worker explicitly excludes AI endpoints (`api.groq.com`), external APIs, and credentials from cache storage.
-- **Network-First Navigation**: Navigation requests prioritize network fetch to ensure deployed updates arrive immediately.
-
----
-
-## 3. Local Development & Build
-
-### Running Locally
 ```bash
-npm install
-npm run dev
+bun install --frozen-lockfile
+bun run dev
 ```
 
-### Production Build & Linting
+Run all quality checks:
+
 ```bash
-npm run check
+bun run check
 ```
 
-`npm run check` runs TypeScript linting, the regression suite, and a production build in sequence. To run an individual step, use `npm run lint`, `npm test`, or `npm run build`.
+Individual checks:
 
-### Android APK Compilation
-To build the native Android APK using Android Studio or the Gradle wrapper:
+```bash
+bun run lint
+bun run test
+bun run build
+```
+
+### Android debug APK
+
+On Windows:
+
+```powershell
+bun run android:debug
+```
+
+Or directly:
+
+```powershell
+cd android
+.\\gradlew.bat assembleDebug
+```
+
+On Linux/macOS:
+
 ```bash
 cd android
+chmod +x gradlew
 ./gradlew assembleDebug
-# Or for release:
-./gradlew assembleRelease
 ```
-The resulting debug APK will be generated at:
+
+The debug APK is generated at:
+
 `android/app/build/outputs/apk/debug/app-debug.apk`
 
----
+## 6. GitHub CI
 
-## 4. External Credentials Required for Full Live Operation
+The workflow in `.github/workflows/ci.yml` checks the exact commit that triggered it and runs:
+1. TypeScript validation.
+2. Unit tests.
+3. Production web build.
+4. Android debug APK build and artifact upload.
 
-1. **Groq API Key**: Obtain a key from [console.groq.com](https://console.groq.com/keys) and enter it in **Settings > Groq API**.
-2. **Adzuna Job Sourcing**: Not active in the client-only build. It requires a server-side integration to protect credentials.
-3. **Gmail / Workspace OAuth**: Not implemented. Email settings currently inspect the encrypted local email vault and do not connect to an inbox.
+A green CI run proves compilation and automated checks for that commit. It does not replace installation and workflow testing on a physical Android device.
