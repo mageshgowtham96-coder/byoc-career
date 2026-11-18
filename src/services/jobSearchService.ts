@@ -687,6 +687,7 @@ export export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
 
     const searchContext = [
       `Role or skills: ${roleQuery}`,
+      params.skills?.length ? `Relevant skills: ${params.skills.slice(0, 8).join(', ')}` : '',
       params.country && !isWorldwideCountryCode(params.country) ? `Country: ${params.country}` : 'Country: worldwide',
       params.location ? `Preferred location: ${params.location}` : '',
       params.workplaceType && params.workplaceType !== 'All' ? `Workplace type: ${params.workplaceType}` : ''
