@@ -79,8 +79,8 @@ describe('translateCareerDraftToEnglish', () => {
     expect(translated.workExperience[0].startDate).toBe('2024');
     expect(translated.education[0].institution).toBe('சென்னை பல்கலைக்கழகம்');
     expect(translated.skills).toEqual(draft.skills);
-    expect(translated.projects[0].technologies).toEqual(['SQL', 'Power BI']);
-    expect(translated.certifications[0].issuer).toBe('Microsoft');
+    expect((translated.projects || [])[0].technologies).toEqual(['SQL', 'Power BI']);
+    expect((translated.certifications || [])[0].issuer).toBe('Microsoft');
     expect(translated.translatedToEnglish).toBe(true);
     expect(translated.originalLanguageSnapshot).toContain('தரவு');
     const groqPrompt = vi.mocked(callGroqChat).mock.calls[0][1];
