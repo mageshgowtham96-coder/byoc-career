@@ -662,6 +662,123 @@ export function buildLocationScopeNotice(country?: string, location?: string, in
 /**
  * Central Multi-Provider Live Job Search Coordinator
  */
+/**
+ * Groq-hosted browser discovery. Only role/skill and coarse location filters are sent;
+ * candidate resumes, contact details, and application history are never included.
+ * Returned listings are discovery candidates, not independently verified vacancies.
+ */
+export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
+  id = 'groq_browser_search';
+  name = 'Groq Browser Search';
+  requiresAuth = true;
+  private apiKey: string;
+
+  constructor(apiKey: string) {
+    this.apiKey = apiKey.trim();
+  }
+
+  get isConfigured(): boolean {
+    return this.apiKey.length > 0;
+  }
+
+  async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
+    const roleQuery = (params.query || params.targetRole || params.profession || params.skills?.slice(0, 5).join(' ') || '').trim();
+    if (!roleQuery) return [];
+
+    const searchContext = [
+      `Role or skills: ${roleQuery}`,
+      params.country && !isWorldwideCountryCode(params.country) ? `Country: ${params.country}` : 'Country: worldwide',
+      params.location ? `Preferred location: ${params.location}` : '',
+      params.workplaceType && params.workplaceType !== 'All' ? `Workplace type: ${params.workplaceType}` : ''
+    ].filter(Boolean).join('\n');
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'openai/gpt-oss-20b',
+          messages: [{
+            role: 'user',
+            content: `Search the live web for up to 12 current job vacancies matching these constraints. Prefer direct employer career pages and official ATS postings (Greenhouse, Lever, Ashby, Workday, SmartRecruiters). Do not use recruiter reposts where an employer posting is available. Never invent a vacancy, company, date, or URL. Include only listings where you found a direct job-posting URL. Do not claim that a listing is verified or guaranteed active. Return ONLY a JSON object with this exact shape: {"jobs":[{"title":"string","company":"string","location":"string","workplaceType":"Remote|Hybrid|On-site|Unspecified","salary":"string","postedDate":"string","description":"string","url":"https://...","skillsRequired":["string"]}]}. If no reliable listings are found, return {"jobs":[]}. Search constraints:\n${searchContext}`
+          }],
+          temperature: 0.1,
+          max_tokens: 5000,
+          tool_choice: 'required',
+          tools: [{ type: 'browser_search' }]
+        }),
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) throw new Error('Groq Browser Search quota or rate limit reached. Try again later or check your Groq account limits.');
+        throw new Error(`Groq Browser Search returned HTTP ${response.status}.`);
+      }
+
+      const payload = await response.json();
+      const content = payload?.choices?.[0]?.message?.content;
+      if (typeof content !== 'string' || !content.trim()) {
+        throw new Error('Groq Browser Search returned no listing data.');
+      }
+
+      const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
+      let parsed: any;
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch {
+        throw new Error('Groq Browser Search returned an unreadable result. No jobs were imported.');
+      }
+
+      if (!parsed || !Array.isArray(parsed.jobs)) {
+        throw new Error('Groq Browser Search response did not match the expected job-list format.');
+      }
+
+      return parsed.jobs.slice(0, 12).flatMap((item: any, index: number) => {
+        const title = typeof item?.title === 'string' ? item.title.trim().slice(0, 240) : '';
+        const company = typeof item?.company === 'string' ? item.company.trim().slice(0, 180) : '';
+        const url = sanitizeExternalHttpUrl(typeof item?.url === 'string' ? item.url : '');
+        if (!title || !company || !url) return [];
+
+        const workplace = ['Remote', 'Hybrid', 'On-site'].includes(item.workplaceType)
+          ? item.workplaceType
+          : 'Unspecified';
+        const skills = Array.isArray(item.skillsRequired)
+          ? item.skillsRequired.filter((skill: unknown): skill is string => typeof skill === 'string' && skill.trim()).slice(0, 12)
+          : [];
+        return [{
+          id: `groq-search-${encodeURIComponent(url).slice(-90)}-${index}`,
+          title,
+          company,
+          location: normalizeLocation(typeof item.location === 'string' ? item.location : ''),
+          workplaceType: workplace,
+          salary: typeof item.salary === 'string' ? item.salary.slice(0, 120) : 'Undisclosed',
+          postedDate: typeof item.postedDate === 'string' ? item.postedDate.slice(0, 80) : 'Unspecified',
+          jobDescriptionRaw: stripJobHtml(item.description, 4000),
+          url,
+          source: 'Groq Browser Search — verify before applying',
+          skillsRequired: skills,
+          fitScore: null,
+          matchedKeywords: [],
+          missingKeywords: [],
+          experienceLevel: 'Unspecified' as const
+        }];
+      });
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Groq Browser Search timed out after 45 seconds.');
+      }
+      throw error instanceof Error ? error : new Error('Groq Browser Search failed.');
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 export class LiveJobSearchEngine {
   private providers: JobProviderAdapter[] = [
     new PublicFeedsJobAdapter(),
@@ -673,7 +790,8 @@ export class LiveJobSearchEngine {
   async executeLiveSearch(
     params: JobSearchQueryParams,
     masterResume: MasterResume | null,
-    existingJobs: JobPosting[] = []
+    existingJobs: JobPosting[] = [],
+    groqApiKey?: string
   ): Promise<JobSearchResult> {
     const normalizedParams: JobSearchQueryParams = {
       ...params,
@@ -694,7 +812,11 @@ export class LiveJobSearchEngine {
     ];
     const providerErrors: string[] = [];
 
-    for (const provider of this.providers) {
+    const activeProviders = groqApiKey?.trim()
+      ? [...this.providers, new GroqBrowserSearchJobAdapter(groqApiKey)]
+      : this.providers;
+
+    for (const provider of activeProviders) {
       if (!provider.isConfigured) {
         providerStatuses.push({
           id: provider.id,
@@ -767,7 +889,7 @@ export class LiveJobSearchEngine {
       }
 
       if (locLower) {
-        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes((job.source || '').toLowerCase());
+        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live', 'groq browser search — verify before applying'].includes((job.source || '').toLowerCase());
         const matchesLoc = !isLiveFeedJob || matchesRemoteCountryAndLocation(
           job.location,
           `${job.title} ${job.jobDescriptionRaw}`,
@@ -783,7 +905,7 @@ export class LiveJobSearchEngine {
       }
 
       if (normalizedParams.portal && normalizedParams.portal !== 'All') {
-        const isLiveSource = ['remotive live', 'remote ok live', 'jobicy live'].includes((job.source || '').toLowerCase());
+        const isLiveSource = ['remotive live', 'remote ok live', 'jobicy live', 'groq browser search — verify before applying'].includes((job.source || '').toLowerCase());
         const matchesPortal =
           normalizedParams.portal === 'User Import'
             ? !isLiveSource
