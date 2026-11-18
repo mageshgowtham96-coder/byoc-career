@@ -35,7 +35,7 @@ const TabLoadingFallback: React.FC = () => (
 );
 
 export default function App() {
-  const { activeTab } = useWizardStore();
+  const { activeTab, vaultPersistenceError } = useWizardStore();
   const [isOffline, setIsOffline] = React.useState(!navigator.onLine);
   const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<ActiveTab>>(() => new Set([activeTab]));
 
@@ -48,6 +48,16 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!vaultPersistenceError) return;
+    const preventUnsavedClose = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', preventUnsavedClose);
+    return () => window.removeEventListener('beforeunload', preventUnsavedClose);
+  }, [vaultPersistenceError]);
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
