@@ -186,6 +186,8 @@ export const SourcingTab: React.FC = () => {
           if (!matches) return false;
         }
         const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes((job.source || '').toLowerCase());
+        const isGroqDiscoveryJob = (job.source || '').toLowerCase() === 'groq browser search — verify before applying';
+        if (isGroqDiscoveryJob && locFilter && !job.location.toLowerCase().includes(locFilter.toLowerCase())) return false;
         if (!isWorldwide && isLiveFeedJob) {
           const matchesLoc = matchesRemoteCountryAndLocation(
             job.location,
