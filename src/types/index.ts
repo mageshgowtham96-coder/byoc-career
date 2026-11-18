@@ -59,6 +59,9 @@ export interface MasterResume {
   projects: ProjectItem[];
   certifications: CertificationItem[];
   sourceLanguage?: string;
+  sourceLanguageOther?: string;
+  roleFamily?: string;
+  experienceLevel?: string;
   translatedToEnglish?: boolean;
   originalLanguageSnapshot?: string;
   stats: {
