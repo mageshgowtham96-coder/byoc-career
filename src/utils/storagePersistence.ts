@@ -304,7 +304,10 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
       fullName: String(personal.fullName ?? personal.full_name ?? '').trim(),
       email: String(personal.email ?? '').trim(),
       phone: String(personal.phone ?? '').trim(),
-      location: String(personal.location ?? '').trim()
+      location: String(personal.location ?? '').trim(),
+      linkedin: String(personal.linkedin ?? '').trim(),
+      github: String(personal.github ?? '').trim(),
+      portfolio: String(personal.portfolio ?? '').trim()
     },
     professionalSummary: String(r.professionalSummary ?? r.professional_summary ?? '').trim(),
     workExperience: experiences.map((exp: unknown, idx: number) => {
@@ -319,7 +322,11 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
         company: String(e.company ?? '').trim(),
         role: String(e.role ?? '').trim(),
         duration: String(e.duration ?? '').trim(),
-        keyResponsibilities: responsibilities.map((k) => String(k ?? '').trim()).filter(Boolean)
+        keyResponsibilities: responsibilities.map((k) => String(k ?? '').trim()).filter(Boolean),
+        startDate: String(e.startDate ?? '').trim(),
+        endDate: String(e.endDate ?? '').trim(),
+        location: String(e.location ?? '').trim(),
+        isCurrent: Boolean(e.isCurrent)
       };
     }),
     skills: Array.from(new Set(skills)),
@@ -329,7 +336,9 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
         id: String(ed.id || `edu-${idx}`),
         degree: String(ed.degree ?? '').trim(),
         institution: String(ed.institution ?? '').trim(),
-        year: String(ed.year ?? '').trim()
+        year: String(ed.year ?? '').trim(),
+        field: String(ed.field ?? '').trim(),
+        gpa: String(ed.gpa ?? '').trim()
       };
     }),
     isAutoFilled: Boolean(r.isAutoFilled),
