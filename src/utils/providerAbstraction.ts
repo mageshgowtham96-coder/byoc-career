@@ -26,7 +26,7 @@ export interface ProviderMetadata {
   name: string;
   version?: string;
   contextLength?: number;
-  costPer1kTokens?: number; // null = free or unknown
+  costPer1kTokens?: number | null; // null = free or unknown
 }
 
 /**
@@ -109,7 +109,7 @@ export const PROVIDER_CONFIGS = {
 /**
  * Get the config for a named provider
  */
-export function getProviderConfig(name: keyof typeof PROVIDER_CONFIGS): typeof PROVIDER_CONFIGS[keyof typeof PROVIDER_CONFIGS] {
+export function getProviderConfig<K extends keyof typeof PROVIDER_CONFIGS>(name: K): typeof PROVIDER_CONFIGS[K] {
   return PROVIDER_CONFIGS[name];
 }
 
@@ -456,7 +456,7 @@ export class ProviderManager {
     }
 
     // Fallback: try available providers in preference order
-    const fallbackOrder: keyof typeof PROVIDER_CONFIGS[] = ['groq', 'openrouter', 'gemini'];
+    const fallbackOrder: (keyof typeof PROVIDER_CONFIGS)[] = ['groq', 'openrouter', 'gemini'];
     for (const name of fallbackOrder) {
       const provider = this.providers.get(name);
       if (!provider) continue;
@@ -476,8 +476,3 @@ export class ProviderManager {
     return null;
   }
 }
-
-// Re-export types
-export type { ProviderStatus, ProviderMetadata, ProviderMessage, ProviderCompletionResponse, ProviderConfig, ProviderState };
-export { PROVIDER_CONFIGS, getProviderConfig, isProviderClientUsable };
-export { GroqProvider, OpenRouterProvider, GeminiProvider, ProviderManager };
