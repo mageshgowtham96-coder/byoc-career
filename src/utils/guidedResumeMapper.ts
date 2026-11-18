@@ -14,7 +14,9 @@ export function buildMasterResumeFromCareerDraft(
   draft: CareerApplicationFormState,
   now: Date = new Date()
 ): MasterResume {
-  const experiences = draft.workExperience.map((experience) => {
+  const experiences = draft.workExperience
+    .filter((experience) => Boolean(experience.role.trim() || experience.company.trim() || experience.keyResponsibilities.some((bullet) => bullet.trim())))
+    .map((experience) => {
     const parsedDuration = parseDuration(experience.duration || '');
     const startDate = experience.startDate?.trim() || parsedDuration.startDate;
     const endDate = experience.endDate?.trim() || parsedDuration.endDate;
@@ -33,7 +35,9 @@ export function buildMasterResumeFromCareerDraft(
     };
   });
 
-  const education = draft.education.map((item) => ({
+  const education = draft.education
+    .filter((item) => Boolean(item.degree.trim() || item.institution.trim() || item.field?.trim() || item.year.trim()))
+    .map((item) => ({
     id: item.id,
     institution: item.institution.trim(),
     degree: item.degree.trim(),
@@ -42,11 +46,15 @@ export function buildMasterResumeFromCareerDraft(
     ...(item.gpa?.trim() ? { gpa: item.gpa.trim() } : {})
   }));
 
-  const projects = (draft.projects || []).map((project) => ({
+  const projects = (draft.projects || [])
+    .filter((project) => Boolean(project.title.trim() || project.description.trim()))
+    .map((project) => ({
     ...project,
     technologies: [...project.technologies]
   }));
-  const certifications = (draft.certifications || []).map((certification) => ({ ...certification }));
+  const certifications = (draft.certifications || [])
+    .filter((certification) => Boolean(certification.name.trim() || certification.issuer.trim()))
+    .map((certification) => ({ ...certification }));
 
   const headline =
     draft.targetRole?.trim() ||
