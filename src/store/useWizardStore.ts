@@ -504,7 +504,14 @@ export const useWizardStore = create<WizardState>()(
       // Sourcing
       jobs: [],
       selectedJobId: null,
-      setJobs: (jobs) => set({ jobs }),
+      setJobs: (jobs) => set((state) => ({
+        jobs: jobs.map((job) => {
+          const existing = state.jobs.find((item) => item.url && job.url && item.url === job.url);
+          return existing
+            ? { ...job, vetting: job.vetting || existing.vetting, verification: job.verification || existing.verification }
+            : job;
+        })
+      })),
       addJob: (job) => {
         const exists = get().jobs.some((j) => j.id === job.id);
         if (!exists) {
