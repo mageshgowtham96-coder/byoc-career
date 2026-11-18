@@ -76,10 +76,14 @@ describe('sanitizeCareerFormState guided builder fields', () => {
 
   it('drops malformed project and certification records', () => {
     const result = sanitizeCareerFormState({
+      workExperience: [null],
+      education: [null],
       projects: [null, { id: 'p', title: 'Valid project', description: '', technologies: 'not-an-array' }],
       certifications: [null, { id: 'c', name: 'Valid certificate' }]
     });
 
+    expect(result.workExperience).toHaveLength(0);
+    expect(result.education).toHaveLength(0);
     expect(result.projects || []).toHaveLength(1);
     expect((result.projects || [])[0].technologies).toEqual([]);
     expect(result.certifications || []).toHaveLength(1);
