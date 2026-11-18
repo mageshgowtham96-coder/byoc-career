@@ -4,6 +4,9 @@ import { sanitizeCareerFormState } from './storagePersistence';
 describe('sanitizeCareerFormState guided builder fields', () => {
   it('preserves guided role, language, project, certification, and source fields', () => {
     const result = sanitizeCareerFormState({
+      personalDetails: { fullName: 'Asha', email: 'asha@example.com', phone: '123', location: 'Chennai', linkedin: 'https://linkedin.com/in/asha', github: 'https://github.com/asha', portfolio: 'https://asha.example.com' },
+      workExperience: [{ id: 'exp-1', company: 'Example', role: 'Analyst', duration: '2022–Present', startDate: '2022', endDate: 'Present', location: 'Chennai', isCurrent: true, keyResponsibilities: ['Built reports'] }],
+      education: [{ id: 'edu-1', degree: 'BSc', institution: 'Example University', year: '2022', field: 'Statistics', gpa: '8.4' }],
       targetRole: 'Data Analyst',
       roleFamily: 'data-analytics',
       experienceLevel: 'Entry',
@@ -25,6 +28,13 @@ describe('sanitizeCareerFormState guided builder fields', () => {
       }]
     });
 
+    expect(result.personalDetails.linkedin).toBe('https://linkedin.com/in/asha');
+    expect(result.personalDetails.github).toBe('https://github.com/asha');
+    expect(result.personalDetails.portfolio).toBe('https://asha.example.com');
+    expect(result.workExperience[0].startDate).toBe('2022');
+    expect(result.workExperience[0].isCurrent).toBe(true);
+    expect(result.education[0].field).toBe('Statistics');
+    expect(result.education[0].gpa).toBe('8.4');
     expect(result.targetRole).toBe('Data Analyst');
     expect(result.roleFamily).toBe('data-analytics');
     expect(result.experienceLevel).toBe('Entry');
