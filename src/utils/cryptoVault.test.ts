@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, it, beforeEach, expect, vi } from 'vitest';
 import {
   VAULT_STORAGE_KEY,
@@ -84,7 +85,7 @@ const mockCrypto = {
     deriveKey: vi.fn().mockResolvedValue({}),
     encrypt: vi.fn().mockResolvedValue(new ArrayBuffer(100)),
     decrypt: vi.fn().mockResolvedValue(new ArrayBuffer(50)),
-    digest: vi.fn().mockResolvedValue(new ArrayBuffer(32)),
+    digest: vi.fn(async (_algorithm: AlgorithmIdentifier, data: BufferSource) => {\n      const hash = createHash('sha256').update(Buffer.from(data as Uint8Array)).digest();\n      return hash.buffer.slice(hash.byteOffset, hash.byteOffset + hash.byteLength) as ArrayBuffer;\n    }),
   },
   getRandomValues: vi.fn((arr: Uint8Array) => {
     for (let i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 256);
@@ -203,7 +204,7 @@ describe('Job Search Service', () => {
   });
 
   describe('calculateHonestMatch', () => {
-    it('returns 0 for null resume', () => {
+    it('returns insufficient profile data for null resume', () => {
       const job: JobPosting = {
         id: '1', title: 'Engineer', company: 'Test', location: 'Remote',
         workplaceType: 'Remote', salary: '$100k', postedDate: '2024-01-01',
@@ -212,7 +213,7 @@ describe('Job Search Service', () => {
         fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
       };
       const result = calculateHonestMatch(job, null);
-      expect(result.score).toBe(0);
+      expect(result.score).toBeNull();\n      expect(result.statusText).toBe('Insufficient profile data');
       expect(result.matchedKeywords).toEqual([]);
       expect(result.missingKeywords).toEqual(['TypeScript', 'React']);
     });
@@ -226,7 +227,7 @@ describe('Job Search Service', () => {
         fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
       };
       const resume: MasterResume = {
-        rawText: '', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+        rawText: 'TypeScript React Python', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
         headline: '', summary: '',
         skills: { technical: ['TypeScript', 'React', 'Python'], soft: [], tools: [], domains: [] },
         experiences: [], education: [], projects: [], certifications: [],
