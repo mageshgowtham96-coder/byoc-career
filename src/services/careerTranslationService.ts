@@ -21,6 +21,17 @@ function requireString(value: unknown): value is string {
   return typeof value === 'string';
 }
 
+function assertFaithfulText(source: string, translated: string): void {
+  if (source.trim() && !translated.trim()) {
+    throw new Error('Groq omitted text from the translation. Your original draft has not changed.');
+  }
+  const sourceNumbers = source.match(/\\d+(?:[.,]\\d+)?%?/g) || [];
+  const translatedNumbers = translated.match(/\\d+(?:[.,]\\d+)?%?/g) || [];
+  if (sourceNumbers.join('|') !== translatedNumbers.join('|')) {
+    throw new Error('Groq changed a number or metric during translation. Your original draft has not changed.');
+  }
+}
+
 function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormState): TranslatedCareerText {
   let parsed: unknown;
   try {
@@ -54,6 +65,10 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
     throw new Error('Groq returned an incomplete translation response. Your original draft has not changed.');
   }
 
+  assertFaithfulText(draft.targetRole || '', parsed.targetRole);
+  assertFaithfulText(draft.currentRole || '', parsed.currentRole);
+  assertFaithfulText(draft.professionalSummary, parsed.professionalSummary);
+
   const translatedWork = workExperience.map((item, index) => {
     if (!isRecord(item) || !requireString(item.role) || !Array.isArray(item.keyResponsibilities)) {
       throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
@@ -65,6 +80,10 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
     ) {
       throw new Error('Groq returned an incomplete translation response. Your original draft has not changed.');
     }
+    assertFaithfulText(draft.workExperience[index].role, item.role);
+    item.keyResponsibilities.forEach((bullet, bulletIndex) => {
+      assertFaithfulText(originalBullets[bulletIndex], bullet);
+    });
     return { role: item.role, keyResponsibilities: item.keyResponsibilities as string[] };
   });
 
@@ -72,6 +91,9 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
     if (!isRecord(item) || !requireString(item.degree) || !requireString(item.field)) {
       throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
     }
+    const index = education.indexOf(item);
+    assertFaithfulText(draft.education[index].degree, item.degree);
+    assertFaithfulText(draft.education[index].field || '', item.field);
     return { degree: item.degree, field: item.field };
   });
 
@@ -79,6 +101,10 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
     if (!isRecord(item) || !requireString(item.title) || !requireString(item.description)) {
       throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
     }
+    const index = projects.indexOf(item);
+    const original = (draft.projects || [])[index];
+    assertFaithfulText(original.title, item.title);
+    assertFaithfulText(original.description, item.description);
     return { title: item.title, description: item.description };
   });
 
@@ -86,6 +112,8 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
     if (!isRecord(item) || !requireString(item.name)) {
       throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
     }
+    const index = certifications.indexOf(item);
+    assertFaithfulText((draft.certifications || [])[index].name, item.name);
     return { name: item.name };
   });
 
