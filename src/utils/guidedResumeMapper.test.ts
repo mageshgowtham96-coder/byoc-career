@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMasterResumeFromCareerDraft } from './guidedResumeMapper';
+import { buildMasterResumeFromCareerDraft, createCareerDraftFromMasterResume } from './guidedResumeMapper';
 import type { CareerApplicationFormState } from '../types';
 
 const baseDraft: CareerApplicationFormState = {
@@ -96,6 +96,19 @@ describe('buildMasterResumeFromCareerDraft', () => {
     expect(profile.summary).toBe('');
     expect(profile.rawText).not.toMatch(/\b\d+%|increased revenue|managed a team/i);
     expect(profile.headline).toBe('Junior Analyst');
+  });
+
+  it('round-trips an existing profile into an editable draft without dropping its content', () => {
+    const profile = buildMasterResumeFromCareerDraft(baseDraft, new Date('2026-01-02T00:00:00.000Z'));
+    const draft = createCareerDraftFromMasterResume(profile);
+
+    expect(draft.personalDetails.fullName).toBe(profile.contactInfo.name);
+    expect(draft.targetRole).toBe(profile.headline);
+    expect(draft.professionalSummary).toBe(profile.summary);
+    expect(draft.workExperience[0].keyResponsibilities).toEqual(profile.experiences[0].bullets);
+    expect(draft.skills).toEqual(profile.skills.technical);
+    expect(draft.projects).toEqual(profile.projects);
+    expect(draft.certifications).toEqual(profile.certifications);
   });
 
   it('parses a simple duration range only when explicit dates are not provided', () => {
