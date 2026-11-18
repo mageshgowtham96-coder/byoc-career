@@ -199,8 +199,8 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
         setError('Enter the name you want displayed on your resume.');
         return;
       }
-      if (!draft.targetRole?.trim()) {
-        setError('Add the role you are working toward. You can change it later.');
+      if (!draft.targetRole?.trim() && !draft.currentRole?.trim()) {
+        setError('Add your current role or the role you are working toward. You can change it later.');
         return;
       }
     }
@@ -268,7 +268,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div><FieldLabel htmlFor="guided-name">Name on resume</FieldLabel><input id="guided-name" className={inputClass} value={draft.personalDetails.fullName} onChange={(e) => updatePersonal('fullName', e.target.value)} placeholder="Your full name" /></div>
                 <div><FieldLabel htmlFor="guided-current-role" optional>Current / most recent role</FieldLabel><input id="guided-current-role" className={inputClass} value={draft.currentRole || ''} onChange={(e) => updateDraft({ currentRole: e.target.value })} placeholder="e.g. Customer Support Associate" /></div>
-                <div><FieldLabel htmlFor="guided-target-role">Target role</FieldLabel><input id="guided-target-role" className={inputClass} value={draft.targetRole || ''} onChange={(e) => updateDraft({ targetRole: e.target.value })} placeholder="e.g. Junior Data Analyst" /></div>
+                <div><FieldLabel htmlFor="guided-target-role" optional>Target role</FieldLabel><input id="guided-target-role" className={inputClass} value={draft.targetRole || ''} onChange={(e) => updateDraft({ targetRole: e.target.value })} placeholder="e.g. Junior Data Analyst" /></div>
                 <div><FieldLabel htmlFor="guided-email" optional>Email</FieldLabel><input id="guided-email" type="email" className={inputClass} value={draft.personalDetails.email} onChange={(e) => updatePersonal('email', e.target.value)} placeholder="you@example.com" /></div>
                 <div><FieldLabel htmlFor="guided-phone" optional>Phone</FieldLabel><input id="guided-phone" className={inputClass} value={draft.personalDetails.phone} onChange={(e) => updatePersonal('phone', e.target.value)} placeholder="Phone number" /></div>
                 <div><FieldLabel htmlFor="guided-location" optional>Location</FieldLabel><input id="guided-location" className={inputClass} value={draft.personalDetails.location} onChange={(e) => updatePersonal('location', e.target.value)} placeholder="City, country" /></div>
@@ -372,7 +372,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
               <div><h3 className="text-base font-bold text-white">Review your information</h3><p className="mt-1 text-xs text-slate-400">BYOC will use only the information you entered. Check names, dates, and achievements before continuing.</p></div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Name</p><p className="mt-1 text-sm font-semibold text-white">{draft.personalDetails.fullName || '—'}</p></div>
-                <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Target role</p><p className="mt-1 text-sm font-semibold text-white">{draft.targetRole || '—'}</p></div>
+                <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Target role</p><p className="mt-1 text-sm font-semibold text-white">{draft.targetRole || draft.currentRole || '—'}</p></div>
                 <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3 sm:col-span-2"><p className="text-[10px] uppercase tracking-wider text-slate-500">Summary</p><p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-slate-200">{draft.professionalSummary || 'No summary added'}</p></div>
                 <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Experience</p><p className="mt-1 text-sm font-semibold text-white">{draft.workExperience.length} entries</p></div>
                 <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Skills</p><p className="mt-1 text-sm font-semibold text-white">{draft.skills.length} listed</p></div>
