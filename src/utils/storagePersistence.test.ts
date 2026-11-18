@@ -45,14 +45,14 @@ describe('sanitizeCareerFormState guided builder fields', () => {
     expect(result.sourceLanguage).toBe('Tamil');
     expect(result.translatedToEnglish).toBe(true);
     expect(result.originalLanguageSnapshot).toContain('மாதிரி');
-    expect(result.projects).toEqual([{
+    expect(result.projects || []).toEqual([{
       id: 'project-1',
       title: 'Sales dashboard',
       description: 'Built a dashboard',
       technologies: ['SQL', 'Power BI'],
       link: 'https://example.com/project'
     }]);
-    expect(result.certifications).toEqual([{
+    expect(result.certifications || []).toEqual([{
       id: 'cert-1',
       name: 'Power BI Associate',
       issuer: 'Example Institute',
@@ -78,9 +78,9 @@ describe('sanitizeCareerFormState guided builder fields', () => {
       certifications: [null, { id: 'c', name: 'Valid certificate' }]
     });
 
-    expect(result.projects).toHaveLength(1);
-    expect(result.projects[0].technologies).toEqual([]);
-    expect(result.certifications).toHaveLength(1);
-    expect(result.certifications[0].issuer).toBe('');
+    expect(result.projects || []).toHaveLength(1);
+    expect((result.projects || [])[0].technologies).toEqual([]);
+    expect(result.certifications || []).toHaveLength(1);
+    expect((result.certifications || [])[0].issuer).toBe('');
   });
 });
