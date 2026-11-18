@@ -64,6 +64,8 @@ describe('sanitizeCareerFormState guided builder fields', () => {
     const result = sanitizeCareerFormState({ professionalSummary: 'Experienced teacher' });
 
     expect(result.targetRole).toBe('');
+    expect(result.currentRole).toBe('');
+    expect(result.sourceLanguageOther).toBe('');
     expect(result.roleFamily).toBe('general');
     expect(result.experienceLevel).toBe('Unspecified');
     expect(result.sourceLanguage).toBe('English');
