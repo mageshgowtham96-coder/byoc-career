@@ -3,6 +3,7 @@ import { callGroqChat } from './groqService';
 
 interface TranslatedCareerText {
   targetRole: string;
+  currentRole: string;
   professionalSummary: string;
   workExperience: Array<{ role: string; keyResponsibilities: string[] }>;
   education: Array<{ degree: string; field: string }>;
@@ -39,6 +40,7 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
 
   if (
     !requireString(parsed.targetRole) ||
+    !requireString(parsed.currentRole) ||
     !requireString(parsed.professionalSummary) ||
     !workExperience ||
     !education ||
@@ -89,6 +91,7 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
 
   return {
     targetRole: parsed.targetRole,
+    currentRole: parsed.currentRole,
     professionalSummary: parsed.professionalSummary,
     workExperience: translatedWork,
     education: translatedEducation,
@@ -116,6 +119,7 @@ export async function translateCareerDraftToEnglish(
 
   const payload = {
     targetRole: draft.targetRole || '',
+    currentRole: draft.currentRole || '',
     professionalSummary: draft.professionalSummary,
     workExperience: draft.workExperience.map((item) => ({
       role: item.role,
@@ -139,7 +143,7 @@ export async function translateCareerDraftToEnglish(
     'Translate only the supplied text. Do not add, remove, infer, embellish, or invent facts, achievements, metrics, responsibilities, skills, or qualifications.',
     'Preserve the JSON structure and array lengths exactly. Preserve all numbers and factual meaning.',
     'Company names, institution names, contact details, dates, technical skills, technologies, certification issuers, and links are deliberately excluded and must not be added.',
-    'Return one valid JSON object with exactly these keys: targetRole, professionalSummary, workExperience, education, projects, certifications.',
+    'Return one valid JSON object with exactly these keys: targetRole, currentRole, professionalSummary, workExperience, education, projects, certifications.',
     JSON.stringify(payload)
   ].join('\n\n');
 
@@ -159,6 +163,7 @@ export async function translateCareerDraftToEnglish(
   return {
     ...draft,
     targetRole: translated.targetRole,
+    currentRole: translated.currentRole,
     professionalSummary: translated.professionalSummary,
     workExperience: draft.workExperience.map((item, index) => ({
       ...item,
