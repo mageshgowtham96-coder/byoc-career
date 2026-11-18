@@ -209,7 +209,7 @@ describe('Job Search Service', () => {
         workplaceType: 'Remote', salary: '$100k', postedDate: '2024-01-01',
         jobDescriptionRaw: 'TypeScript React Node.js',
         url: 'https://example.com', source: 'Test', skillsRequired: ['TypeScript', 'React'],
-        fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
+        fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified', experienceLevel: 'Unspecified'
       };
       const result = calculateHonestMatch(job, null);
       expect(result.score).toBe(0);
@@ -223,7 +223,7 @@ describe('Job Search Service', () => {
         workplaceType: 'Remote', salary: '$100k', postedDate: '2024-01-01',
         jobDescriptionRaw: 'TypeScript React Node.js',
         url: 'https://example.com', source: 'Test', skillsRequired: ['TypeScript', 'React', 'Node.js'],
-        fitScore: null, matchedKeywords: [], missingKeywords: []
+        fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
       };
       const resume: MasterResume = {
         rawText: '', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
@@ -245,7 +245,7 @@ describe('Job Search Service', () => {
         workplaceType: 'Remote', salary: '$100k', postedDate: '2024-01-01',
         jobDescriptionRaw: 'TYPESCRIPT react',
         url: 'https://example.com', source: 'Test', skillsRequired: ['TypeScript', 'React'],
-        fitScore: null, matchedKeywords: [], missingKeywords: []
+        fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
       };
       const resume: MasterResume = {
         rawText: '', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
