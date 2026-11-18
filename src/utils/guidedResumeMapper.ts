@@ -150,8 +150,6 @@ export function createCareerDraftFromMasterResume(profile: MasterResume): Career
     },
     targetRole: profile.headline,
     currentRole: profile.currentRole || '',
-    roleFamily: 'general',
-    experienceLevel: 'Unspecified',
     sourceLanguage: profile.sourceLanguage || 'English',
     sourceLanguageOther: profile.sourceLanguageOther || '',
     roleFamily: profile.roleFamily || 'general',
