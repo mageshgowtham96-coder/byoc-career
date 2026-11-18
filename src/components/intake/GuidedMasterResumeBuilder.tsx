@@ -152,6 +152,21 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
     certifications: [...(draft.certifications || []), { id: createId('certification'), name: '', issuer: '', issueDate: '' }]
   });
 
+  const handleRestoreOriginalLanguage = () => {
+    if (!draft.originalLanguageSnapshot) return;
+    try {
+      const snapshot = JSON.parse(draft.originalLanguageSnapshot) as { draft?: unknown };
+      const originalDraft = snapshot && typeof snapshot === 'object' && 'draft' in snapshot
+        ? snapshot.draft
+        : snapshot;
+      setDraft(sanitizeCareerFormState(originalDraft));
+      setTranslationPreview(null);
+      setError('');
+    } catch {
+      setError('The preserved original-language draft could not be read. Your current resume text has not changed.');
+    }
+  };
+
   const handleTranslate = async () => {
     if (!groqApiKey.trim()) {
       setError('Add your Groq API key in Settings to use optional translation. You can still complete the resume in your chosen language.');
@@ -382,6 +397,11 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
                 </button>
               </div>
               {!groqApiKey.trim() && <p className="mt-2 text-[10px] text-slate-500">Translation is optional. Add your existing Groq key in Settings if you want to use it.</p>}
+              {draft.translatedToEnglish && draft.originalLanguageSnapshot && (
+                <button type="button" onClick={handleRestoreOriginalLanguage} className="mt-2 text-[11px] font-semibold text-sky-300 underline underline-offset-2 hover:text-sky-200">
+                  Restore original-language draft
+                </button>
+              )}
             </div>
           )}
 
