@@ -111,3 +111,50 @@ export function buildMasterResumeFromCareerDraft(
     }
   };
 }
+
+
+/** Converts an existing profile into an editable guided-builder draft without losing its facts. */
+export function createCareerDraftFromMasterResume(profile: MasterResume): CareerApplicationFormState {
+  return {
+    personalDetails: {
+      fullName: profile.contactInfo.name,
+      email: profile.contactInfo.email,
+      phone: profile.contactInfo.phone,
+      location: profile.contactInfo.location,
+      linkedin: profile.contactInfo.linkedin,
+      github: profile.contactInfo.github,
+      portfolio: profile.contactInfo.portfolio
+    },
+    targetRole: profile.headline,
+    roleFamily: 'general',
+    experienceLevel: 'Unspecified',
+    sourceLanguage: 'English',
+    translatedToEnglish: false,
+    professionalSummary: profile.summary,
+    workExperience: profile.experiences.map((item) => ({
+      id: item.id,
+      company: item.company,
+      role: item.role,
+      duration: [item.startDate, item.endDate].filter(Boolean).join(' – '),
+      startDate: item.startDate,
+      endDate: item.endDate,
+      location: item.location,
+      isCurrent: Boolean(item.isCurrent),
+      keyResponsibilities: [...item.bullets]
+    })),
+    skills: [...profile.skills.technical],
+    education: profile.education.map((item) => ({
+      id: item.id,
+      degree: item.degree,
+      institution: item.institution,
+      year: item.gradYear,
+      field: item.field,
+      gpa: item.gpa || ''
+    })),
+    projects: profile.projects.map((item) => ({ ...item, technologies: [...item.technologies] })),
+    certifications: profile.certifications.map((item) => ({ ...item })),
+    isAutoFilled: false,
+    lastExtractedTimestamp: null,
+    rawSourceText: profile.rawText
+  };
+}
