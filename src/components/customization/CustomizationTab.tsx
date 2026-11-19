@@ -414,7 +414,7 @@ export const CustomizationTab: React.FC = () => {
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-mono font-bold flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                Source Evidence Checks Active
+                Bullet & Skill Evidence Checks
               </span>
               <span className="text-xs text-slate-400 hidden xs:inline">
                 AI drafts require your review
@@ -438,7 +438,7 @@ export const CustomizationTab: React.FC = () => {
               disabled={isGenerating}
               title={
                 !hasResume
-                  ? 'Add your master resume in the Intake tab to unlock AI tailoring'
+                  ? 'Add structured career evidence in the Intake tab to unlock AI tailoring'
                   : !hasJob
                   ? 'Pick a target position in Sourcing to tailor your kit against'
                   : 'Generate role-relevant resume variations'
@@ -450,12 +450,12 @@ export const CustomizationTab: React.FC = () => {
               }`}
             >
               <Sparkles className={`w-4 h-4 ${!hasResume || !hasJob ? 'text-amber-400' : 'text-sky-300'} ${isGenerating ? 'animate-spin' : ''}`} />
-              <span>{isGenerating ? 'Generating role-relevant variations...' : currentArtifact ? 'Re-Generate 3 Variations' : 'Generate role-relevant resume variations'}</span>
+              <span>{isGenerating ? 'Generating role-relevant variations...' : currentArtifact ? 'Regenerate role-relevant variations' : 'Generate role-relevant resume variations'}</span>
             </button>
             {!hasResume && (
               <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" />
-                Add master resume in Intake to unlock AI tailoring
+                Add structured career evidence in Intake to unlock AI tailoring
               </span>
             )}
             {hasResume && !hasJob && (
