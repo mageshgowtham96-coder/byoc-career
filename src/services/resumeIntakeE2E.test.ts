@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { extractResumeFile, parseRawResumeToStructured, validateExtractedSchema } from './extractionService';
 import { assessResumeReadiness } from '../utils/resumeReadiness';
 import { useWizardStore, buildVaultDataFromState } from '../store/useWizardStore';
+import { encryptVault, decryptVault } from '../utils/cryptoVault';
 
 
 function crc32(bytes: Uint8Array): number {
@@ -258,6 +259,7 @@ describe('real DOCX intake lifecycle', () => {
       <w:tc><w:p><w:r><w:t>Used Excel to review monthly sales trends.</w:t></w:r></w:p></w:tc></w:tr></w:tbl>
       <w:p><w:r><w:t>Education</w:t></w:r></w:p>
       <w:p><w:r><w:t>Bachelor of Commerce - City University - 2025</w:t></w:r></w:p>
+      <w:p><w:r><w:t>Languages — Tamil — Native</w:t></w:r></w:p>
       </w:body></w:document>`;
     const bytes = makeDocxUploadFixture(xml);
     const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -272,13 +274,21 @@ describe('real DOCX intake lifecycle', () => {
     expect(parsed.contactInfo.name).toBe('Asha Rao');
     expect(parsed.contactInfo.email).toBe('asha@example.com');
     expect(parsed.rawText).toBe(extracted.rawText);
+    expect(parsed.additionalEvidence).toContain('Languages: Tamil — Native');
 
     useWizardStore.setState({ masterResume: null, stagedParsedResume: parsed, tailoredArtifacts: {} });
     useWizardStore.getState().confirmStagedResume();
     const state = useWizardStore.getState();
     expect(state.stagedParsedResume).toBeNull();
     expect(state.masterResume?.rawText).toBe(extracted.rawText);
-    expect(buildVaultDataFromState(state).masterResume?.rawText).toBe(extracted.rawText);
+    const vaultData = buildVaultDataFromState(state);
+    expect(vaultData.masterResume?.rawText).toBe(extracted.rawText);
+    const { envelope } = await encryptVault(vaultData, 'byoc-test-passphrase', {
+      id: 'e2e-user', name: 'Asha Rao', email: 'asha@example.com',
+      biometricEnabled: false, updatedAt: new Date().toISOString()
+    }, 'BYOC-TEST-RECOVERY-PHRASE');
+    const restored = await decryptVault(envelope, 'byoc-test-passphrase');
+    expect(restored.masterResume).toEqual(parsed);
     useWizardStore.setState({ masterResume: null, stagedParsedResume: null, tailoredArtifacts: {}, toasts: [] });
   });
 });
