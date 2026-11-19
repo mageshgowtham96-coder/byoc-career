@@ -918,7 +918,7 @@ export const useWizardStore = create<WizardState>()(
             coverLetter: '',
             interviewPrepQuestions: [],
             generationTimestamp: item.dateReceived,
-            authenticityGuaranteed: true
+            authenticityGuaranteed: false
           },
           notes: `Discovered from external recruiting system: ${item.infrastructure}. Reference ID: ${item.detectedReferenceNumber || 'N/A'}.`,
           interviewStages: [
