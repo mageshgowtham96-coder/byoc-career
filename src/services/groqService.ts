@@ -385,8 +385,17 @@ export function selectGroqChatModel(availableModels: string[]): string | null {
   return PREFERRED_GROQ_CHAT_MODELS.find((model) => availableModels.includes(model)) || null;
 }
 
+async function fingerprintGroqApiKey(apiKey: string): Promise<string> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    throw new GroqApiError('Secure model-cache fingerprinting is unavailable in this browser.', 503, 'SECURE_CRYPTO_UNAVAILABLE');
+  }
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(apiKey));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 async function resolveOptimalModel(apiKey: string): Promise<string> {
-  if (resolvedGroqModel && resolvedGroqModelForKey === apiKey) return resolvedGroqModel;
+  const keyFingerprint = await fingerprintGroqApiKey(apiKey);
+  if (resolvedGroqModel && resolvedGroqModelForKey === keyFingerprint) return resolvedGroqModel;
   resolvedGroqModel = null;
   resolvedGroqModelForKey = null;
 
@@ -402,7 +411,7 @@ async function resolveOptimalModel(apiKey: string): Promise<string> {
       );
     }
     resolvedGroqModel = selected;
-    resolvedGroqModelForKey = apiKey;
+    resolvedGroqModelForKey = keyFingerprint;
     return selected;
   } catch (error) {
     if (error instanceof GroqApiError && error.code === 'MODEL_NOT_AVAILABLE') throw error;
@@ -410,7 +419,7 @@ async function resolveOptimalModel(apiKey: string): Promise<string> {
     // production chat model; if the account cannot access it, the chat call reports that clearly.
     console.warn('Groq model discovery fallback:', error);
     resolvedGroqModel = 'openai/gpt-oss-120b';
-    resolvedGroqModelForKey = apiKey;
+    resolvedGroqModelForKey = keyFingerprint;
     return resolvedGroqModel;
   }
 }
