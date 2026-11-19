@@ -37,6 +37,7 @@ export interface ResolvedTailoredResume {
   education: EducationItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
+  additionalEvidence: string[];
   coverLetter: string;
   verifiedReplacements: TailoredBullet[];
   unmappedBullets: TailoredBullet[];
@@ -297,6 +298,7 @@ export function resolveTailoredResumeForExportAndPreview(
     education: Array.isArray(masterResume.education) ? masterResume.education : [],
     projects: Array.isArray(masterResume.projects) ? masterResume.projects : [],
     certifications: Array.isArray(masterResume.certifications) ? masterResume.certifications : [],
+    additionalEvidence: Array.isArray(masterResume.additionalEvidence) ? masterResume.additionalEvidence : [],
     coverLetter: (artifact.coverLetter || '').trim(),
     verifiedReplacements: verified,
     unmappedBullets: unmapped
