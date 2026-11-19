@@ -793,7 +793,7 @@ export function parseRawResumeToStructured(
     const certSlice = lines.slice(certIndex + 1);
     for (let i = 0; i < Math.min(certSlice.length, 10); i++) {
       const line = certSlice[i];
-      if (/^(education|experience|projects|skills)/i.test(line)) break;
+      if (/^(education|experience|projects|skills|awards|honours|honors|publications|research|volunteering|volunteer experience|community involvement|languages|professional memberships|memberships|extracurricular activities)/i.test(line)) break;
       if (line.length > 5 && line.length < 90) {
         certifications.push({
           id: 'cert-' + certifications.length,
