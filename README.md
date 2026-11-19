@@ -24,6 +24,8 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - File size is limited to 10 MB. Corrupt or empty files are rejected.
 - Extracted facts are staged for user review before replacing the Master Resume.
 - Experience bullets and skills are grounded in user-provided source material; missing facts must not be invented.
+- A guided Master Resume builder supports people who do not already have a CV. It asks role- and experience-specific questions locally, saves drafts inside the encrypted vault, and replaces the active profile only after the user confirms.
+- Optional English translation uses the existing Groq key only after an explicit click. Dedicated contact, employer, institution, date, skill, technology, issuer, and link fields are omitted; free-text summaries, role titles, bullets, and project descriptions may still contain personal or organization details. Users preview the translation and can restore the original-language draft.
 
 ### Job discovery
 - **Public live feeds:** Remotive, Remote OK, and Jobicy are queried on demand. They are not a complete global index.
