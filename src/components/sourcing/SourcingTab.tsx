@@ -661,12 +661,13 @@ export const SourcingTab: React.FC = () => {
             aria-controls="byoc-role-suggestions"
             aria-activedescendant={activeRoleSuggestion >= 0 && showRoleSuggestions ? "byoc-role-option-" + activeRoleSuggestion : undefined}
             onFocus={() => setIsRoleSuggestionsOpen(true)}
+            onBlur={() => setIsRoleSuggestionsOpen(false)}
             onChange={(e) => { setSearchQuery(e.target.value); setIsRoleSuggestionsOpen(true); setActiveRoleSuggestion(-1); }}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown' && showRoleSuggestions) { e.preventDefault(); setActiveRoleSuggestion((current) => Math.min(current + 1, roleSuggestions.length - 1)); }
               else if (e.key === 'ArrowUp' && showRoleSuggestions) { e.preventDefault(); setActiveRoleSuggestion((current) => Math.max(current - 1, 0)); }
               else if (e.key === 'Escape') { setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); }
-              else if (e.key === 'Enter') { if (showRoleSuggestions && activeRoleSuggestion >= 0) { e.preventDefault(); setSearchQuery(roleSuggestions[activeRoleSuggestion]); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); } else { setIsRoleSuggestionsOpen(false); } }
+              else if (e.key === 'Enter') { if (showRoleSuggestions && activeRoleSuggestion >= 0) { e.preventDefault(); setSearchQuery(roleSuggestions[activeRoleSuggestion]); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); } else { setIsRoleSuggestionsOpen(false); void handleRunLiveSearch(); } }
             }}
             placeholder="Search a role (e.g. fraud) or any keyword..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
