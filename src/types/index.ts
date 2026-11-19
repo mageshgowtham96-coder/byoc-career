@@ -311,6 +311,7 @@ export type JobSourcePortal =
   | 'Remotive Live'
   | 'Remote OK Live'
   | 'Jobicy Live'
+  | 'Arbeitnow Live'
   | 'User Import'
   | 'LinkedIn'
   | 'Glassdoor'
