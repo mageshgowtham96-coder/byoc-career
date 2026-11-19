@@ -191,8 +191,9 @@ export async function askPdfQuestion(
   if (!answer || answer.length > 6000 || !Array.isArray(value.citations)) {
     throw new Error('The AI response did not pass document-answer validation.');
   }
+  const allowedPages = new Set(selected.map((item) => item.page.pageNumber));
   const citations = Array.from(new Set(value.citations.filter(
-    (page): page is number => Number.isInteger(page) && page >= 1 && page <= document.pageCount
+    (page): page is number => Number.isInteger(page) && allowedPages.has(page)
   )));
   return { answer, citations };
 }
