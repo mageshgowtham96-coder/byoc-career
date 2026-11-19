@@ -465,10 +465,10 @@ export const IntakeTab: React.FC = () => {
               <div className="mb-5 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-2 animate-in fade-in">
                 <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
                   <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Mandatory Application Schema Fields Missing ({validation.missingMandatoryFields.length})</span>
+                  <span>Information Not Automatically Detected ({validation.missingMandatoryFields.length})</span>
                 </div>
                 <p className="text-[11px] text-amber-200/90 leading-relaxed">
-                  The document extraction stream could not detect: <strong>{validation.missingMandatoryFields.join(', ')}</strong>. You can manually enter or edit these values below before confirming to your Master Profile.
+                  The document reader did not confidently identify: <strong>{validation.missingMandatoryFields.join(', ')}</strong>. Review these details and add or correct anything relevant before confirming your career profile. Work history is not required when other career evidence applies.
                 </p>
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {validation.missingMandatoryFields.map((field, idx) => (
@@ -476,7 +476,7 @@ export const IntakeTab: React.FC = () => {
                       key={idx}
                       className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-200 border border-amber-500/30 text-[10px] font-mono"
                     >
-                      Missing: {field}
+                      Review: {field}
                     </span>
                   ))}
                 </div>
