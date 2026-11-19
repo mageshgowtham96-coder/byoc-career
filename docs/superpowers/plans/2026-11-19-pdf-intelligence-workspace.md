@@ -41,12 +41,12 @@
 - `reorderPdfPages(file: File, pageNumbers: number[]): Promise<Uint8Array>`
 - `createPdfBlob(bytes: Uint8Array): Blob`
 
-- [ ] Write tests for valid metadata, empty/oversized/wrong-signature/malformed PDFs and page ceiling.
-- [ ] Run tests to verify failures.
-- [ ] Implement validation and metadata inspection with `pdf-lib`.
-- [ ] Write tests for merge, split/extract, rotate and reorder including invalid indexes.
-- [ ] Run tests to verify failures, then implement operations.
-- [ ] Run the focused test suite.
+- [x] Write tests for valid metadata, empty/oversized/wrong-signature/malformed PDFs and page ceiling.
+- [x] Run tests to verify failures.
+- [x] Implement validation and metadata inspection with `pdf-lib`.
+- [x] Write tests for merge, split/extract, rotate and reorder including invalid indexes.
+- [x] Run tests to verify failures, then implement operations.
+- [x] Run the focused test suite.
 
 ### Task 2: Explicit document Q&A service
 
@@ -57,37 +57,14 @@
 **Interfaces:**
 - `askPdfQuestion(question: string, extractedText: string, apiKey: string): Promise<string>`
 
-- [ ] Test missing key, blank/oversized question, empty text, text limit, prompt-injection-resistant system instructions, empty model output and provider errors.
-- [ ] Verify RED, then implement using existing `callGroqChat`.
-- [ ] Keep answer bounded and require the model to identify unsupported facts as not found.
-- [ ] Run focused tests.
+- [x] Test missing key, blank/oversized question, empty text, text limit, prompt-injection-resistant system instructions, empty model output and provider errors.
+- [x] Verify RED, then implement using existing `callGroqChat`.
+- [x] Keep answer bounded and require the model to identify unsupported facts as not found.
+- [x] Run focused tests.
 
-### Task 3: Documents workspace UI and navigation
 
-**Files:**
-- Create: `src/components/documents/DocumentsTab.tsx`
-- Create: `src/components/documents/DocumentsTab.test.tsx`
-- Modify: `src/App.tsx`
-- Modify: `src/components/NavigationShell.tsx`
-- Modify: `src/types/index.ts`
 
-**Interfaces:**
-- Component reads existing `groqApiKey` from `useWizardStore`.
-- No new persisted store fields.
-
-- [ ] Test upload, validation errors, local operations, explicit AI consent/submission, missing key, removal and object URL cleanup.
-- [ ] Verify RED, then implement responsive UI with clear local/AI data-boundary disclosure.
-- [ ] Add lazy-loaded Documents tab to desktop and mobile navigation.
-- [ ] Run focused tests.
-
-### Task 4: Integration and release evidence
-
-**Files:**
-- Modify: `docs/superpowers/specs/2026-11-19-pdf-intelligence-workspace.md`
-- Modify: `docs/superpowers/plans/2026-11-19-pdf-intelligence-workspace.md`
-
-- [ ] Run TypeScript, full Vitest suite and production web build.
-- [ ] Run Android debug build through CI and inspect job logs/artifact.
-- [ ] Review diff for data leaks, memory/resource hazards, accessibility and error handling.
-- [ ] Document any remaining limitations, especially OCR and physical Android testing.
-- [ ] Create/update a draft PR; do not merge.
+## Execution notes
+- Service tests were written first and the initial CI runs exposed real issues: jsdom File API gaps, a missing mocked Groq error export, malformed-PDF page-tree exceptions, and numeric page-list validation. Each was corrected and re-run.
+- The React component interaction tests were added after the first UI implementation rather than observing a pre-implementation RED state. They now cover no automatic AI call, explicit question submission, missing-key local use, and temporary preview cleanup.
+- The final Android build for exact head `454b614ff2d22e4a5698deb7269e2b1e560437b5` is pending at the time of this update.
