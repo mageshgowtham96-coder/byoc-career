@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ArbeitnowJobAdapter, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms } from './jobSearchService';
+import { ArbeitnowJobAdapter, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, mergeDiscoveredJobs } from './jobSearchService';
 
 const fetchMock = vi.fn();
 
@@ -230,5 +230,32 @@ describe('LiveJobSearchEngine provider isolation', () => {
     expect(result.providerStatuses.find((status) => status.id === 'slow-feed')?.status).toBe('error');
     expect(result.providerStatuses.find((status) => status.id === 'working-feed')?.count).toBe(1);
     expect(result.error).toContain('Slow Feed timed out');
+  });
+});
+
+describe('mergeDiscoveredJobs', () => {
+  const makeJob = (id: string, title: string) => ({
+    id, title, company: 'Example Co', location: 'India', workplaceType: 'Remote' as const,
+    salary: 'Undisclosed', postedDate: '2026-11-18', jobDescriptionRaw: 'Role details',
+    url: 'https://example.com/jobs', source: 'User Import', skillsRequired: [],
+    fitScore: null, matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified' as const
+  });
+
+  it('preserves previously saved jobs that do not match the current search', () => {
+    const oldSaved = makeJob('saved-1', 'Accounts Executive');
+    const currentMatch = makeJob('live-1', 'Fraud Analyst');
+    expect(mergeDiscoveredJobs([oldSaved], [currentMatch]).map((job) => job.id))
+      .toEqual(['saved-1', 'live-1']);
+  });
+
+  it('deduplicates the same employer and title across feeds', () => {
+    const saved = makeJob('saved-1', 'Fraud Analyst');
+    const duplicate = { ...makeJob('feed-1', 'Fraud Analyst'), source: 'Remotive Live' };
+    expect(mergeDiscoveredJobs([saved], [duplicate])).toEqual([saved]);
+  });
+
+  it('handles empty discovery results without deleting local records', () => {
+    const saved = makeJob('saved-1', 'Data Analyst');
+    expect(mergeDiscoveredJobs([saved], [])).toEqual([saved]);
   });
 });
