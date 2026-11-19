@@ -765,7 +765,7 @@ export function getTailoringStrategies(job: JobPosting, masterResume: MasterResu
       id: 'variant-projects',
       name: 'Projects and learning evidence',
       badge: 'Projects & Learning',
-      description: 'Prioritize documented projects, education and demonstrated transferable skills for ${targetRole}; do not imply paid employment where none exists.'
+      description: `Prioritize documented projects, education and demonstrated transferable skills for ${targetRole}; do not imply paid employment where none exists.`
     });
   }
   const hasAnyProfileEvidence = Boolean(
@@ -785,7 +785,7 @@ export function getTailoringStrategies(job: JobPosting, masterResume: MasterResu
     id: 'variant-ats',
     name: 'Job requirement alignment',
     badge: 'ATS Alignment',
-    description: 'Use exact, relevant terms from the ${targetRole} job description only where the candidate profile provides supporting evidence; leave unsupported requirements unclaimed.'
+    description: `Use exact, relevant terms from the ${targetRole} job description only where the candidate profile provides supporting evidence; leave unsupported requirements unclaimed.`
   });
   return strategies.slice(0, 3);
 }
