@@ -297,6 +297,17 @@ Commerce graduate with project experience.`);
     expect(parsed.contactInfo.email).toBe('asha@example.com');
   });
 
+  it('extracts a name and location from a pipe-separated resume header', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao | Chennai, Tamil Nadu, India
+Software Engineer
+asha@example.com
+Professional Summary
+Builds reliable software systems.`);
+    expect(parsed.contactInfo.name).toBe('Asha Rao');
+    expect(parsed.contactInfo.location).toBe('Chennai, Tamil Nadu, India');
+    expect(parsed.headline).toBe('Software Engineer');
+  });
+
   it('does not treat an email provider or social profile URL as a personal portfolio', () => {
     const parsed = parseRawResumeToStructured(`Asha Rao
 asha@gmail.com
