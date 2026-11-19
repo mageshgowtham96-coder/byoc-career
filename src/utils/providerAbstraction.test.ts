@@ -101,7 +101,7 @@ describe('Provider Abstraction', () => {
       await expect(manager.attemptChat('sys', 'candidate data', apiKeys)).rejects.toThrow('Groq Down');
       expect(global.fetch).not.toHaveBeenCalled();
       expect(manager.getSelectedProvider()).toBe('groq');
-    });;
+    });
   });
 
   describe('GroqProvider', () => {
