@@ -11,7 +11,7 @@ import {
 
 // Mock the services and SDKs
 vi.mock('../services/groqService', () => ({
-  getAvailableGroqModels: vi.fn().mockResolvedValue(['llama-3.1-70b-versatile']),
+  getAvailableGroqModels: vi.fn().mockResolvedValue(['openai/gpt-oss-120b']),
   callGroqChat: vi.fn().mockResolvedValue('{"response": "mocked groq"}')
 }));
 
