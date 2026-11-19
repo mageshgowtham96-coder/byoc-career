@@ -71,7 +71,8 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
     draft.skills.length ||
     (draft.projects || []).some((item) => item.title.trim() || item.description.trim()) ||
     draft.education.some((item) => item.degree.trim() || item.institution.trim()) ||
-    (draft.certifications || []).some((item) => item.name.trim())
+    (draft.certifications || []).some((item) => item.name.trim()) ||
+    (draft.additionalEvidence || []).some((item) => item.trim())
   );
 
   const updateDraft = (patch: Partial<CareerApplicationFormState>) => {
@@ -331,6 +332,18 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
                     <div><FieldLabel htmlFor={`project-link-${index}`} optional>Project link</FieldLabel><input id={`project-link-${index}`} className={inputClass} value={project.link || ''} onChange={(e) => updateProject(index, { link: e.target.value })} placeholder="https://..." /></div>
                   </div>
                 ))}
+              </div>
+              <div className="space-y-2">
+                <FieldLabel htmlFor="guided-additional-evidence" optional>Other career evidence</FieldLabel>
+                <p className="text-[11px] leading-relaxed text-slate-400">Add anything relevant that does not fit the sections above: volunteering, awards, publications, research, languages, professional memberships, community work, caregiving, competitions or other experience. One item per line.</p>
+                <textarea
+                  id="guided-additional-evidence"
+                  className={textAreaClass}
+                  rows={4}
+                  value={(draft.additionalEvidence || []).join('\n')}
+                  onChange={(e) => updateDraft({ additionalEvidence: e.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })}
+                  placeholder="Volunteer coordinator — organised weekly community learning sessions&#10;Tamil — native; English — professional working proficiency"
+                />
               </div>
             </section>
           )}
