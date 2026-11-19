@@ -137,7 +137,7 @@ Screening Question: ${cleanQuestion}`;
 
   const raw = await callGroqChat(systemPrompt, userPrompt, apiKey);
   try {
-    const parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, '').trim());
+    const parsed = JSON.parse(raw.replace(/```(?:json)?\s*|\s*```/gi, '').trim());
     return validateQuestionnaireDraft(parsed, candidateEvidence);
   } catch (err: unknown) {
     if (err instanceof GroqApiError) throw err;
@@ -379,7 +379,7 @@ export async function optimizeMasterResumeWithGroq(
   source: MasterResume,
   apiKey?: string
 ): Promise<MasterResume> {
-  const systemPrompt = `You are a conservative resume editor. Improve clarity, grammar, structure and role-relevant emphasis using ONLY the supplied candidate evidence. Never invent or infer employers, dates, metrics, qualifications, skills, duties or achievements. Do not change IDs or the number of experience/project records or bullets. Keep every bullet's factual meaning. Return JSON only with this shape: {"headline":"string","summary":"string","experiences":[{"id":"existing-id","bullets":["one rewritten bullet for each source bullet, same order and count"]}],"projects":[{"id":"existing-id","description":"rewritten description"}]}. Keep all claims strictly within source evidence. If a field cannot be safely improved, return it unchanged.`;
+  const systemPrompt = "You are a conservative resume editor. Improve clarity, grammar, structure and role-relevant emphasis using ONLY the supplied candidate evidence. Never invent or infer employers, dates, metrics, qualifications, skills, duties or achievements. Do not change IDs or the number/order of experience or project records or bullets. Keep every bullet's factual meaning. Return JSON only with this shape: {\"sourceHeadline\":\"exact supplied headline\",\"headline\":\"proposed headline\",\"sourceSummary\":\"exact supplied summary\",\"summary\":\"proposed summary\",\"experiences\":[{\"id\":\"existing-id\",\"bullets\":[{\"source\":\"exact source bullet copied verbatim\",\"proposed\":\"rewritten bullet\"}]}],\"projects\":[{\"id\":\"existing-id\",\"sourceDescription\":\"exact source description copied verbatim\",\"description\":\"rewritten description\"}]}. Every source field must be copied exactly so the proposal can be mapped back to its source. Keep all claims strictly within source evidence. If a field cannot be safely improved, return it unchanged.";
   const userPrompt = JSON.stringify({
     headline: source.headline,
     summary: source.summary,
