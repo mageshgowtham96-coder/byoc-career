@@ -188,6 +188,8 @@ export const SourcingTab: React.FC = () => {
           if (!matches) return false;
         }
         const source = (job.source || '').toLowerCase();
+        // Hide legacy Groq-discovered candidates retained in older local vaults; do not delete user data.
+        if (source.includes('groq search')) return false;
         const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes(source);
         const isLiveDiscoveredJob = isLiveDiscoveredJobSource(job.source);
         if (isLiveDiscoveredJob && postedWithinDays > 0 && !isPostedWithinDays(job.postedDate, postedWithinDays)) return false;
@@ -591,12 +593,13 @@ export const SourcingTab: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-2">
             {portalShortcuts.map((shortcut) => {
-              const effectiveQuery =
+              const roleQuery =
                 searchQuery.trim() ||
                 candidatePreferences?.targetRole?.trim() ||
                 candidatePreferences?.profession?.trim() ||
                 masterResume?.skills.technical[0] ||
                 'software engineer';
+              const effectiveQuery = [roleQuery, isWorldwide ? '' : optionalLocation.trim()].filter(Boolean).join(' ');
               const targetHref = buildPortalShortcutUrl(shortcut.searchUrlTemplate, effectiveQuery);
               if (!targetHref) return null;
 
