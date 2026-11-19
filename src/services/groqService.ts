@@ -914,13 +914,13 @@ export async function tailorResumeWithGroq(
     }))
   }, null, 2);
 
-  const systemPrompt = \`You are a careful resume editor and ATS alignment assistant.
-\${SYSTEMIC_AUTHENTICITY_FILTER}
-Generate exactly \${strategies.length} distinct resume presentation versions, one for each strategy in the supplied schema. These strategies are selected from the candidate's actual evidence; do not add leadership, architecture, metrics or specialist claims unless supported by that evidence.
+  const systemPrompt = `You are a careful resume editor and ATS alignment assistant.
+${SYSTEMIC_AUTHENTICITY_FILTER}
+Generate exactly ${strategies.length} distinct resume presentation versions, one for each strategy in the supplied schema. These strategies are selected from the candidate's actual evidence; do not add leadership, architecture, metrics or specialist claims unless supported by that evidence.
 Every factual claim must be directly supported by the supplied candidate profile. Rewrite for clarity and relevance, but never create new duties, achievements, numbers, employers, qualifications, dates or skills.
 Only rewrite existing experience bullets when the source bullet and experienceId are supplied. If a statement cannot be mapped to source evidence, omit it. highlightedSkills must be exact skills from the candidate profile. Tailored summaries and cover letters must not assert unsupported facts.
 Return JSON matching this schema exactly:
-\${strategySchema}\`;
+${strategySchema}`;
 
   const userPrompt = `Target Job:
 Title: ${job.title}
