@@ -17,6 +17,9 @@ Review the current PR #8 head and its local-first architecture for failure modes
 | Search suggestions were absent for partial roles | A partial query such as `fraud` relied entirely on broad text matching | Add local role suggestions with editable custom search, keyboard navigation, Escape dismissal, and WAI-ARIA combobox semantics |
 | Live search results replaced the saved-job array with only the current query matches | Previously saved jobs could disappear when a narrower query was run | Merge new results into the existing saved collection |
 | Job deduplication used only company + title | Two openings at the same employer/title in different cities could collapse into one | Include location in the deduplication identity |
+| DOCX/deflate extraction trusted compressed input size without a decompressed-output ceiling | A small ZIP bomb could expand into a large XML stream and exhaust device memory | Reject DOCX document.xml above 20MB, enforce a streaming decompression ceiling, and verify actual output size against ZIP metadata |
+| Native share-sheet cancellation returned a successful export result | A user cancelling the Android share sheet could see a false success state | Treat AbortError as a cancelled/unsuccessful export |
+| Removing the Groq key or restoring a vault without a key could leave the UI's live-AI flag enabled | Settings could display a stale live-mode state | Derive live-AI mode from whether a Groq key is actually present |
 
 ## AI provider decision
 
