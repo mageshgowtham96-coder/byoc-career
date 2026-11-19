@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseRawResumeToStructured } from './extractionService';
+import { parseRawResumeToStructured, validateExtractedSchema } from './extractionService';
 import { assessResumeReadiness } from '../utils/resumeReadiness';
-import { validateExtractedSchema } from './extractionService';
 
 const DUMMY_FRAUD_ANALYST_RESUME = `Priya Sharma
 priya.sharma@example.com
@@ -88,9 +87,9 @@ Experience
 Fraud Analyst - Example Bank - 2022 - Present
 - Reviewed payment alerts and documented case notes.`);
     const readiness = assessResumeReadiness(parsed);
-    expect(readiness.completenessPercent).toBe(65);
-    expect(readiness.missingSections).toContain('three or more core competencies');
-    expect(readiness.missingSections).toContain('at least two specific contribution bullets for one role');
+    expect(readiness.completenessPercent).toBe(80);
+    expect(readiness.missingSections).toContain('three or more relevant skills or competencies');
+    expect(readiness.missingSections).not.toContain('work experience');
   });
   it('recognizes a student profile with education and projects as meaningful resume evidence without employment history', () => {
     const student = parseRawResumeToStructured(`Asha Rao
@@ -107,6 +106,7 @@ Excel, SQL, Data Analysis`);
     expect(student.experiences).toHaveLength(0);
     expect(student.education.length).toBeGreaterThan(0);
     expect(student.projects.length).toBeGreaterThan(0);
+    expect(student.projects[0].description).toContain('Analysed a sample retail dataset');
     const readiness = assessResumeReadiness(student);
     expect(readiness.completenessPercent).toBe(100);
     expect(readiness.missingSections).toEqual([]);
