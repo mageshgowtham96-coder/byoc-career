@@ -356,7 +356,21 @@ function decodeXmlEntities(xml: string): string {
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)));
 }
 
-function extractParagraphsFromDocumentXml(xml: string): string {
+function extractExternalHyperlinkTargets(relationshipsXml: string): Map<string, string> {
+  const targets = new Map<string, string>();
+  const relationshipTags = relationshipsXml.match(/<Relationship\b[^>]*>/gi) || [];
+  for (const tag of relationshipTags) {
+    const id = tag.match(/\bId="([^"]+)"/i)?.[1];
+    const target = tag.match(/\bTarget="([^"]+)"/i)?.[1];
+    const mode = tag.match(/\bTargetMode="([^"]+)"/i)?.[1];
+    if (!id || !target || mode?.toLowerCase() !== 'external') continue;
+    const decodedTarget = decodeXmlEntities(target);
+    if (/^https?:\/\//i.test(decodedTarget)) targets.set(id, decodedTarget);
+  }
+  return targets;
+}
+
+function extractParagraphsFromDocumentXml(xml: string, hyperlinkTargets: Map<string, string> = new Map()): string {
   const paragraphBlocks = xml.split(/<\/w:p>/i);
   const lines: string[] = [];
   const tokenRegex = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab(?:\s[^>]*)?\/>|<w:br(?:\s[^>]*)?\/>/gi;
@@ -380,7 +394,21 @@ function extractParagraphsFromDocumentXml(xml: string): string {
     if (line) lines.push(line);
   }
 
-  if (lines.length > 0) return lines.join('\n');
+  const hyperlinkLines: string[] = [];
+  const hyperlinkRegex = /<w:hyperlink\b([^>]*)>([\s\S]*?)<\/w:hyperlink>/gi;
+  let hyperlinkMatch: RegExpExecArray | null;
+  while ((hyperlinkMatch = hyperlinkRegex.exec(xml)) !== null) {
+    const relationshipId = hyperlinkMatch[1].match(/\br:id="([^"]+)"/i)?.[1];
+    const target = relationshipId ? hyperlinkTargets.get(relationshipId) : undefined;
+    if (!target) continue;
+    const visibleText = Array.from(hyperlinkMatch[2].matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi))
+      .map((match) => decodeXmlEntities(match[1]))
+      .join('')
+      .trim();
+    hyperlinkLines.push(visibleText ? visibleText + ': ' + target : target);
+  }
+
+  if (lines.length > 0 || hyperlinkLines.length > 0) return [...lines, ...hyperlinkLines].join('\n');
 
   // Fallback for non-standard XML fragments without paragraph wrappers.
   const fallbackRegex = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi;
@@ -485,6 +513,23 @@ async function extractDocxText(file: File): Promise<string> {
     ];
     const extractedParts: string[] = [];
     let totalDocxUncompressedBytes = 0;
+    let hyperlinkTargets = new Map<string, string>();
+    const relationshipsEntry = extractZipEntryViaCentralDirectory(bytes, 'word/_rels/document.xml.rels');
+    if (relationshipsEntry) {
+      if (relationshipsEntry.uncompressedSize > 1024 * 1024) {
+        throw new Error('DOCX relationship metadata exceeds the 1MB extraction safety limit.');
+      }
+      const relationshipBytes = relationshipsEntry.compressionMethod === 0
+        ? relationshipsEntry.compressedBytes
+        : relationshipsEntry.compressionMethod === 8
+          ? await decompressBytes(relationshipsEntry.compressedBytes, 'deflate-raw', 1024 * 1024)
+          : null;
+      if (!relationshipBytes || relationshipBytes.byteLength !== relationshipsEntry.uncompressedSize) {
+        throw new Error('DOCX relationship metadata uses an unsupported or invalid ZIP entry.');
+      }
+      totalDocxUncompressedBytes += relationshipBytes.byteLength;
+      hyperlinkTargets = extractExternalHyperlinkTargets(new TextDecoder('utf-8', { fatal: false }).decode(relationshipBytes));
+    }
 
     for (const partPath of documentParts) {
       const entry = partPath === 'word/document.xml'
@@ -517,7 +562,7 @@ async function extractDocxText(file: File): Promise<string> {
       }
 
       const xml = new TextDecoder('utf-8', { fatal: false }).decode(xmlBytes);
-      const extracted = extractParagraphsFromDocumentXml(xml);
+      const extracted = extractParagraphsFromDocumentXml(xml, partPath === 'word/document.xml' ? hyperlinkTargets : new Map());
       if (extracted) extractedParts.push(extracted);
     }
 
