@@ -432,7 +432,7 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
           title,
           company: item.company_name || 'Employer Unspecified',
           location: parsedLocation,
-          workplaceType: 'Remote',
+          workplaceType: fields.workplaceType || 'Remote',
           salary: item.salary || 'Undisclosed',
           postedDate: item.publication_date || 'Unspecified',
           jobDescriptionRaw: plainDesc,
@@ -533,7 +533,7 @@ function parseSalaryRange(min: unknown, max: unknown, currency: unknown, period:
 
 function createRemoteFeedJob(item: any, sourceId: string, sourceName: string, fields: {
   id: unknown; title: unknown; company: unknown; location: unknown; description: unknown; url: unknown;
-  date?: unknown; salary?: string; tags?: unknown;
+  date?: unknown; salary?: string; tags?: unknown; workplaceType?: JobPosting['workplaceType'];
 }): JobPosting | null {
   const title = typeof fields.title === 'string' ? fields.title.trim() : '';
   const company = typeof fields.company === 'string' ? fields.company.trim() : '';
@@ -616,6 +616,41 @@ export class RemoteOkJobAdapter implements JobProviderAdapter {
   }
 }
 
+/** Public, no-key Arbeitnow feed. Europe-focused listings retain the original Arbeitnow posting URL. */
+export class ArbeitnowJobAdapter implements JobProviderAdapter {
+  id = 'arbeitnow';
+  name = 'Arbeitnow Live';
+  requiresAuth = false;
+  remoteOnly = false;
+
+  get isConfigured(): boolean { return true; }
+
+  async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
+    if (!(params.query || params.targetRole || params.profession || params.skills?.length)) return [];
+    // The official public feed has no keyword parameter; fetch one bounded page and filter locally.
+    const payload = await fetchJsonWithTimeout('https://www.arbeitnow.com/api/job-board-api?page=1', this.name);
+    const items = Array.isArray(payload?.data) ? payload.data : [];
+    return items.map((item: any) => {
+      const createdAt = typeof item.created_at === 'number'
+        ? new Date(item.created_at * 1000).toISOString()
+        : item.created_at;
+      return createRemoteFeedJob(item, this.id, this.name, {
+        id: item.slug || item.id,
+        title: item.title,
+        company: item.company_name,
+        location: item.location || 'Location Unspecified',
+        description: item.description,
+        url: item.url,
+        date: createdAt,
+        tags: item.tags,
+        workplaceType: item.remote === true ? 'Remote' : 'Unspecified'
+      });
+    }).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
+      job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
+    ));
+  }
+}
+
 /** Public, no-key Jobicy feed. The free endpoint deliberately preserves Jobicy listing URLs for attribution and applications. */
 export class JobicyJobAdapter implements JobProviderAdapter {
   id = 'jobicy';
@@ -670,7 +705,7 @@ export class JobicyJobAdapter implements JobProviderAdapter {
 export function buildLocationScopeNotice(country?: string, location?: string, includeWorldwideRemote = true): string {
   const cleanLoc = (location || '').trim();
   if (isWorldwideCountryCode(country)) {
-    return 'Worldwide remote mode: Remotive, Remote OK, and Jobicy public remote feeds are queried; results depend on each feed and are not an exhaustive global job index.';
+    return 'Worldwide mode queries Remotive, Remote OK, Jobicy, and Arbeitnow public feeds; results depend on each feed and are not an exhaustive global job index.';
   }
   const code = (country || '').trim().toUpperCase();
   const eligibility = includeWorldwideRemote ? `${code} / explicitly worldwide` : `${code} only`;
@@ -707,7 +742,7 @@ export function identifyJobPortalSource(rawUrl: string): string {
 /** True for jobs discovered from a public live feed, not user-entered records. */
 export function isLiveDiscoveredJobSource(source?: string): boolean {
   const normalized = (source || '').toLowerCase();
-  return ['remotive live', 'remote ok live', 'jobicy live'].includes(normalized);
+  return ['remotive live', 'remote ok live', 'jobicy live', 'arbeitnow live'].includes(normalized);
 }
 
 /** Returns true only when a published date can be parsed and falls inside the selected freshness window. */
@@ -749,6 +784,7 @@ export class LiveJobSearchEngine {
     new PublicFeedsJobAdapter(),
     new RemoteOkJobAdapter(),
     new JobicyJobAdapter(),
+    new ArbeitnowJobAdapter(),
     new AdzunaJobAdapter()
   ];
 
