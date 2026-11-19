@@ -455,4 +455,4 @@ export class ProviderManager {
     const response = await provider.callChat(systemPrompt, userPrompt, apiKey);
     return { content: response.content, model: response.model, provider: this.selectedProvider };
   }
-}}
+}
