@@ -918,12 +918,17 @@ export function validateExtractedSchema(
   const summary = isTargetSchema
     ? data.professional_summary
     : data.summary;
-  const experiences = isTargetSchema
-    ? data.work_experience
-    : data.experiences;
+  const experiences = isTargetSchema ? data.work_experience : data.experiences;
+  const education = isTargetSchema ? data.education : data.education;
+  const projects = isTargetSchema ? [] : data.projects;
   const skills = isTargetSchema
     ? data.skills
-    : data.skills?.technical;
+    : [
+        ...(data.skills?.technical || []),
+        ...(data.skills?.soft || []),
+        ...(data.skills?.tools || []),
+        ...(data.skills?.domains || [])
+      ];
 
   // 1. Mandatory: Candidate Name
   if (!name || name.trim().length === 0 || name.trim().toLowerCase() === 'candidate') {
@@ -954,18 +959,21 @@ export function validateExtractedSchema(
     score += 20;
   }
 
-  // 4. Mandatory: Work Experience
-  if (!Array.isArray(experiences) || experiences.length === 0) {
-    missing.push('Work Experience Milestones');
-    warnings.push('No work experience entries detected.');
+  // 4. Career evidence: paid employment is not mandatory for students or career changers.
+  const hasCareerEvidence = (Array.isArray(experiences) && experiences.length > 0) ||
+    (Array.isArray(projects) && projects.length > 0) ||
+    (Array.isArray(education) && education.length > 0);
+  if (!hasCareerEvidence) {
+    missing.push('Work, project or education evidence');
+    warnings.push('No work, project or education evidence was detected. You can add whichever applies to your situation.');
   } else {
     score += 25;
   }
 
-  // 5. Mandatory: Skills
+  // 5. Skills and competencies
   if (!Array.isArray(skills) || skills.length === 0) {
     missing.push('Skills & Competencies');
-    warnings.push('No technical skills or competencies detected.');
+    warnings.push('No skills or competencies detected; add only those you can support with your experience, studies or projects.');
   } else {
     score += 15;
   }
