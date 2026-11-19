@@ -52,7 +52,7 @@ describe('GroqBrowserSearchJobAdapter', () => {
     expect(body.messages[0].content).not.toContain('candidate email');
     expect(jobs).toHaveLength(1);
     expect(jobs[0].url).toBe('https://careers.example.com/jobs/123');
-    expect(jobs[0].source).toContain('verify before applying');
+    expect(jobs[0].source).toContain('unverified');
     expect(jobs[0].jobDescriptionRaw).toBe('Build React applications');
   });
 
