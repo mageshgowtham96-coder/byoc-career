@@ -280,7 +280,7 @@ export function deduplicateJobs(jobs: JobPosting[]): JobPosting[] {
   const uniqueList: JobPosting[] = [];
 
   for (const job of jobs) {
-    const signature = `${(job.company || '').trim().toLowerCase()}::${(job.title || '').trim().toLowerCase()}`;
+    const signature = `${(job.company || '').trim().toLowerCase()}::${(job.title || '').trim().toLowerCase()}::${(job.location || '').trim().toLowerCase()}`;
     if (!seenSignatures.has(signature)) {
       seenSignatures.add(signature);
       uniqueList.push(job);
