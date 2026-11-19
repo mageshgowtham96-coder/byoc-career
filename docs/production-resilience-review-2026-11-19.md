@@ -44,6 +44,7 @@ OpenRouter's free model availability and per-model limits can change, and the pr
 - Groq, *Structured Outputs*: supported JSON/structured-output models. https://console.groq.com/docs/structured-outputs
 - Google AI, *Gemini API pricing*: free-tier eligibility and content-use disclosure. https://ai.google.dev/gemini-api/docs/pricing
 - W3C WAI-ARIA Authoring Practices, *Combobox Pattern*: editable suggestions, keyboard interactions and accessible roles. https://www.w3.org/WAI/ARIA/apg/patterns/combobox/
+- OWASP, *Password Storage Cheat Sheet*: recommends PBKDF2-HMAC-SHA256 with 600,000 iterations where PBKDF2 is required. https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
 
 ## Remaining risks / not claimed as fixed
 
@@ -53,7 +54,8 @@ OpenRouter's free model availability and per-model limits can change, and the pr
 4. The current UI-facing AI workflows still call the Groq service directly. The generic provider abstraction remains experimental scaffolding and is not yet the live workflow router.
 5. Live public job feeds can time out, change schemas, return incomplete coverage, or contain stale/fraudulent listings. Provider isolation prevents one feed from discarding another's successful response; it cannot make the feeds authoritative.
 6. Search-role suggestions are a convenience vocabulary, not a complete job-title taxonomy. Custom search text remains supported.
-7. Automated tests cannot replace live API smoke tests or physical Android device testing. The release APK remains a debug build until a signing key and release process are configured.
+7. The vault currently uses PBKDF2-HMAC-SHA256 with 100,000 iterations. OWASP's current recommendation is 600,000 iterations where PBKDF2 is required. Raising it safely needs a versioned envelope migration because the passphrase and emergency-recovery wrappers currently share one iteration count; changing it in place could lock existing users out of their recovery path. This remains a security-hardening item, and mobile-device unlock performance must be benchmarked before choosing the new cost.
+8. Automated tests cannot replace live API smoke tests or physical Android device testing. The release APK remains a debug build until a signing key and release process are configured.
 
 ## Validation required before calling this production-ready
 
