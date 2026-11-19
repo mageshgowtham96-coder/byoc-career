@@ -51,6 +51,7 @@ import {
   type LegacyPlaintextCapture
 } from '../utils/vaultMigration';
 import { sanitizeCareerFormState } from '../utils/storagePersistence';
+import { hasCareerEvidence } from '../utils/resumeReadiness';
 
 export const DEFAULT_CANDIDATE_PREFERENCES: CandidatePreferences = {
   country: 'IN',
@@ -1014,10 +1015,7 @@ export const useWizardStore = create<WizardState>()(
       },
 
       // Readiness Selectors
-      hasMasterResume: () => {
-        const mr = get().masterResume;
-        return Boolean(mr && (mr.rawText?.length > 20 || mr.experiences?.length > 0));
-      },
+      hasMasterResume: () => hasCareerEvidence(get().masterResume),
       hasSelectedJob: () => {
         const selectedId = get().selectedJobId;
         return Boolean(selectedId && get().jobs.some((j) => j.id === selectedId));
