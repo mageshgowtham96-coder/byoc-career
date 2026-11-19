@@ -128,4 +128,13 @@ Excel, SQL, Data Analysis`);
     expect(validation.missingMandatoryFields).not.toContain('Work Experience Milestones');
   });
 
+  it('recognizes a name written in Tamil script without requiring English transliteration', () => {
+    const parsed = parseRawResumeToStructured(`தமிழ் வேட்பாளர்
+candidate@example.com
+தொழில்முறை சுருக்கம்
+வாடிக்கையாளர் சேவை மற்றும் தரவு பகுப்பாய்வு திறன்கள்.`);
+    expect(parsed.contactInfo.name).toBe('தமிழ் வேட்பாளர்');
+    expect(parsed.rawText).toContain('தொழில்முறை சுருக்கம்');
+  });
+
 });
