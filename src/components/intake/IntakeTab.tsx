@@ -5,7 +5,8 @@ import {
   parseRawResumeToStructured,
   validateExtractedSchema
 } from '../../services/extractionService';
-import { formatGroqError, parseResumeWithGroq } from '../../services/groqService';
+import { formatGroqError, parseResumeWithGroq, optimizeMasterResumeWithGroq } from '../../services/groqService';
+import { createMasterResumeExportArtifact, dispatchExportFile, generateDocxResume, generatePdfResume } from '../../services/exporterService';
 import { safeRemoveItem, wipeCachedFormData } from '../../utils/storagePersistence';
 import { ExtractionLoadingSkeleton } from './ExtractionLoadingSkeleton';
 import { ChakraLogo } from '../ChakraLogo';
@@ -60,6 +61,10 @@ export const IntakeTab: React.FC = () => {
   const [localStagedProfile, setLocalStagedProfile] = useState<MasterResume | null>(stagedParsedResume);
   const [isAiStructuring, setIsAiStructuring] = useState(false);
   const [aiStructuringError, setAiStructuringError] = useState<string | null>(null);
+  const [isOptimizingMaster, setIsOptimizingMaster] = useState(false);
+  const [optimizedMasterPreview, setOptimizedMasterPreview] = useState<MasterResume | null>(null);
+  const [optimizationError, setOptimizationError] = useState<string | null>(null);
+  const [isExportingMaster, setIsExportingMaster] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const manualPasteRef = useRef<HTMLTextAreaElement>(null);
 
@@ -249,6 +254,71 @@ export const IntakeTab: React.FC = () => {
       addToast({ type: 'error', title: 'AI Structuring Failed', message });
     } finally {
       setIsAiStructuring(false);
+    }
+  };
+
+  const handleOptimizeMasterResume = async () => {
+    if (!stagedParsedResume || !groqApiKey || isOptimizingMaster) return;
+    setIsOptimizingMaster(true);
+    setOptimizationError(null);
+    setOptimizedMasterPreview(null);
+    try {
+      const reviewedSource = applyResumeIntakeReviewEdits(stagedParsedResume, {
+        name: editableName,
+        email: editableEmail,
+        headline: editableHeadline,
+        summary: editableStagedSummary
+      });
+      const optimized = await optimizeMasterResumeWithGroq(reviewedSource, groqApiKey);
+      setOptimizedMasterPreview(optimized);
+    } catch (err: unknown) {
+      const message = formatGroqError(err, 'Master Resume optimization failed.');
+      setOptimizationError(message);
+      addToast({ type: 'error', title: 'Optimization Failed', message });
+    } finally {
+      setIsOptimizingMaster(false);
+    }
+  };
+
+  const handleAcceptOptimizedMaster = () => {
+    if (!optimizedMasterPreview) return;
+    setStagedParsedResume(optimizedMasterPreview);
+    setEditableStagedSummary(optimizedMasterPreview.summary);
+    setEditableHeadline(optimizedMasterPreview.headline);
+    setEditableName(optimizedMasterPreview.contactInfo.name || '');
+    setEditableEmail(optimizedMasterPreview.contactInfo.email || '');
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
+    addToast({
+      type: 'success',
+      title: 'Optimized Draft Applied',
+      message: 'Review the updated profile and confirm it to save as your Master Resume. The original source text remains unchanged.'
+    });
+  };
+
+  const handleExportMasterResume = async (format: 'docx' | 'pdf') => {
+    if (!masterResume || isExportingMaster) return;
+    setIsExportingMaster(true);
+    try {
+      const artifact = createMasterResumeExportArtifact(masterResume);
+      const blob = format === 'docx'
+        ? await generateDocxResume(artifact, masterResume)
+        : await generatePdfResume(artifact, masterResume);
+      const extension = format === 'docx' ? 'docx' : 'pdf';
+      const mimeType = format === 'docx'
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        : 'application/pdf';
+      const safeName = (masterResume.contactInfo.name || 'Master_Resume').replace(/[^a-z0-9_-]+/gi, '_');
+      const exported = await dispatchExportFile(blob, `${safeName}_Master_Resume.${extension}`, mimeType);
+      if (exported) {
+        addToast({ type: 'success', title: 'Master Resume Exported', message: `Your approved Master Resume was exported as ${extension.toUpperCase()}.` });
+      } else {
+        addToast({ type: 'info', title: 'Export Cancelled', message: 'The share or download action was cancelled.' });
+      }
+    } catch (err: unknown) {
+      addToast({ type: 'error', title: 'Master Resume Export Failed', message: err instanceof Error ? err.message : 'Could not export the Master Resume.' });
+    } finally {
+      setIsExportingMaster(false);
     }
   };
 
