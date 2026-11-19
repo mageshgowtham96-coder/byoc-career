@@ -491,7 +491,7 @@ export async function callGroqChat(
             { role: 'user', content: userPrompt }
           ],
           temperature: 0.15,
-          max_tokens: 6000,
+          max_tokens: 3800,
           response_format: { type: 'json_object' }
         }),
         signal: controller.signal
