@@ -140,7 +140,7 @@ export const SourcingTab: React.FC = () => {
       setLiveSearchReport(res);
       // Preserve every previously saved job. The live result is query-filtered and must
       // never replace the user's full local collection with only the current matches.
-      setJobs(mergeDiscoveredJobs(jobs, res.jobs));
+      setJobs(mergeDiscoveredJobs(useWizardStore.getState().jobs, res.jobs));
 
       if (res.error) {
         addToast({
