@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { callGroqChat, getGroqRetryDelayMs, GroqApiError, isRetryableGroqStatus, selectGroqChatModel } from './groqService';
+import { callGroqChat, getGroqRetryDelayMs, isRetryableGroqStatus, selectGroqChatModel } from './groqService';
 
 const fetchMock = vi.fn();
 beforeEach(() => { vi.stubGlobal('fetch', fetchMock); fetchMock.mockReset(); });
