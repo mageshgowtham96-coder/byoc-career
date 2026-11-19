@@ -62,7 +62,7 @@ describe('PDF workspace validation', () => {
   it('rejects non-PDF filenames even when their bytes resemble a PDF', async () => {
     const pdf = await makePdf(1);
     const wrongName = new File([await pdf.arrayBuffer()], 'document.txt');
-    await expect(inspectPdf(wrongName)).rejects.toThrow(/\\.pdf extension/i);
+    await expect(inspectPdf(wrongName)).rejects.toThrow(/\.pdf extension/i);
   });
 });
 
