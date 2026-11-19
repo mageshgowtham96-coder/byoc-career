@@ -468,7 +468,7 @@ export const IntakeTab: React.FC = () => {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold transition cursor-pointer"
             >
               <Wrench className="w-3.5 h-3.5" />
-              <span>Half-Built Resume Builder</span>
+              <span>Build or Improve Master Resume</span>
             </button>
             <button
               type="button"
@@ -510,14 +510,14 @@ export const IntakeTab: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="text-xs font-bold text-amber-200">
-                  Half-Built Resume Detected ({completenessScore}% Complete)
+                  Master Resume Profile Completeness: {completenessScore}%
                 </h4>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Missing Structural Evidence
+                  Details to Review
                 </span>
               </div>
               <p className="text-[11px] text-amber-300/80 mt-1">
-                Your extracted profile may still need: {resumeReadiness.missingSections.join(', ')}. Review the original resume and add only details that reflect your real experience.
+                This score measures structured profile information, not employability, and does not require paid work history. You may want to add: {resumeReadiness.missingSections.join(', ')}. Include only details that reflect your real experience.
               </p>
             </div>
           </div>
@@ -526,7 +526,7 @@ export const IntakeTab: React.FC = () => {
             onClick={() => setShowBuilderModal(true)}
             className="self-start sm:self-auto px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer shrink-0 shadow-sm"
           >
-            Launch Builder Panel
+            Review and Improve Profile
           </button>
         </div>
       )}
@@ -1192,7 +1192,7 @@ export const IntakeTab: React.FC = () => {
           <div className="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-3xl p-6 shadow-2xl relative text-left my-8">
             <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
               <Wrench className="w-5 h-5 text-indigo-400" />
-              <span>Half-Built Resume Builder Panel</span>
+              <span>Master Resume Builder</span>
             </h3>
             <p className="text-xs text-slate-400 mb-4">
               Add verified career milestones directly into your master profile to eliminate gaps.
