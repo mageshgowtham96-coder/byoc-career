@@ -212,6 +212,7 @@ export interface TailoredArtifact {
   interviewPrepQuestions: InterviewQuestion[];
   generationTimestamp: string;
   authenticityGuaranteed: boolean; // True only when every artifact field is independently source-validated
+  reviewConfirmed?: boolean; // User explicitly reviewed factual claims before export
   exportedMaterials?: ExportedMaterialRecord[];
 }
 
