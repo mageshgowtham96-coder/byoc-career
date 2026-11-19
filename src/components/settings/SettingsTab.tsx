@@ -53,6 +53,7 @@ export const SettingsTab: React.FC = () => {
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null);
   const [showWipeModal, setShowWipeModal] = useState(false);
+  const [showPlaintextBackupConfirm, setShowPlaintextBackupConfirm] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
   const [activeDocSection, setActiveDocSection] = useState<'quickstart' | 'security' | 'formats'>(
     settingsFocusSection === 'recovery-help' ? 'security' : 'quickstart'
@@ -164,9 +165,10 @@ export const SettingsTab: React.FC = () => {
     a.download = `BYOC_Workspace_Snapshot_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setShowPlaintextBackupConfirm(false);
     addToast({
       type: 'success',
-      message: 'Unencrypted career snapshot exported (API keys & passkeys omitted).'
+      message: 'Unencrypted career snapshot exported (API keys & passkeys omitted). Keep the file private or delete it when no longer needed.'
     });
   };
 
@@ -515,7 +517,7 @@ export const SettingsTab: React.FC = () => {
 
           <button
             type="button"
-            onClick={handleExportWorkspaceJson}
+            onClick={() => setShowPlaintextBackupConfirm(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer"
           >
             <Download className="w-3.5 h-3.5 text-sky-400" />
@@ -606,6 +608,24 @@ export const SettingsTab: React.FC = () => {
           )}
         </div>
       </section>
+
+      {showPlaintextBackupConfirm && (
+        <div role="dialog" aria-modal="true" aria-labelledby="plaintext-backup-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-amber-500/40 bg-[#0F172A] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300"><AlertCircle className="h-5 w-5" /></div>
+              <h3 id="plaintext-backup-title" className="text-base font-bold text-white">Export readable, unencrypted data?</h3>
+            </div>
+            <p className="text-xs leading-relaxed text-slate-300">
+              This JSON file can be read by anyone who obtains it. It contains your career profile, saved jobs, tailored resume content and application records. API keys and passkeys are omitted. Prefer the encrypted vault export unless you specifically need a readable copy.
+            </p>
+            <div className="flex justify-end gap-2 border-t border-slate-800 pt-3">
+              <button type="button" onClick={() => setShowPlaintextBackupConfirm(false)} className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800">Cancel</button>
+              <button type="button" onClick={handleExportWorkspaceJson} className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-500">Export readable snapshot</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* In-App Confirmation Modal for Wiping Local Data (Zero window.confirm) */}
       {showWipeModal && (
