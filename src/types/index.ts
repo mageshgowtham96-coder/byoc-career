@@ -172,7 +172,7 @@ export interface TailoredBullet {
 
 export interface InterviewQuestion {
   question: string;
-  category: 'Technical' | 'Behavioral' | 'Architecture' | 'Leadership' | 'Role-Specific';
+  category: 'Technical' | 'Behavioral' | 'Situational' | 'Role-Specific';
   suggestedTalkingPoints: string[];
   authenticEvidenceRef: string;
 }
