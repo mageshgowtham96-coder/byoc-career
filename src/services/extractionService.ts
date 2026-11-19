@@ -588,7 +588,7 @@ export function parseRawResumeToStructured(
   const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
 
   // Exact or explicitly delimited headings only; ordinary prose is never a boundary.
-  const sectionHeadingPattern = /^(?:summary|profile|professional summary|about me|overview|executive summary|experience|work experience|professional experience|employment history|work history|education|academic background|academics|qualifications|projects|personal projects|key projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies|awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)(?:\s*(?::|[-–—])\s*.*)?$/i;
+  const sectionHeadingPattern = /^(?:summary|profile|professional summary|about me|overview|executive summary|objective|career objective|professional objective|experience|work experience|professional experience|employment history|work history|education|academic background|academics|qualifications|projects|personal projects|key projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies|awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)(?:\s*(?::|[-–—])\s*.*)?$/i;
   const isResumeSectionHeading = (line: string) => sectionHeadingPattern.test(line.trim());
 
   // 1. Contact Info Extraction (strictly from regex matches)
@@ -711,7 +711,7 @@ export function parseRawResumeToStructured(
     'tools and technologies', 'awards', 'awards and honours', 'awards and honors',
     'honours', 'honors', 'volunteering', 'volunteer experience', 'community involvement',
     'publications', 'research', 'languages', 'professional memberships', 'memberships',
-    'extracurricular activities', 'activities', 'leadership activities', 'interests'
+    'extracurricular activities', 'activities', 'leadership activities', 'training', 'professional development', 'courses', 'coursework', 'patents', 'references', 'personal details', 'contact', 'objective', 'career objective', 'professional objective', 'hobbies', 'interests'
   ];
   const matchSectionHeading = (line: string): { heading: string; inlineContent: string } | null => {
     const trimmed = line.trim();
