@@ -125,7 +125,7 @@ describe('DOCX document structure extraction', () => {
     expect(result.success).toBe(true);
     expect(result.rawText).toContain('Asha Rao');
     expect(result.rawText).toContain('• List item from course work');
-    expect(result.rawText).toContain('Role\\nCompany 2024');
+    expect(result.rawText).toContain('Role\nCompany 2024');
     expect(result.rawText).toContain('asha@example.com');
     expect(result.rawText).toContain('Portfolio: asha.example');
   });
