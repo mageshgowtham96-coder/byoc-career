@@ -913,7 +913,7 @@ export const CustomizationTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleExport('docx')}
-                  disabled={isExporting !== null}
+                  disabled={isExporting !== null || !currentArtifact.reviewConfirmed}
                   className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5 text-blue-400" />
@@ -923,7 +923,7 @@ export const CustomizationTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleExport('txt')}
-                  disabled={isExporting !== null}
+                  disabled={isExporting !== null || !currentArtifact.reviewConfirmed}
                   className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-medium transition cursor-pointer"
                 >
                   .TXT
@@ -933,6 +933,7 @@ export const CustomizationTab: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleCopyChip('coverLetterKit', currentArtifact.coverLetter)}
+                    disabled={!currentArtifact.reviewConfirmed}
                     className="px-3.5 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/35 border border-indigo-500/40 text-indigo-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                   >
                     {copiedField === 'coverLetterKit' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-sky-400" />}
