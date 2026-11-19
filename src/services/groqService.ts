@@ -1065,7 +1065,7 @@ export async function tailorResumeWithGroq(
       coverLetter: 'string',
       interviewPrepQuestions: [{
         question: 'string',
-        category: 'Technical | Behavioral | Architecture | Leadership | Role-Specific',
+        category: 'Technical | Behavioral | Situational | Role-Specific',
         suggestedTalkingPoints: ['string'],
         authenticEvidenceRef: 'string'
       }]
