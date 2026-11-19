@@ -5,6 +5,7 @@ import {
   calculateHonestMatch,
   isWorldwideCountryCode,
   matchesRemoteCountryAndLocation,
+  isLiveDiscoveredJobSource,
   sanitizeExternalHttpUrl,
   mergePortalShortcuts,
   buildPortalShortcutUrl,
@@ -185,8 +186,10 @@ export const SourcingTab: React.FC = () => {
             (job.jobDescriptionRaw && job.jobDescriptionRaw.toLowerCase().includes(qLower));
           if (!matches) return false;
         }
-        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes((job.source || '').toLowerCase());
-        const isGroqDiscoveryJob = (job.source || '').toLowerCase() === 'groq browser search — verify before applying';
+        const source = (job.source || '').toLowerCase();
+        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes(source);
+        const isGroqDiscoveryJob = source.includes('groq search');
+        const isLiveDiscoveredJob = isLiveDiscoveredJobSource(job.source);
         if (isGroqDiscoveryJob && locFilter && !job.location.toLowerCase().includes(locFilter.toLowerCase())) return false;
         if (!isWorldwide && isLiveFeedJob) {
           const matchesLoc = matchesRemoteCountryAndLocation(
@@ -204,7 +207,7 @@ export const SourcingTab: React.FC = () => {
         if (portalFilter !== 'All') {
           const matchPortal =
             portalFilter === 'User Import'
-              ? (job.source || '').toLowerCase() !== 'remotive live'
+              ? !isLiveDiscoveredJob
               : (job.source && job.source.toLowerCase().includes(portalFilter.toLowerCase())) ||
                 (job.url && job.url.toLowerCase().includes(portalFilter.toLowerCase()));
           if (!matchPortal) return false;

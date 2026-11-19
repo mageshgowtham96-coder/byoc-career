@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GroqBrowserSearchJobAdapter, identifyJobPortalSource } from './jobSearchService';
+import { GroqBrowserSearchJobAdapter, identifyJobPortalSource, isLiveDiscoveredJobSource } from './jobSearchService';
 
 const fetchMock = vi.fn();
 
@@ -121,5 +121,19 @@ describe('identifyJobPortalSource', () => {
     ['https://notlinkedin.com/jobs/123', 'Employer Careers']
   ])('classifies %s as %s', (url, expected) => {
     expect(identifyJobPortalSource(url)).toBe(expected);
+  });
+});
+
+describe('isLiveDiscoveredJobSource', () => {
+  it.each([
+    ['Remotive Live', true],
+    ['Remote OK Live', true],
+    ['Jobicy Live', true],
+    ['LinkedIn · Groq Search (unverified)', true],
+    ['Employer Careers · Groq Search (unverified)', true],
+    ['User Import', false],
+    ['Company Careers', false]
+  ])('classifies %s as discovered=%s', (source, expected) => {
+    expect(isLiveDiscoveredJobSource(source)).toBe(expected);
   });
 });

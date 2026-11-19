@@ -687,6 +687,13 @@ export function identifyJobPortalSource(rawUrl: string): string {
  * candidate resumes, contact details, and application history are never included.
  * Returned listings are discovery candidates, not independently verified vacancies.
  */
+/** True for jobs discovered from a live feed or Groq web search, not user-entered records. */
+export function isLiveDiscoveredJobSource(source?: string): boolean {
+  const normalized = (source || '').toLowerCase();
+  return ['remotive live', 'remote ok live', 'jobicy live'].includes(normalized) ||
+    normalized.includes('groq search');
+}
+
 export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
   id = 'groq_browser_search';
   name = 'Groq Browser Search';
@@ -958,7 +965,7 @@ export class LiveJobSearchEngine {
 
       if (normalizedParams.portal && normalizedParams.portal !== 'All') {
         const source = (job.source || '').toLowerCase();
-        const isLiveSource = ['remotive live', 'remote ok live', 'jobicy live'].includes(source) || source.includes('groq search');
+        const isLiveSource = isLiveDiscoveredJobSource(job.source);
         const matchesPortal =
           normalizedParams.portal === 'User Import'
             ? !isLiveSource
