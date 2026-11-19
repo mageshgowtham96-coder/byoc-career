@@ -12,7 +12,8 @@ async function makePdf(pageCount = 2): Promise<File> {
   const pdf = await PDFDocument.create();
   for (let index = 0; index < pageCount; index += 1) pdf.addPage([300 + index, 400]);
   const bytes = await pdf.save();
-  return new File([bytes], 'sample.pdf', { type: 'application/pdf' });
+  const buffer = Uint8Array.from(bytes).buffer;
+  return new File([buffer], 'sample.pdf', { type: 'application/pdf' });
 }
 
 describe('PDF workspace validation', () => {
