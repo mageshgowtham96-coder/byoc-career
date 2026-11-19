@@ -957,7 +957,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                     </>
                   ) : (
                     <>
-                      <span>{step === 'migrate' ? 'Encrypt & Migrate Workspace' : {t('create')}}</span>
+                      <span>{step === 'migrate' ? 'Encrypt & Migrate Workspace' : t('create')}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
