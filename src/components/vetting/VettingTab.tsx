@@ -90,7 +90,7 @@ export const VettingTab: React.FC = () => {
             <span>Opportunity Vetting & Risk Audit</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Honest culture, compensation, and requirement gap audit grounded in your Master Resume.
+            Evidence-bounded job description and profile comparison. Employer culture and salary-market competitiveness are not independently verified.
           </p>
         </div>
 
@@ -102,7 +102,7 @@ export const VettingTab: React.FC = () => {
             No Opportunity Selected
           </h3>
           <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-            Select a live opening or paste a target Job Description in Sourcing first to run culture risk analysis and skill gap auditing.
+            Select a live opening or paste a target Job Description in Sourcing first to compare stated requirements with your career evidence.
           </p>
           <button
             type="button"
@@ -272,8 +272,12 @@ export const VettingTab: React.FC = () => {
                     {vetting.recommendation}
                   </span>
                   <span className="text-sm font-semibold text-white">
-                    Culture Alignment:{' '}
-                    <strong className="text-sky-400 font-mono tabular-nums">{vetting.cultureFit}%</strong>
+                    Profile-to-JD estimate:{' '}
+                    <strong className="text-sky-400 font-mono tabular-nums">
+                      {vetting.profileAlignmentEstimate === null || vetting.profileAlignmentEstimate === undefined
+                        ? 'Not assessed'
+                        : `${vetting.profileAlignmentEstimate}% (AI estimate)`}
+                    </strong>
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 mt-2.5 leading-relaxed">
@@ -281,22 +285,23 @@ export const VettingTab: React.FC = () => {
                 </p>
               </div>
 
-              {/* Fit Index Box */}
-              <div className="shrink-0 flex items-center gap-3 bg-slate-900/90 p-3.5 rounded-xl border border-slate-800">
-                <div className="text-right">
-                  <span className="text-[10px] text-slate-400 uppercase font-mono block">Fit Index</span>
-                  <span className="text-2xl font-black text-white font-mono tabular-nums">
-                    {vetting.cultureFit}/100
-                  </span>
+              {vetting.profileAlignmentEstimate !== null && vetting.profileAlignmentEstimate !== undefined && (
+                <div className="shrink-0 flex items-center gap-3 bg-slate-900/90 p-3.5 rounded-xl border border-slate-800">
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 uppercase font-mono block">AI alignment estimate</span>
+                    <span className="text-2xl font-black text-white font-mono tabular-nums">
+                      {vetting.profileAlignmentEstimate}/100
+                    </span>
+                  </div>
+                  <div className="w-12 h-12 rounded-full border-4 border-slate-700 flex items-center justify-center font-bold text-xs text-sky-400 font-mono tabular-nums relative">
+                    <div
+                      className="absolute inset-0 rounded-full border-4 border-indigo-500"
+                      style={{ clipPath: `polygon(0 0, 100% 0, 100% ${vetting.profileAlignmentEstimate}%, 0 ${vetting.profileAlignmentEstimate}%)` }}
+                    />
+                    <span>{vetting.profileAlignmentEstimate}%</span>
+                  </div>
                 </div>
-                <div className="w-12 h-12 rounded-full border-4 border-slate-700 flex items-center justify-center font-bold text-xs text-sky-400 font-mono tabular-nums relative">
-                  <div
-                    className="absolute inset-0 rounded-full border-4 border-indigo-500"
-                    style={{ clipPath: `polygon(0 0, 100% 0, 100% ${vetting.cultureFit}%, 0 ${vetting.cultureFit}%)` }}
-                  />
-                  <span>{vetting.cultureFit}%</span>
-                </div>
-              </div>
+              )}
             </div>
           </section>
 
@@ -412,7 +417,7 @@ export const VettingTab: React.FC = () => {
             </div>
             <div className="p-4 rounded-2xl bg-[#0F172A] border border-slate-800">
               <span className="text-[10px] font-mono uppercase text-slate-400 block mb-1">
-                Salary Competitiveness
+                Salary-market assessment
               </span>
               <p className="text-xs text-slate-300 leading-relaxed">
                 {vetting.salaryCompetitiveness}
