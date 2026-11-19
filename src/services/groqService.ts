@@ -579,7 +579,7 @@ export async function callGroqChat(
         await waitForGroqRetry(delay);
       } else if (attempt < maxAttempts) {
         await waitForGroqRetry(getGroqRetryDelayMs(503, null, attempt) || 500);
-      } else if (err instanceof Error && err.name === 'AbortError') {
+      } else if (isAbortError(err)) {
         throw new GroqApiError(
           'Groq API call timed out after 45 seconds.',
           408,
