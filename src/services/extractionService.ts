@@ -356,7 +356,7 @@ function decodeXmlEntities(xml: string): string {
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)));
 }
 
-function extractExternalHyperlinkTargets(relationshipsXml: string): Map<string, string> {
+export function extractExternalHyperlinkTargets(relationshipsXml: string): Map<string, string> {
   const targets = new Map<string, string>();
   const relationshipTags = relationshipsXml.match(/<Relationship\b[^>]*>/gi) || [];
   for (const tag of relationshipTags) {
