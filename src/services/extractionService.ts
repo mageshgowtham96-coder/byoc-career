@@ -467,35 +467,56 @@ function extractZipEntryViaCentralDirectory(
 async function extractDocxText(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
-
-  // Standard DOCX must be a PKZIP archive, or in edge tests raw XML containing <w:t>
   const isZip = bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b;
 
   if (isZip) {
-    const entry = extractZipEntryViaCentralDirectory(bytes, 'word/document.xml');
-    if (!entry) {
+    const mainEntry = extractZipEntryViaCentralDirectory(bytes, 'word/document.xml');
+    if (!mainEntry) {
       throw new Error('Could not locate word/document.xml inside this .docx archive. File may be corrupted or encrypted.');
     }
 
-    let xmlBytes: Uint8Array;
-    if (entry.compressionMethod === 0) {
-      xmlBytes = entry.compressedBytes;
-    } else if (entry.compressionMethod === 8) {
-      xmlBytes = await decompressBytes(entry.compressedBytes, 'deflate-raw');
-    } else {
-      throw new Error(
-        `Unsupported .docx ZIP compression method (${entry.compressionMethod}). Try re-saving as standard .docx or pasting text manually.`
-      );
+    const documentParts = [
+      'word/document.xml',
+      ...Array.from({ length: 10 }, (_, index) => 'word/header' + (index + 1) + '.xml'),
+      ...Array.from({ length: 10 }, (_, index) => 'word/footer' + (index + 1) + '.xml'),
+      'word/footnotes.xml',
+      'word/endnotes.xml',
+      'word/comments.xml'
+    ];
+    const extractedParts: string[] = [];
+
+    for (const partPath of documentParts) {
+      const entry = partPath === 'word/document.xml'
+        ? mainEntry
+        : extractZipEntryViaCentralDirectory(bytes, partPath);
+      if (!entry) continue;
+
+      let xmlBytes: Uint8Array;
+      if (entry.compressionMethod === 0) {
+        xmlBytes = entry.compressedBytes;
+      } else if (entry.compressionMethod === 8) {
+        xmlBytes = await decompressBytes(entry.compressedBytes, 'deflate-raw');
+      } else {
+        throw new Error(
+          'DOCX contains an unsupported ZIP compression method (' + entry.compressionMethod +
+          ') in ' + partPath + '. Re-save as a standard .docx or use Manual Paste.'
+        );
+      }
+
+      if (xmlBytes.byteLength !== entry.uncompressedSize) {
+        throw new Error('DOCX ' + partPath + ' did not match its declared uncompressed size. The archive may be damaged.');
+      }
+
+      const xml = new TextDecoder('utf-8', { fatal: false }).decode(xmlBytes);
+      const extracted = extractParagraphsFromDocumentXml(xml);
+      if (extracted) extractedParts.push(extracted);
     }
 
-    if (xmlBytes.byteLength !== entry.uncompressedSize) {
-      throw new Error('DOCX document.xml did not match its declared uncompressed size. The archive may be damaged.');
-    }
-    const xml = new TextDecoder('utf-8', { fatal: false }).decode(xmlBytes);
-    return extractParagraphsFromDocumentXml(xml);
+    // Main body is first; additional document parts are appended without modifying the original file.
+    return extractedParts.join('\n').trim();
   }
 
-  // Fallback ONLY if raw uncompressed Word XML (containing <w:t>) was saved directly
+  // Fallback ONLY if raw uncompressed Word XML (containing <w:t>) was saved directly.
   const rawXml = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
   if (/<w:t[\s>]/i.test(rawXml)) {
     return extractParagraphsFromDocumentXml(rawXml);
