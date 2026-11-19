@@ -423,12 +423,12 @@ export const CustomizationTab: React.FC = () => {
             <h3 className="text-base sm:text-lg font-bold text-white">
               {currentArtifact
                 ? currentArtifact.variants && currentArtifact.variants.length > 0
-                  ? '3 Sibling Tailoring Variations Ready'
+                  ? `${currentArtifact.variants.length} Role-Relevant Variations Ready`
                   : 'Offline Baseline Kit Ready'
-                : 'Synthesize 3 Sibling Variations'}
+                : 'Create Role-Relevant Resume Variations'}
             </h3>
             <p className="text-xs text-slate-400 max-w-xl mt-1 leading-relaxed">
-              Generates 3 framing angles. Replacement bullets and listed skills are checked against your Master Resume; AI-written summaries, cover letters, and talking points still require your review before use.
+              Generates only the framing angles supported by your profile evidence and target role. Replacement bullets and listed skills are checked against your Master Resume; AI-written summaries, cover letters, and talking points still require your review before use.
             </p>
           </div>
 
@@ -441,7 +441,7 @@ export const CustomizationTab: React.FC = () => {
                   ? 'Add your master resume in the Intake tab to unlock AI tailoring'
                   : !hasJob
                   ? 'Pick a target position in Sourcing to tailor your kit against'
-                  : 'Generate 3 Sibling Variants'
+                  : 'Generate role-relevant resume variations'
               }
               className={`flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-white font-bold text-sm shadow-xl transition active:scale-95 cursor-pointer ${
                 !hasResume || !hasJob
@@ -450,7 +450,7 @@ export const CustomizationTab: React.FC = () => {
               }`}
             >
               <Sparkles className={`w-4 h-4 ${!hasResume || !hasJob ? 'text-amber-400' : 'text-sky-300'} ${isGenerating ? 'animate-spin' : ''}`} />
-              <span>{isGenerating ? 'Synthesizing 3 Variations...' : currentArtifact ? 'Re-Generate 3 Variations' : 'Generate 3 Sibling Variants'}</span>
+              <span>{isGenerating ? 'Generating role-relevant variations...' : currentArtifact ? 'Re-Generate 3 Variations' : 'Generate role-relevant resume variations'}</span>
             </button>
             {!hasResume && (
               <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
