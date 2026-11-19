@@ -82,8 +82,7 @@ export const PROVIDER_CONFIGS = {
     baseURL: 'https://api.groq.com/openai/v1/chat/completions',
     models: [
       'openai/gpt-oss-120b',
-      'openai/gpt-oss-20b',
-      'qwen/qwen3.8-27b'
+      'openai/gpt-oss-20b'
     ],
     timeoutMs: 30000
   },
@@ -100,7 +99,7 @@ export const PROVIDER_CONFIGS = {
   },
   gemini: {
     name: 'Gemini',
-    models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite'],
+    models: ['gemini-3.6-flash'],
     timeoutMs: 30000
   }
 } as const;
