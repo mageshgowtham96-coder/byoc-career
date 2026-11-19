@@ -329,7 +329,7 @@ export const CustomizationTab: React.FC = () => {
             <span>AI Kit Customization & Sibling Variants</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            ATS alignment, 3 sibling variations, and source-mapped bullet replacements. Review all AI-written prose before use.
+            Role-relevant resume versions selected from available career evidence, plus source-mapped bullet replacements. Review all AI-written prose before use.
           </p>
         </div>
 
