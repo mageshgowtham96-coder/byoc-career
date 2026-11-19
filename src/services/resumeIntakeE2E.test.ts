@@ -137,4 +137,24 @@ candidate@example.com
     expect(parsed.rawText).toContain('தொழில்முறை சுருக்கம்');
   });
 
+  it('preserves non-standard career sections such as volunteering, awards and languages', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+asha@example.com
+Professional Summary
+Commerce graduate with experience in student projects and community work.
+Education
+Bachelor of Commerce - City University - 2025
+Volunteering
+Volunteer coordinator at a local learning centre.
+Awards
+University merit scholarship, 2024.
+Languages
+Tamil — Native; English — Professional working proficiency.`);
+    expect(parsed.additionalEvidence).toEqual(expect.arrayContaining([
+      expect.stringContaining('Volunteering: Volunteer coordinator'),
+      expect.stringContaining('Awards: University merit scholarship'),
+      expect.stringContaining('Languages: Tamil')
+    ]));
+  });
+
 });
