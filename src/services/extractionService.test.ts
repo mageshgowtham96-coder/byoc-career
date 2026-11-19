@@ -30,14 +30,16 @@ function makeOversizedDocxArchive(): Uint8Array {
 
 describe('resume extraction resource limits', () => {
   it('rejects a DOCX whose declared uncompressed document exceeds the safety limit', async () => {
-    const file = new File([makeOversizedDocxArchive()], 'oversized.docx');
+    const archive = makeOversizedDocxArchive();
+    const archiveBuffer = archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer;
+    const file = new File([archiveBuffer], 'oversized.docx');
     const result = await extractResumeFile(file);
     expect(result.success).toBe(false);
     expect(result.error).toContain('20MB extraction safety limit');
   });
 
   it('rejects an upload above the 10MB file-size limit before parsing', async () => {
-    const file = new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'large.txt');
+    const file = new File([new ArrayBuffer(10 * 1024 * 1024 + 1)], 'large.txt');
     const result = await extractResumeFile(file);
     expect(result.success).toBe(false);
     expect(result.error).toContain('10MB limit');
