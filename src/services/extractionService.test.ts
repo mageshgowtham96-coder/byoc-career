@@ -328,4 +328,14 @@ Professional Summary
 Commerce graduate with project experience.`);
     expect(parsed.contactInfo.portfolio).toBe('asha.dev');
   });
+
+  it('continues past email and social domains to find a separate personal site', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+asha@gmail.com
+https://www.linkedin.com/in/asha-rao
+asha.dev
+Professional Summary
+Commerce graduate with project experience.`);
+    expect(parsed.contactInfo.portfolio).toBe('asha.dev');
+  });
 });
