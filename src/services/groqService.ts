@@ -922,7 +922,8 @@ export function getTailoringStrategies(job: JobPosting, masterResume: MasterResu
     masterResume.rawText?.trim() || masterResume.summary?.trim() || hasStructuredSkills ||
     masterResume.experiences?.length || hasProjectsOrEducation || hasAdditionalEvidence
   );
-  if (!strategies.length && hasAnyProfileEvidence) {
+  if (!hasAnyProfileEvidence) return [];
+  if (!strategies.length) {
     strategies.push({
       id: 'variant-skills',
       name: 'Skills and transferable evidence',
@@ -1038,6 +1039,13 @@ export async function tailorResumeWithGroq(
   apiKey?: string
 ): Promise<TailoredArtifact> {
   const strategies = getTailoringStrategies(job, masterResume);
+  if (strategies.length === 0) {
+    throw new GroqApiError(
+      'Add at least one truthful skill, experience, project, education item, certification or other career-evidence entry before tailoring a resume.',
+      422,
+      'INSUFFICIENT_CANDIDATE_EVIDENCE'
+    );
+  }
   const strategySchema = JSON.stringify({
     variants: strategies.map((strategy) => ({
       id: strategy.id,
