@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { askPdfQuestion } from './pdfQuestionService';
 import { callGroqChat } from './groqService';
 
-vi.mock('./groqService', () => ({
-  callGroqChat: vi.fn()
-}));
+const { mockCallGroqChat } = vi.hoisted(() => ({ mockCallGroqChat: vi.fn() }));
+
+vi.mock('./groqService', () => ({ callGroqChat: mockCallGroqChat }));
 
 describe('PDF question privacy and bounds', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -27,7 +27,7 @@ describe('PDF question privacy and bounds', () => {
   });
 
   it('sends document text only after explicit question invocation and returns the answer', async () => {
-    vi.mocked(callGroqChat).mockResolvedValue(JSON.stringify({ answer: 'The document lists SQL.' }));
+    mockCallGroqChat.mockResolvedValue(JSON.stringify({ answer: 'The document lists SQL.' }));
     await expect(askPdfQuestion('Which skills are listed?', 'Skills: SQL', 'test-key')).resolves.toBe('The document lists SQL.');
     expect(callGroqChat).toHaveBeenCalledOnce();
     expect(callGroqChat.mock.calls[0][1]).toContain('Skills: SQL');
