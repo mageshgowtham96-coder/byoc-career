@@ -412,13 +412,15 @@ export const PrepZone: React.FC = () => {
                   >
                     Change Target Job
                   </button>
-                  <button
-                    onClick={() => setActiveTab('customization')}
-                    className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
-                  >
-                    <span>View Tailored Kit</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  {currentTailored && (
+                    <button
+                      onClick={() => setActiveTab('customization')}
+                      className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>View Tailored Kit</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
 
