@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  FileText, Upload, Download, RotateCw, Scissors, ArrowUpDown, Merge,
+  FileText, Upload, Download, RotateCw, Scissors, ArrowUpDown,
   MessageCircle, Send, Trash2, ShieldCheck, AlertTriangle, Loader2, ExternalLink
 } from 'lucide-react';
 import { useWizardStore } from '../../store/useWizardStore';
