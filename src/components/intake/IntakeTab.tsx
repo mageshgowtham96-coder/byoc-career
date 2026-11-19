@@ -610,7 +610,7 @@ export const IntakeTab: React.FC = () => {
               <div>
                 <h4 className="text-xs font-bold text-sky-200">Optional AI Resume Structuring (Groq)</h4>
                 <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-slate-400">
-                  Local extraction already ran. Nothing is sent automatically. If you click this, the extracted resume text (up to 24,000 characters) is sent to Groq using your API key to propose structured fields. AI can misread or invent details: compare everything with the source below before approving. The local parse remains available to restore.
+                  Local extraction already ran. Nothing is sent automatically. If you click this, the extracted resume text (up to 24,000 characters) is sent to Groq using your API key to propose structured fields. It may include your name, email, phone, links and other personal details present in the document. AI can misread or invent details: compare everything with the source below before approving. The local parse remains available to restore.
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
