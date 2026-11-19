@@ -11,6 +11,7 @@ import {
   sanitizeExternalHttpUrl,
   mergePortalShortcuts,
   buildPortalShortcutUrl,
+  matchesJobSearchTerms,
   type JobSearchResult
 } from '../../services/jobSearchService';
 import type { JobPosting, ApplicationRecord, JobSourcePortal } from '../../types';
@@ -165,7 +166,6 @@ export const SourcingTab: React.FC = () => {
   };
 
   const filteredJobs = React.useMemo(() => {
-    const qLower = searchQuery.toLowerCase().trim();
     const locFilter = isWorldwide ? '' : optionalLocation.trim();
     return jobs
       .map((job) => {
@@ -178,15 +178,7 @@ export const SourcingTab: React.FC = () => {
         };
       })
       .filter((job) => {
-        if (qLower) {
-          const matches =
-            job.title.toLowerCase().includes(qLower) ||
-            job.company.toLowerCase().includes(qLower) ||
-            job.location.toLowerCase().includes(qLower) ||
-            (job.skillsRequired && job.skillsRequired.some((s) => s.toLowerCase().includes(qLower))) ||
-            (job.jobDescriptionRaw && job.jobDescriptionRaw.toLowerCase().includes(qLower));
-          if (!matches) return false;
-        }
+        if (!matchesJobSearchTerms(searchQuery, job.title, job.company, job.location, job.skillsRequired, job.jobDescriptionRaw)) return false;
         const source = (job.source || '').toLowerCase();
         // Hide legacy Groq-discovered candidates retained in older local vaults; do not delete user data.
         if (source.includes('groq')) return false;
