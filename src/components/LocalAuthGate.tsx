@@ -1035,7 +1035,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                           onClick={() => { setShowRecoveryModal(true); setError(''); }}
                           className="text-[11px] text-sky-400 hover:text-sky-300 transition cursor-pointer"
                         >
-                          {t('forgot')}
+                          Forgot Passphrase?
                         </button>
                       </div>
                       <div className="relative">
