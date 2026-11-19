@@ -318,6 +318,16 @@ Builds reliable software systems.`);
     expect(parsed.contactInfo.location).toBe('Chennai, India');
   });
 
+  it('detects non-technical role headlines from pipe-separated contact lines', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao | Chennai, India | Customer Support Associate
+asha@example.com
+Professional Summary
+Helps customers resolve product issues.`);
+    expect(parsed.contactInfo.name).toBe('Asha Rao');
+    expect(parsed.contactInfo.location).toBe('Chennai, India');
+    expect(parsed.headline).toBe('Customer Support Associate');
+  });
+
   it('does not treat an email provider or social profile URL as a personal portfolio', () => {
     const parsed = parseRawResumeToStructured(`Asha Rao
 asha@gmail.com
