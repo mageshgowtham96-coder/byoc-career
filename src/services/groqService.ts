@@ -976,7 +976,7 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
     const interviewPrepQuestions: InterviewQuestion[] = Array.isArray(rv.interviewPrepQuestions)
       ? rv.interviewPrepQuestions.map((q: any) => ({
           question: String(q.question || 'Describe your relevant technical contributions.'),
-          category: (['Technical', 'Behavioral', 'Architecture', 'Leadership'].includes(q.category)
+          category: (['Technical', 'Behavioral', 'Situational', 'Role-Specific'].includes(q.category)
             ? q.category
             : 'Technical') as InterviewQuestion['category'],
           suggestedTalkingPoints: Array.isArray(q.suggestedTalkingPoints)
