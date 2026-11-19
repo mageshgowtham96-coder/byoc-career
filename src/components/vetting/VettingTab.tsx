@@ -248,7 +248,7 @@ export const VettingTab: React.FC = () => {
             <RefreshCw className="w-5 h-5 animate-spin" />
           </div>
           <h3 className="text-base font-bold text-white mb-1">Running Structural & Cultural Audit...</h3>
-          <p className="text-xs text-slate-400">Evaluating role risks, compensation clarity, and verified resume alignment.</p>
+          <p className="text-xs text-slate-400">Evaluating job-description signals, compensation details, and evidence-based profile alignment.</p>
         </div>
       ) : vetting ? (
         <div className="space-y-5">
@@ -449,7 +449,7 @@ export const VettingTab: React.FC = () => {
           <div>
             <h3 className="text-base font-bold text-white mb-1">Ready for an AI Career-Fit Review?</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              No request is sent until you choose to run this review. BYOC will send the selected job details and, if available, your Master Resume headline, summary, skills, and work-experience evidence to Groq using your configured API key. Your contact details are not included.
+              No request is sent until you choose to run this review. BYOC will send the selected job details and, if available, your Master Resume headline, summary, skills, work experience, education, projects, certifications, and additional career evidence to Groq using your configured API key. Your contact details and unstructured source document text are not included.
             </p>
             <p className="text-[11px] text-amber-300/90 mt-2 leading-relaxed">
               This is AI-generated guidance, not independent employer or vacancy verification. Check the employer and active job posting directly before sharing personal information or applying.
