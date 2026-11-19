@@ -11,6 +11,7 @@ import { ExtractionLoadingSkeleton } from './ExtractionLoadingSkeleton';
 import { ChakraLogo } from '../ChakraLogo';
 import { GuidedMasterResumeBuilder } from './GuidedMasterResumeBuilder';
 import { createCareerDraftFromMasterResume } from '../../utils/guidedResumeMapper';
+import { assessResumeReadiness } from '../../utils/resumeReadiness';
 import type { MasterResume, ExperienceItem } from '../../types';
 import {
   UploadCloud,
@@ -120,20 +121,9 @@ export const IntakeTab: React.FC = () => {
     });
   };
 
-  // Calculate completeness score for the half-built resume detector
-  const calculateCompleteness = (resume: MasterResume | null) => {
-    if (!resume) return 0;
-    let score = 0;
-    if (resume.contactInfo?.name && resume.contactInfo?.email) score += 20;
-    if (resume.summary && resume.summary.length > 30) score += 20;
-    if (resume.experiences && resume.experiences.length > 0) score += 25;
-    if (resume.experiences && resume.experiences.some((e) => e.bullets.length >= 2)) score += 15;
-    if (resume.skills?.technical && resume.skills.technical.length >= 3) score += 20;
-    return Math.min(100, score);
-  };
-
-  const completenessScore = calculateCompleteness(masterResume);
-  const isHalfBuilt = masterResume && completenessScore < 85;
+  const resumeReadiness = assessResumeReadiness(masterResume);
+  const completenessScore = resumeReadiness.completenessPercent;
+  const isHalfBuilt = Boolean(masterResume && completenessScore < 85);
 
   const handleFileDrop = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -418,7 +408,7 @@ export const IntakeTab: React.FC = () => {
                 </span>
               </div>
               <p className="text-[11px] text-amber-300/80 mt-1">
-                Your profile is missing key sections (such as multiple experience milestones or core competencies). Use the interactive builder to fill missing structural components.
+                Your extracted profile may still need: {resumeReadiness.missingSections.join(', ')}. Review the original resume and add only details that reflect your real experience.
               </p>
             </div>
           </div>
