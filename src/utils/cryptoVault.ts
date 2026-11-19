@@ -273,7 +273,7 @@ export function sanitizeStoredVaultEnvelopeMetadata(
 }
 
 /**
- * Derives a 256-bit AES-GCM Key Encryption Key (KEK) from a secret using PBKDF2-SHA256 (100k rounds)
+ * Derives a 256-bit AES-GCM Key Encryption Key (KEK) using the iteration count recorded in the envelope
  */
 export async function deriveVaultKey(
   passphrase: string,
@@ -456,7 +456,7 @@ export async function encryptVault(
 }
 
 /**
- * Decrypts a v3 or v4 VaultEnvelope with the user's passphrase and establishes
+ * Decrypts a v3, v4 or v5 VaultEnvelope with the user's passphrase and establishes
  * the volatile in-memory MVK session for subsequent store writes.
  */
 export async function decryptVault(
@@ -541,7 +541,7 @@ export async function decryptVault(
 }
 
 /**
- * Recovers vault contents using the Emergency Recovery Phrase (supports v3 and v4)
+ * Recovers vault contents using the Emergency Recovery Phrase (supports v3, v4 and v5)
  * and establishes the active MVK session.
  */
 export async function recoverVaultWithSecret(
