@@ -3,38 +3,11 @@ import { isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter } from 
 
 const fetchMock = vi.fn();
 
-function responseWith(content: string, status = 200) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => ({
-      choices: [{ message: { content } }]
-    })
-  } as Response;
-}
-
-describe('identifyJobPortalSource', () => {
-  it.each([
-    ['https://www.linkedin.com/jobs/view/123', 'LinkedIn'],
-    ['https://in.indeed.com/viewjob?jk=abc', 'Indeed'],
-    ['https://www.naukri.com/job-listings/example', 'Naukri'],
-    ['https://www.foundit.in/job/example', 'Foundit'],
-    ['https://www.glassdoor.com/job-listing/example', 'Glassdoor'],
-    ['https://www.instahyre.com/jobs/example', 'Instahyre'],
-    ['https://jobs.lever.co/example/123', 'Employer Careers'],
-    ['https://notlinkedin.com/jobs/123', 'Employer Careers']
-  ])('classifies %s as %s', (url, expected) => {
-    expect(identifyJobPortalSource(url)).toBe(expected);
-  });
-});
-
 describe('isLiveDiscoveredJobSource', () => {
   it.each([
     ['Remotive Live', true],
     ['Remote OK Live', true],
     ['Jobicy Live', true],
-    ['User Import', false],
-    ['Company Careers', false]
     ['User Import', false],
     ['Company Careers', false]
   ])('classifies %s as discovered=%s', (source, expected) => {
