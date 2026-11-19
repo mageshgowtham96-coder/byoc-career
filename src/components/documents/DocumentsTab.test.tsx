@@ -3,7 +3,6 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DocumentsTab } from './DocumentsTab';
 import { extractResumeFile } from '../../services/extractionService';
-import { askPdfQuestion } from '../../services/pdfQuestionService';
 import { inspectPdf } from '../../services/pdfWorkspaceService';
 
 const { mockAskPdfQuestion, mockGroqApiKey } = vi.hoisted(() => ({
