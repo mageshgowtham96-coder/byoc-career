@@ -328,6 +328,8 @@ export const IntakeTab: React.FC = () => {
   const handleRevertToLocalParse = () => {
     if (!localStagedProfile) return;
     setStagedParsedResume(localStagedProfile);
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
     setEditableStagedSummary(localStagedProfile.summary);
     setEditableHeadline(localStagedProfile.headline);
     setEditableName(localStagedProfile.contactInfo.name || '');
@@ -342,11 +344,11 @@ export const IntakeTab: React.FC = () => {
       ...stagedParsedResume,
       contactInfo: {
         ...stagedParsedResume.contactInfo,
-        name: editableName.trim() || stagedParsedResume.contactInfo.name,
-        email: editableEmail.trim() || stagedParsedResume.contactInfo.email
+        name: editableName.trim(),
+        email: editableEmail.trim()
       },
-      headline: editableHeadline || stagedParsedResume.headline,
-      summary: editableStagedSummary || stagedParsedResume.summary
+      headline: editableHeadline.trim(),
+      summary: editableStagedSummary.trim()
     };
 
     useWizardStore.setState({ stagedParsedResume: finalStaged });
@@ -363,6 +365,8 @@ export const IntakeTab: React.FC = () => {
     setEditableName(profile.contactInfo.name || '');
     setEditableEmail(profile.contactInfo.email || '');
     setAiStructuringError(null);
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
     setShowGuidedBuilder(false);
     addToast({
       type: 'success',
