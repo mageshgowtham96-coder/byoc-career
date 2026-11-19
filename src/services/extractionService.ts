@@ -373,18 +373,27 @@ export function extractExternalHyperlinkTargets(relationshipsXml: string): Map<s
 function extractParagraphsFromDocumentXml(xml: string, hyperlinkTargets: Map<string, string> = new Map()): string {
   const paragraphBlocks = xml.split(/<\/w:p>/i);
   const lines: string[] = [];
-  const tokenRegex = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab(?:\s[^>]*)?\/>|<w:br(?:\s[^>]*)?\/>/gi;
+  const tokenRegex = /<w:hyperlink\b([^>]*)>([\s\S]*?)<\/w:hyperlink>|<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab(?:\s[^>]*)?\/>|<w:br(?:\s[^>]*)?\/>/gi;
 
   for (const block of paragraphBlocks) {
     const pieces: string[] = [];
-    let match: RegExpExecArray | null;
-    tokenRegex.lastIndex = 0;
-    while ((match = tokenRegex.exec(block)) !== null) {
+    let match: RegExp    while ((match = tokenRegex.exec(block)) !== null) {
       if (match[1] !== undefined) {
-        pieces.push(decodeXmlEntities(match[1]));
+        const relationshipId = match[1].match(/\br:id="([^"]+)"/i)?.[1];
+        const visibleText = Array.from(match[2].matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi))
+          .map((item) => decodeXmlEntities(item[1]))
+          .join('')
+          .trim();
+        const target = relationshipId ? hyperlinkTargets.get(relationshipId) : undefined;
+        pieces.push(target && visibleText ? visibleText + ': ' + target : visibleText || target || '');
+      } else if (match[3] !== undefined) {
+        pieces.push(decodeXmlEntities(match[3]));
       } else if (/^<w:tab/i.test(match[0])) {
         pieces.push('\t');
       } else {
+        pieces.push('\n');
+      }
+    } else {
         pieces.push('\n');
       }
     }
@@ -394,21 +403,7 @@ function extractParagraphsFromDocumentXml(xml: string, hyperlinkTargets: Map<str
     if (line) lines.push(line);
   }
 
-  const hyperlinkLines: string[] = [];
-  const hyperlinkRegex = /<w:hyperlink\b([^>]*)>([\s\S]*?)<\/w:hyperlink>/gi;
-  let hyperlinkMatch: RegExpExecArray | null;
-  while ((hyperlinkMatch = hyperlinkRegex.exec(xml)) !== null) {
-    const relationshipId = hyperlinkMatch[1].match(/\br:id="([^"]+)"/i)?.[1];
-    const target = relationshipId ? hyperlinkTargets.get(relationshipId) : undefined;
-    if (!target) continue;
-    const visibleText = Array.from(hyperlinkMatch[2].matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi))
-      .map((match) => decodeXmlEntities(match[1]))
-      .join('')
-      .trim();
-    hyperlinkLines.push(visibleText ? visibleText + ': ' + target : target);
-  }
-
-  if (lines.length > 0 || hyperlinkLines.length > 0) return [...lines, ...hyperlinkLines].join('\n');
+  if (lines.length > 0) return lines.join('\n');
 
   // Fallback for non-standard XML fragments without paragraph wrappers.
   const fallbackRegex = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi;
