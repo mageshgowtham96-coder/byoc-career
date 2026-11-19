@@ -788,8 +788,8 @@ export function parseRawResumeToStructured(
         const companyFirst = /\b(inc\.?|llc|ltd\.?|limited|corp\.?|corporation|technologies|solutions|services|bank|university|hospital|group|pvt\.?)\b/i.test(parts[0]);
         const roleSecond = /\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|officer|support|sales|marketing|finance)\b/i.test(parts[1]);
         return companyFirst && roleSecond
-          ? { role: parts[1], company: parts[0], location: parts[2] || '' }
-          : { role: parts[0], company: parts[1], location: parts[2] || '' };
+          ? { role: parts[1], company: parts[0], location: parts.slice(2).join(', ') }
+          : { role: parts[0], company: parts[1], location: parts.slice(2).join(', ') };
       }
       return { role: cleaned, company: '', location: '' };
     };
@@ -814,7 +814,11 @@ export function parseRawResumeToStructured(
         if (headerText) {
           if (currentExp && bullets.length > 0) flushExperience();
           if (!currentExp) currentExp = parseExperienceHeader(headerText);
-          else if (currentExp.role && !currentExp.company) currentExp.company = parseExperienceHeader(headerText).role;
+          else if (currentExp.role && !currentExp.company) {
+            const parsedHeader = parseExperienceHeader(headerText);
+            currentExp.company = parsedHeader.company || parsedHeader.role;
+            currentExp.location = parsedHeader.location || currentExp.location;
+          }
           else {
             flushExperience();
             currentExp = parseExperienceHeader(headerText);
