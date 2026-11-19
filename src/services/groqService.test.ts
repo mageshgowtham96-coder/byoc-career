@@ -190,6 +190,17 @@ describe('optional Master Resume optimization validation', () => {
 describe('role-aware tailoring strategies', () => {
   const job = { title: 'Customer Support Associate' } as any;
 
+  it('does not offer an ATS-only tailoring strategy when no structured evidence is supplied', () => {
+    const profile = {
+      rawText: 'A complete resume that has not been structured yet.',
+      headline: '',
+      summary: '',
+      skills: { technical: [], soft: [], tools: [], domains: [] },
+      experiences: [], projects: [], education: [], certifications: [], additionalEvidence: []
+    } as any;
+    expect(getTailoringStrategies(job, profile)).toEqual([]);
+  });
+
   it('offers an additional-evidence strategy when the profile has volunteering or awards but no work history', () => {
     const profile = {
       rawText: 'Asha Rao asha@example.com +91 90000 00000',
