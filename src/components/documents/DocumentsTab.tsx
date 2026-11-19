@@ -102,7 +102,7 @@ export const DocumentsTab: React.FC = () => {
   });
 
   const handleReorder = () => runOperation(async () => {
-    const pages = parsePageList(pageList);
+    const pages = parsePdfPageNumbers(pageList);
     const bytes = await reorderPdfPages(file!, pages);
     await applyPdfBytes(bytes, 'BYOC_Reordered.pdf');
   });
