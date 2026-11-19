@@ -90,7 +90,7 @@
 - Modify: `docs/superpowers/plans/2026-11-19-pdf-intelligence-workspace.md`
 
 - [x] Run TypeScript, full Vitest suite and production web build — passed on code head `454b614ff2d22e4a5698deb7269e2b1e560437b5`; 201 tests across 23 files.
-- [ ] Run Android debug build through CI and inspect job logs/artifact — build job is still running.
+- [x] Run Android debug build through CI and inspect job logs/artifact — passed for code head `454b614ff2d22e4a5698deb7269e2b1e560437b5`; artifact `14524967789` was downloaded, ZIP integrity verified, and APK identified as an Android package.
 - [x] Review diff for data leaks, memory/resource hazards, accessibility and error handling; no new persistence, backend or silent AI transfer introduced.
 - [x] Document remaining limitations: OCR and full PDF.js rendering are not included; Android preview depends on platform support; physical Android testing remains manual.
 - [x] Create/update draft PR #10 stacked on PR #9; do not merge.
@@ -98,4 +98,4 @@
 ## Execution notes
 - Service tests were written first. Early CI runs exposed real issues: jsdom File API gaps, a missing mocked Groq error export, malformed-PDF page-tree exceptions, and numeric page-list validation. Each was corrected and re-run.
 - The React component interaction tests were added after the first UI implementation rather than observing a pre-implementation RED state. They now cover no automatic AI call, explicit question submission, missing-key local use, and temporary preview cleanup.
-- The tested application-code head is `454b614ff2d22e4a5698deb7269e2b1e560437b5`. Subsequent branch commits only update tests and documentation; the APK build for the tested code head is still pending.
+- The tested application-code head is `454b614ff2d22e4a5698deb7269e2b1e560437b5`. TypeScript, 201 tests across 23 files, production web build and Android debug APK all passed for this head. The artifact ZIP SHA-256 is `72f48d9cf9881f2e3010bfd1a3aa524eefbcd22a57a02d0727fda5bbe0ecd7ca`; extracted APK SHA-256 is `45e5d4a27ecadcf4e56b1356a4b5d33e29eee2f127a7cacf7d629c609b33181f`. Later branch commits only update tests/documentation; no application code changed after the tested code head.
