@@ -286,7 +286,7 @@ describe('honest keyword-overlap scoring', () => {
 
   it('does not match short skills inside unrelated words', () => {
     const profile = {
-      rawText: 'Candidate has ongoing project experience and worked with customer support.',
+      rawText: 'Candidate has ongoing project experience, worked with customer support, and I go to work; R is a grade and C is a course mark.',
       contactInfo: { name: 'Asha Rao', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
       headline: '', summary: '', skills: { technical: [], soft: [], tools: [], domains: [] },
       experiences: [], education: [], projects: [], certifications: [],
@@ -302,9 +302,9 @@ describe('honest keyword-overlap scoring', () => {
 
   it('matches short skills only when present as standalone tokens', () => {
     const profile = {
-      rawText: 'Used Go for services, R for statistical analysis, and C for systems coursework.',
+      rawText: 'Candidate profile with relevant project experience.',
       contactInfo: { name: 'Asha Rao', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
-      headline: '', summary: '', skills: { technical: [], soft: [], tools: [], domains: [] },
+      headline: '', summary: '', skills: { technical: ['Go', 'R', 'C'], soft: [], tools: [], domains: [] },
       experiences: [], education: [], projects: [], certifications: [],
       stats: { wordCount: 14, pageCount: 1, charCount: 80, lastParsedDate: '', sourceFileName: 'resume.txt' }
     };
