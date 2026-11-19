@@ -493,6 +493,9 @@ export const SettingsTab: React.FC = () => {
             <p className="text-xs text-slate-400">
               Export either an encrypted vault envelope (for cross-device restoration) or a redacted readable snapshot
             </p>
+            <p className="mt-2 text-[11px] leading-relaxed text-amber-200">
+              Automatic Android cloud backup and device-to-device app-data transfer are disabled. Export the encrypted vault before uninstalling BYOC or moving to another device, and keep your recovery phrase somewhere safe. Readable snapshots are not encrypted.
+            </p>
           </div>
         </div>
 
