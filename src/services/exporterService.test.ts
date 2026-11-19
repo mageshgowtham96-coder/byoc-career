@@ -393,6 +393,11 @@ describe('Export Service', () => {
 describe('dispatchExportFile cancellation', () => {
   it('does not report success when the user cancels the native share sheet', async () => {
     const share = vi.fn().mockRejectedValue(new DOMException('Share cancelled', 'AbortError'));
+    class TestFile extends Blob {
+      name: string;
+      constructor(parts: BlobPart[], name: string, options?: FilePropertyBag) { super(parts, options); this.name = name; }
+    }
+    vi.stubGlobal('File', TestFile);
     const originalCanShare = Object.getOwnPropertyDescriptor(navigator, 'canShare');
     const originalShare = Object.getOwnPropertyDescriptor(navigator, 'share');
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: vi.fn().mockReturnValue(true) });
@@ -406,6 +411,7 @@ describe('dispatchExportFile cancellation', () => {
       else Reflect.deleteProperty(navigator, 'canShare');
       if (originalShare) Object.defineProperty(navigator, 'share', originalShare);
       else Reflect.deleteProperty(navigator, 'share');
+      vi.unstubAllGlobals();
     }
   });
 });
