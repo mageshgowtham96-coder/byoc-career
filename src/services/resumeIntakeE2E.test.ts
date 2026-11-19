@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseRawResumeToStructured } from './extractionService';
 import { assessResumeReadiness } from '../utils/resumeReadiness';
+import { validateExtractedSchema } from './extractionService';
 
 const DUMMY_FRAUD_ANALYST_RESUME = `Priya Sharma
 priya.sharma@example.com
@@ -109,6 +110,22 @@ Excel, SQL, Data Analysis`);
     const readiness = assessResumeReadiness(student);
     expect(readiness.completenessPercent).toBe(100);
     expect(readiness.missingSections).toEqual([]);
+  });
+
+  it('does not treat paid work history as mandatory when a student has education and project evidence', () => {
+    const student = parseRawResumeToStructured(`Asha Rao
+asha.rao@example.com
+Professional Summary
+Final-year commerce student interested in financial operations and data analysis.
+Education
+Bachelor of Commerce - City University - 2026
+Projects
+Retail Sales Analysis
+Analysed a sample retail dataset using Excel and SQL to identify monthly sales trends.
+Skills
+Excel, SQL, Data Analysis`);
+    const validation = validateExtractedSchema(student);
+    expect(validation.missingMandatoryFields).not.toContain('Work Experience Milestones');
   });
 
 });
