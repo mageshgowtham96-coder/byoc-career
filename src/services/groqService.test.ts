@@ -152,10 +152,12 @@ describe('optional Master Resume optimization validation', () => {
   it('changes only requested presentation fields and preserves the original profile evidence', async () => {
     const { validateOptimizedMasterResume } = await import('./groqService');
     const optimized = validateOptimizedMasterResume({
+      sourceHeadline: 'Commerce Graduate',
       headline: 'Commerce Graduate | Data Analysis',
+      sourceSummary: 'Student with project experience.',
       summary: 'Commerce graduate with practical sales analysis project experience.',
-      experiences: [{ id: 'exp-1', bullets: ['Prepared weekly operational reports.'] }],
-      projects: [{ id: 'proj-1', description: 'Analysed sales trends using Excel.' }]
+      experiences: [{ id: 'exp-1', bullets: [{ source: 'Prepared weekly reports.', proposed: 'Prepared weekly operational reports.' }] }],
+      projects: [{ id: 'proj-1', sourceDescription: 'Used Excel to analyse sales.', description: 'Analysed sales trends using Excel.' }]
     }, source);
 
     expect(optimized.headline).toContain('Data Analysis');
@@ -165,6 +167,10 @@ describe('optional Master Resume optimization validation', () => {
     expect(optimized.skills).toEqual(source.skills);
     expect(optimized.contactInfo).toEqual(source.contactInfo);
     expect(source.experiences[0].bullets).toEqual(['Prepared weekly reports.']);
+    expect(() => validateOptimizedMasterResume({
+      sourceHeadline: 'Changed source headline',
+      headline: 'Invented headline'
+    }, source)).toThrowError(/source headline/i);
   });
 
   it('rejects invented experience records and changes to the number of source bullets', async () => {
@@ -173,7 +179,10 @@ describe('optional Master Resume optimization validation', () => {
       experiences: [{ id: 'invented', bullets: ['Managed a team of ten.'] }]
     }, source)).toThrowError();
     expect(() => validateOptimizedMasterResume({
-      experiences: [{ id: 'exp-1', bullets: ['Prepared reports.', 'Increased revenue by 40%.'] }]
-    }, source)).toThrowError();
+      experiences: [{ id: 'exp-1', bullets: [
+        { source: 'Prepared weekly reports.', proposed: 'Prepared reports.' },
+        { source: 'Invented source statement.', proposed: 'Increased revenue by 40%.' }
+      ] }]
+    }, source)).toThrowError(/source bullet/i);
   });
 });
