@@ -12,7 +12,7 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS.
 - **Client state:** Zustand with encrypted-vault persistence and versioned workspace metadata migration.
 - **Android:** Capacitor 8, package ID `com.byoc.career`.
-- **AI:** Optional Groq BYOK requests initiated by the user. AI-generated content must be reviewed before use.
+- **AI:** Optional Groq BYOK requests initiated by the user, currently selecting supported GPT-OSS 120B / 20B chat models when available. Free-plan quota is limited and account-specific; AI-generated content must be reviewed before use. Experimental OpenRouter/Gemini adapters are not connected to the user-facing workflows.
 - **Documents:** Selectable-text PDF, DOCX, TXT, and Markdown intake; TXT, PDF, and DOCX export.
 - **Offline:** Local vault and previously downloaded app assets remain available offline. Live feeds, Groq actions, and first-time downloads of unvisited workspace modules require connectivity.
 
@@ -61,6 +61,8 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - Platform biometrics are an in-session convenience gate for an already-unlocked session. They do not unlock the encrypted vault and are not server-verified identity proof.
 - BYOC sends no career data to Groq merely because the app is opened. Job discovery uses public no-key feeds and external portal links; it does not send job-search terms to Groq. Each remaining AI action is user-triggered. Resume structuring sends the extracted resume text, which may contain contact information. Vetting sends the selected job and relevant profile evidence, without contact fields. Tailoring sends the selected job and resume evidence, including the candidate name, but not email, phone, or social-profile URLs.
 - Groq processes requests under its own service terms. BYOC does not control the provider's processing or retention policies. Do not use AI features on a shared device if you are not comfortable sending the selected content to Groq.
+- BYOC does not silently fail over to another AI company. Resume/job data is sent only to the provider the user explicitly configured for that action. This avoids an unexpected change in data recipient. Groq 429 responses are retried only when a short `Retry-After` is supplied; other transient failures receive one bounded retry with jitter. Daily quota exhaustion is not retried in a loop.
+- Gemini's API offers a free tier on eligible models, but Google's published pricing page states that free-tier submitted content may be used to improve its products. Because BYOC can transmit personal resume data, Gemini is not enabled in this browser-only release. It would require a separately reviewed opt-in integration and clear data-use disclosure.
 - Automatic Android cloud backup and device-to-device app-data transfer are explicitly excluded so local workspace metadata is not silently copied into system backups. Use BYOC's encrypted vault export for manual device migration and recovery. **Readable Workspace Snapshot exports are unencrypted** and may contain personal career information; store them carefully.
 - If BYOC reports a vault save failure, keep the app open and retry before closing. Sign-out is blocked while an unsaved-vault warning is active.
 
@@ -70,6 +72,7 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - No Gmail/Workspace inbox integration.
 - No automatic applications or authenticated job-portal scraping.
 - Public ATS evidence checks currently support Greenhouse only. A matching record does not independently guarantee employer legitimacy or that applications remain open.
+- AI providers can still be unavailable or quota-limited. BYOC keeps local workflows available, but AI vetting/tailoring cannot be guaranteed free, uninterrupted, or available offline. Check the provider's current model and rate-limit dashboard before relying on a quota.
 - No BYOC cloud account, cloud sync, or server-side data recovery. Keep an encrypted backup and protect the recovery phrase.
 - The Android debug APK is suitable for installation/testing, not a signed production release. A release signing key has not been configured in this repository.
 
