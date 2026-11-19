@@ -157,6 +157,12 @@ export function generatePlainTextResume(artifact: TailoredArtifact, resume: Mast
     });
   }
 
+  if (resolved.additionalEvidence.length > 0) {
+    lines.push('\n' + '-'.repeat(50) + '\n');
+    lines.push('ADDITIONAL CAREER EVIDENCE');
+    resolved.additionalEvidence.forEach((item) => lines.push(item));
+  }
+
   // Cover Letter Section if generated
   if (resolved.coverLetter) {
     lines.push('\n\n' + '='.repeat(50));
@@ -539,6 +545,23 @@ export async function generatePdfResume(artifact: TailoredArtifact, resume: Mast
     });
   }
 
+  if (resolved.additionalEvidence.length > 0) {
+    drawSectionHeader('Additional Career Evidence');
+    resolved.additionalEvidence.forEach((item) => {
+      wrapText(toPdfSafeText(item), contentWidth, 8.5, fontRegular).forEach((line) => {
+        checkPageSpace(13);
+        page.drawText(line, {
+          x: margin,
+          y: cursorY,
+          size: 8.5,
+          font: fontRegular,
+          color: rgb(0.15, 0.2, 0.25)
+        });
+        cursorY -= 12;
+      });
+    });
+  }
+
   const pdfBytes = await pdfDoc.save();
   return new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
 }
@@ -802,6 +825,20 @@ export async function generateDocxResume(artifact: TailoredArtifact, resume: Mas
           spacing: { after: 60 }
         })
       );
+    });
+  }
+
+  if (resolved.additionalEvidence.length > 0) {
+    children.push(new Paragraph({
+      text: 'ADDITIONAL CAREER EVIDENCE',
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 200, after: 100 }
+    }));
+    resolved.additionalEvidence.forEach((item) => {
+      children.push(new Paragraph({
+        children: [new TextRun({ text: item, size: 20 })],
+        spacing: { after: 60 }
+      }));
     });
   }
 
