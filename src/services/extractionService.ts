@@ -597,10 +597,11 @@ export function parseRawResumeToStructured(
   const linkedinMatch = rawText.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9_-]+/i);
   const githubMatch = rawText.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[a-zA-Z0-9_-]+/i);
   const emailDomain = emailMatch?.[0].split('@')[1]?.toLowerCase() || '';
-  const portfolioPattern = /(?:https?:\/\/|www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:dev|me|io|com|in|net)(?:\/[^^\s|]*)?/i;
+  const portfolioPattern = /(?:https?:\/\/|www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:dev|me|io|com|in|net)(?:\/[^\s|]*)?/i;
   const explicitPortfolioMatch = rawText.match(/(?:portfolio|personal website|website|web site)\s*[:：-]\s*([^\n|]+)/i);
   const headerPortfolioMatch = lines.slice(0, 8).map((line) => line.match(portfolioPattern)).find(Boolean);
-  const portfolioCandidate = (explicitPortfolioMatch?.[1] || headerPortfolioMatch?.[0] || '').trim().replace(/[),.;]+$/, '');
+  const explicitPortfolioValue = explicitPortfolioMatch?.[1].match(portfolioPattern)?.[0] || '';
+  const portfolioCandidate = (explicitPortfolioValue || headerPortfolioMatch?.[0] || '').trim().replace(/[),.;]+$/, '');
   const portfolioHost = portfolioCandidate.replace(/^(?:https?:\/\/|www\.)/i, '').split('/')[0].toLowerCase();
   const isEmailProvider = /^(?:gmail|googlemail|yahoo|outlook|hotmail|live|rediffmail|protonmail|icloud)\.(?:com|in|net)$/i.test(portfolioHost);
   const portfolioValue = portfolioCandidate &&
