@@ -61,7 +61,7 @@ export const PrepZone: React.FC = () => {
   };
 
   const handleGenerateRolePrep = async () => {
-    if (!selectedJob || !hasStructuredEvidence) {
+    if (!selectedJob || !masterResume || !hasStructuredEvidence) {
       addToast({
         type: 'warning',
         message: 'Add and confirm structured career evidence in Intake, then select a target job before generating personalized interview questions.'
