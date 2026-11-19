@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter } from './jobSearchService';
+import { ArbeitnowJobAdapter, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter } from './jobSearchService';
 
 const fetchMock = vi.fn();
 
@@ -8,6 +8,7 @@ describe('isLiveDiscoveredJobSource', () => {
     ['Remotive Live', true],
     ['Remote OK Live', true],
     ['Jobicy Live', true],
+    ['Arbeitnow Live', true],
     ['User Import', false],
     ['Company Careers', false]
   ])('classifies %s as discovered=%s', (source, expected) => {
@@ -15,6 +16,73 @@ describe('isLiveDiscoveredJobSource', () => {
   });
 });
 
+
+describe('ArbeitnowJobAdapter', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('uses the public no-key feed, preserves the posting URL and maps its published date', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: [{
+          slug: 'frontend-engineer-example-123',
+          title: 'Frontend Engineer',
+          company_name: 'Example GmbH',
+          description: '<p>Build React applications.</p>',
+          remote: true,
+          url: 'https://www.arbeitnow.com/jobs/companies/example/frontend-engineer-123',
+          tags: ['React', 'TypeScript'],
+          location: 'Berlin, Germany',
+          created_at: 1795046400
+        }],
+        links: { next: 'https://www.arbeitnow.com/api/job-board-api?page=2' }
+      })
+    });
+
+    const adapter = new ArbeitnowJobAdapter();
+    const jobs = await adapter.search({ query: 'Frontend Engineer', country: 'GLOBAL' });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(String(fetchMock.mock.calls[0][0])).toContain('arbeitnow.com/api/job-board-api?page=1');
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({
+      title: 'Frontend Engineer',
+      company: 'Example GmbH',
+      location: 'Berlin, Germany',
+      workplaceType: 'Remote',
+      url: 'https://www.arbeitnow.com/jobs/companies/example/frontend-engineer-123',
+      source: 'Arbeitnow Live',
+      skillsRequired: ['React', 'TypeScript']
+    });
+    expect(jobs[0].postedDate).not.toBe('Unspecified');
+  });
+
+  it('does not label non-remote postings as remote when the feed has no work-mode detail', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: [{
+          slug: 'office-role-1', title: 'Office Role', company_name: 'Example',
+          description: 'Work from the office', remote: false,
+          url: 'https://www.arbeitnow.com/jobs/office-role-1',
+          tags: [], location: 'Berlin, Germany', created_at: 1795046400
+        }]
+      })
+    });
+
+    const jobs = await new ArbeitnowJobAdapter().search({ query: 'Office Role', country: 'GLOBAL' });
+    expect(jobs[0].workplaceType).toBe('Unspecified');
+  });
+});
 
 describe('JobicyJobAdapter', () => {
   beforeEach(() => {
