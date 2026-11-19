@@ -66,3 +66,52 @@ describe('job verification evidence persistence', () => {
     expect(useWizardStore.getState().jobs[0].verification).toBeUndefined();
   });
 });
+
+
+describe('interview prep question updates', () => {
+  it('refreshes questions without replacing or unreviewing an existing tailored resume', () => {
+    const existing = {
+      id: 'artifact-1',
+      jobId: 'job-1',
+      jobTitle: 'Data Analyst',
+      company: 'Acme Analytics',
+      selectedVariantId: 'variant-1',
+      variants: [{
+        id: 'variant-1',
+        name: 'Role-aligned',
+        badge: 'Role Alignment',
+        description: 'Existing reviewed variant',
+        tailoredSummary: 'Existing reviewed summary',
+        highlightedSkills: ['SQL'],
+        optimizedBullets: [],
+        coverLetter: 'Existing reviewed cover letter',
+        interviewPrepQuestions: []
+      }],
+      tailoredSummary: 'Existing reviewed summary',
+      highlightedSkills: ['SQL'],
+      optimizedBullets: [],
+      coverLetter: 'Existing reviewed cover letter',
+      interviewPrepQuestions: [],
+      generationTimestamp: '2026-11-20T00:00:00.000Z',
+      authenticityGuaranteed: false,
+      reviewConfirmed: true
+    } as any;
+    const questions = [{
+      question: 'How did you use SQL in a recorded project?',
+      category: 'Technical' as const,
+      suggestedTalkingPoints: ['Explain the task and your contribution.'],
+      authenticEvidenceRef: 'Project: sales analysis using SQL.'
+    }];
+
+    useWizardStore.setState({ tailoredArtifacts: { 'job-1': existing } });
+    useWizardStore.getState().saveInterviewPrepQuestions('job-1', questions);
+
+    const saved = useWizardStore.getState().tailoredArtifacts['job-1'];
+    expect(saved.reviewConfirmed).toBe(true);
+    expect(saved.tailoredSummary).toBe('Existing reviewed summary');
+    expect(saved.coverLetter).toBe('Existing reviewed cover letter');
+    expect(saved.variants[0].tailoredSummary).toBe('Existing reviewed summary');
+    expect(saved.interviewPrepQuestions).toEqual(questions);
+    expect(saved.variants[0].interviewPrepQuestions).toEqual(questions);
+  });
+});
