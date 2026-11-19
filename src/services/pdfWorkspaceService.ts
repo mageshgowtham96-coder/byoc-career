@@ -35,7 +35,7 @@ export function validatePdfFile(file: File): string | null {
   return null;
 }
 
-export async function loadPdf(file: File): Promise<PDFDocumentProxy> {
+interface LoadedPdf {\n  pdf: PDFDocumentProxy;\n  destroy: () => Promise<void>;\n}\n\nexport async function loadPdf(file: File): Promise<LoadedPdf> {
   const validation = validatePdfFile(file);
   if (validation) throw new Error(validation);
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -49,7 +49,7 @@ export async function loadPdf(file: File): Promise<PDFDocumentProxy> {
 export async function extractPdfDocument(file: File): Promise<PdfTextDocument> {
   const pdf = await loadPdf(file);
   if (pdf.numPages > MAX_PDF_PAGES) {
-    await pdf.destroy();
+    await destroy();
     throw new Error(`This PDF has ${pdf.numPages} pages. The on-device limit is ${MAX_PDF_PAGES} pages.`);
   }
 
@@ -72,7 +72,7 @@ export async function extractPdfDocument(file: File): Promise<PdfTextDocument> {
       pages.push({ pageNumber, text });
     }
   } finally {
-    await pdf.destroy();
+    await destroy();
   }
 
   const fullText = pages.map((page) => `[Page ${page.pageNumber}]\n${page.text}`).join('\n\n');
@@ -182,7 +182,7 @@ export async function mergePdfFiles(files: File[]): Promise<Blob> {
     const pages = await merged.copyPages(source, source.getPageIndices());
     pages.forEach((page) => merged.addPage(page));
   }
-  return new Blob([await merged.save()], { type: 'application/pdf' });
+  const bytes = await merged.save();\n  const safeBytes = new Uint8Array(bytes.byteLength);\n  safeBytes.set(bytes);\n  return new Blob([safeBytes.buffer], { type: 'application/pdf' });
 }
 
 export async function extractPdfPages(file: File, pageNumbers: number[]): Promise<Blob> {
@@ -196,7 +196,7 @@ export async function extractPdfPages(file: File, pageNumbers: number[]): Promis
   const output = await PDFDocument.create();
   const pages = await output.copyPages(source, selected.map((page) => page - 1));
   pages.forEach((page) => output.addPage(page));
-  return new Blob([await output.save()], { type: 'application/pdf' });
+  const bytes = await output.save();\n  const safeBytes = new Uint8Array(bytes.byteLength);\n  safeBytes.set(bytes);\n  return new Blob([safeBytes.buffer], { type: 'application/pdf' });
 }
 
 export async function rotatePdfPage(file: File, pageNumber: number, rotation: 90 | 180 | 270): Promise<Blob> {
@@ -206,5 +206,5 @@ export async function rotatePdfPage(file: File, pageNumber: number, rotation: 90
   const page = pdf.getPage(pageNumber - 1);
   if (!page) throw new Error('The requested page does not exist.');
   page.setRotation(degrees((page.getRotation().angle + rotation) % 360));
-  return new Blob([await pdf.save()], { type: 'application/pdf' });
+  const bytes = await pdf.save();\n  const safeBytes = new Uint8Array(bytes.byteLength);\n  safeBytes.set(bytes);\n  return new Blob([safeBytes.buffer], { type: 'application/pdf' });
 }
