@@ -76,6 +76,10 @@ export interface ProviderState {
 /**
  * Default provider configs (read-only; keys come from vault)
  */
+function isAbortErrorLike(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError';
+}
+
 export const PROVIDER_CONFIGS = {
   groq: {
     name: 'Groq',
@@ -241,7 +245,7 @@ export class OpenRouterProvider {
       return this.state;
     } catch (err: unknown) {
       this.state.status = 'error';
-      this.state.errorMessage = err instanceof Error && err.name === 'AbortError'
+      this.state.errorMessage = isAbortErrorLike(err)
         ? 'OpenRouter connectivity check timed out.'
         : err instanceof Error ? err.message : 'OpenRouter connectivity check failed';
       return this.state;
@@ -293,7 +297,7 @@ export class OpenRouterProvider {
         finishReason: data.choices?.[0]?.finish_reason || 'stop'
       };
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'AbortError') {
+      if (isAbortErrorLike(err)) {
         throw new Error('OpenRouter chat request timed out.');
       }
       throw err;
