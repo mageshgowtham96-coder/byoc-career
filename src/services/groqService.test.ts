@@ -206,4 +206,24 @@ describe('role-aware tailoring strategies', () => {
     expect(strategies.map((strategy) => strategy.id)).toContain('variant-evidence');
     expect(strategies.some((strategy) => /ATS/i.test(strategy.badge))).toBe(true);
   });
+  it('does not generate a job-tailored resume when the profile contains no candidate evidence', async () => {
+    const { tailorResumeWithGroq } = await import('./groqService');
+    const emptyProfile = {
+      rawText: '',
+      headline: '',
+      summary: '',
+      skills: { technical: [], soft: [], tools: [], domains: [] },
+      experiences: [],
+      projects: [],
+      education: [],
+      certifications: [],
+      additionalEvidence: []
+    } as any;
+    expect(getTailoringStrategies(job, emptyProfile)).toEqual([]);
+    await expect(tailorResumeWithGroq(job, emptyProfile, 'test-key')).rejects.toMatchObject({
+      code: 'INSUFFICIENT_CANDIDATE_EVIDENCE'
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
 });
