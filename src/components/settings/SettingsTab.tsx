@@ -8,7 +8,7 @@ import {
 import { WORKSPACE_STORE_KEY } from '../../utils/vaultMigration';
 import { emailVault } from '../../services/emailSyncService';
 import { safeRemoveItem } from '../../utils/storagePersistence';
-import { getAvailableGroqModels, formatGroqError } from '../../services/groqService';
+import { getAvailableGroqModels, selectGroqChatModel, formatGroqError } from '../../services/groqService';
 import {
   Settings,
   Zap,
@@ -109,12 +109,16 @@ export const SettingsTab: React.FC = () => {
 
     try {
       const models = await getAvailableGroqModels(trimmed);
+      const selectedModel = selectGroqChatModel(models);
+      if (!selectedModel) {
+        throw new Error('The key is valid, but no supported BYOC chat model is available to it. Check your Groq model access and plan.');
+      }
       setGroqApiKey(trimmed);
       setIsLiveApiMode(true);
       await syncVaultFromStoreNow();
       setTestResult({
         success: true,
-        msg: `Connection verified (${models.length} model${models.length === 1 ? '' : 's'} reachable). Key saved cleanly into your encrypted vault.`
+        msg: `Connection verified. BYOC can use ${selectedModel}; ${models.length} model IDs are visible to this key. Key saved cleanly into your encrypted vault.`
       });
     } catch (err: unknown) {
       setTestResult({
