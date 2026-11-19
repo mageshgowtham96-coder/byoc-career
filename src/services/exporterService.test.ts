@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ExportedMaterialRecord, TailoredArtifact, MasterResume } from '../types';
-import { dispatchExportFile, generatePlainTextResume, generatePdfResume, generateDocxResume } from '../services/exporterService';
+import { dispatchExportFile, generatePlainTextResume, generatePdfResume, generateDocxResume, createMasterResumeExportArtifact } from './exporterService';
 
 // Mock the docx and pdf-lib modules
 vi.mock('docx', () => ({
@@ -437,5 +437,27 @@ describe('dispatchExportFile cancellation', () => {
       else Reflect.deleteProperty(navigator, 'share');
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('Master Resume export artifact', () => {
+  it('creates a structured exportable document from the approved profile without requiring a job-tailored artifact', () => {
+    const resume = {
+      rawText: 'Original source text remains unchanged',
+      contactInfo: { name: 'Asha Rao', email: 'asha@example.com', phone: '', location: 'Chennai', linkedin: '', github: '', portfolio: '' },
+      headline: 'Commerce Graduate',
+      summary: 'Commerce graduate with practical project experience.',
+      skills: { technical: ['SQL'], soft: [], tools: ['Excel'], domains: [] },
+      experiences: [{ id: 'exp-1', company: 'Local Co-op', role: 'Intern', startDate: '2025', endDate: '2025', location: '', bullets: ['Prepared weekly reports.'], isCurrent: false }],
+      education: [], projects: [], certifications: [],
+      stats: { wordCount: 20, pageCount: 1, charCount: 100, lastParsedDate: '2026-11-20T00:00:00.000Z', sourceFileName: 'resume.docx' }
+    } as any;
+    const artifact = createMasterResumeExportArtifact(resume);
+    const text = generatePlainTextResume(artifact, resume);
+    expect(text).toContain('ASHA RAO');
+    expect(text).toContain('Commerce Graduate');
+    expect(text).toContain('Prepared weekly reports.');
+    expect(artifact.jobId).toBe('master-resume');
+    expect(artifact.reviewConfirmed).toBe(true);
   });
 });
