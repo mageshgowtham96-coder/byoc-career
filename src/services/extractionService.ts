@@ -620,7 +620,12 @@ export function parseRawResumeToStructured(
 
   // Name extraction: inspect top lines for a standalone personal name
   let detectedName = '';
-  const nameCandidates = lines.slice(0, 6).flatMap((line) => line.split(/[|•]/).map((part) => part.trim()));
+  const nameCandidates = lines.slice(0, 6).flatMap((line) =>
+    line.split(/[|•]/).flatMap((part) => {
+      const commaParts = part.split(',').map((item) => item.trim());
+      return commaParts.length > 1 ? [commaParts[0], part.trim()] : [part.trim()];
+    })
+  );
   for (const line of nameCandidates) {
     // Check if line looks like a person's name (2-4 capitalized words, no punctuation/emails)
     if (
@@ -650,7 +655,11 @@ export function parseRawResumeToStructured(
       if (/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance)\b/i.test(part)) return false;
       return part.split(',').filter((item) => item.trim().length > 1).length >= 2;
     });
-  const detectedLocation = (explicitLocationMatch?.[1] || headerLocationLine || '').split(/[|•]/)[0].trim();
+  const headerLocationParts = (headerLocationLine || '').split(',').map((part) => part.trim());
+  if (detectedName && headerLocationParts[0]?.toLowerCase() === detectedName.toLowerCase()) {
+    headerLocationParts.shift();
+  }
+  const detectedLocation = (explicitLocationMatch?.[1] || headerLocationParts.join(', ')).split(/[|•]/)[0].trim();
 
   // 2. Headline & Professional Summary
   let detectedHeadline = '';
