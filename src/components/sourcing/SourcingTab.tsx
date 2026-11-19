@@ -487,7 +487,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {(['All', 'Remotive Live', 'Remote OK Live', 'Jobicy Live', 'User Import'] as JobSourcePortal[]).map((portal) => {
+          {(['All', 'Remotive Live', 'Remote OK Live', 'Jobicy Live', 'LinkedIn', 'Indeed', 'Naukri', 'Foundit', 'Glassdoor', 'Instahyre', 'User Import'] as JobSourcePortal[]).map((portal) => {
             const isSelectedPortal = portalFilter === portal;
             return (
               <button

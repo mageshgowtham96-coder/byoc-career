@@ -667,6 +667,26 @@ export function buildLocationScopeNotice(country?: string, location?: string, in
  * candidate resumes, contact details, and application history are never included.
  * Returned listings are discovery candidates, not independently verified vacancies.
  */
+/** Identifies the actual job-board host so discovery results can be filtered by portal. */
+export function identifyJobPortalSource(rawUrl: string): string {
+  try {
+    const host = new URL(rawUrl).hostname.toLowerCase().replace(/^www\./, '');
+    const portals: Array<{ domain: string; label: string }> = [
+      { domain: 'linkedin.com', label: 'LinkedIn' },
+      { domain: 'indeed.com', label: 'Indeed' },
+      { domain: 'indeed.co.in', label: 'Indeed' },
+      { domain: 'naukri.com', label: 'Naukri' },
+      { domain: 'foundit.in', label: 'Foundit' },
+      { domain: 'glassdoor.com', label: 'Glassdoor' },
+      { domain: 'instahyre.com', label: 'Instahyre' }
+    ];
+    const match = portals.find(({ domain }) => host === domain || host.endsWith(`.${domain}`));
+    return match?.label ?? 'Employer Careers';
+  } catch {
+    return 'Employer Careers';
+  }
+}
+
 export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
   id = 'groq_browser_search';
   name = 'Groq Browser Search';
@@ -706,7 +726,7 @@ export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
           model: 'openai/gpt-oss-20b',
           messages: [{
             role: 'user',
-            content: `Search the live web for up to 12 current job vacancies matching these constraints. Prefer direct employer career pages and official ATS postings (Greenhouse, Lever, Ashby, Workday, SmartRecruiters). Do not use recruiter reposts where an employer posting is available. Never invent a vacancy, company, date, or URL. Include only listings where you found a direct job-posting URL. Do not claim that a listing is verified or guaranteed active. Return ONLY a JSON object with this exact shape: {"jobs":[{"title":"string","company":"string","location":"string","workplaceType":"Remote|Hybrid|On-site|Unspecified","salary":"string","postedDate":"string","description":"string","url":"https://...","skillsRequired":["string"]}]}. If no reliable listings are found, return {"jobs":[]}. Search constraints:\n${searchContext}`
+            content: `Search the live web for up to 12 current job vacancies matching these constraints. Search established job portals FIRST: LinkedIn Jobs, Indeed, Naukri, Foundit, Glassdoor, and Instahyre. Prefer the portal's individual job-listing page and preserve that exact portal URL. If a portal listing is unavailable or a direct employer posting is clearly better, use the employer's official careers page or official ATS posting (Greenhouse, Lever, Ashby, Workday, SmartRecruiters). Do not search GitHub/GitLab/Bitbucket repositories, source-code repositories, open-source project listings, or code examples. Do not use recruiter reposts when an original portal or employer posting is available. Never invent a vacancy, company, date, or URL. Include only listings where you found a direct job-posting URL, not a portal homepage or search-results page. Do not claim that a listing is verified or guaranteed active. Return ONLY a JSON object with this exact shape: {"jobs":[{"title":"string","company":"string","location":"string","workplaceType":"Remote|Hybrid|On-site|Unspecified","salary":"string","postedDate":"string","description":"string","url":"https://...","skillsRequired":["string"]}]}. If no reliable listings are found, return {"jobs":[]}. Search constraints:\n${searchContext}`
           }],
           temperature: 0.1,
           reasoning_effort: 'low',
@@ -788,7 +808,7 @@ export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
           postedDate: typeof item.postedDate === 'string' ? item.postedDate.slice(0, 80) : 'Unspecified',
           jobDescriptionRaw: stripJobHtml(item.description, 4000),
           url,
-          source: 'Groq Browser Search — verify before applying',
+          source: `${identifyJobPortalSource(url)} · Groq Search (unverified)`,
           skillsRequired: skills,
           fitScore: null,
           matchedKeywords: [],
@@ -918,7 +938,7 @@ export class LiveJobSearchEngine {
 
       if (locLower) {
         const source = (job.source || '').toLowerCase();
-        const isGroqDiscoveryJob = source === 'groq browser search — verify before applying';
+        const isGroqDiscoveryJob = source.includes('groq search');
         if (isGroqDiscoveryJob && !job.location.toLowerCase().includes(locLower)) return false;
 
         const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes(source);
@@ -937,7 +957,8 @@ export class LiveJobSearchEngine {
       }
 
       if (normalizedParams.portal && normalizedParams.portal !== 'All') {
-        const isLiveSource = ['remotive live', 'remote ok live', 'jobicy live', 'groq browser search — verify before applying'].includes((job.source || '').toLowerCase());
+        const source = (job.source || '').toLowerCase();
+        const isLiveSource = ['remotive live', 'remote ok live', 'jobicy live'].includes(source) || source.includes('groq search');
         const matchesPortal =
           normalizedParams.portal === 'User Import'
             ? !isLiveSource

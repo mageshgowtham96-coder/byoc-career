@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GroqBrowserSearchJobAdapter } from './jobSearchService';
+import { GroqBrowserSearchJobAdapter, identifyJobPortalSource } from './jobSearchService';
 
 const fetchMock = vi.fn();
 
@@ -52,7 +52,7 @@ describe('GroqBrowserSearchJobAdapter', () => {
       title: 'Data Analyst',
       company: 'Acme Analytics',
       url: 'https://jobs.lever.co/acme/123',
-      source: 'Groq Browser Search — verify before applying',
+      source: 'Employer Careers · Groq Search (unverified)',
       fitScore: null
     });
 
@@ -66,6 +66,9 @@ describe('GroqBrowserSearchJobAdapter', () => {
     expect(body.reasoning_effort).toBe('low');
     expect(body.citation_options).toBe('enabled');
     expect(body.messages[0].content).toContain('Data Analyst');
+    expect(body.messages[0].content).toContain('LinkedIn Jobs');
+    expect(body.messages[0].content).toContain('Naukri');
+    expect(body.messages[0].content).toContain('Do not search GitHub');
     expect(body.messages[0].content).toContain('Chennai');
     expect(body.messages[0].content).toContain('Relevant skills: SQL, Power BI');
     expect(body.messages[0].content).not.toContain('asha@example.com');
@@ -103,5 +106,20 @@ describe('GroqBrowserSearchJobAdapter', () => {
 
     const adapter = new GroqBrowserSearchJobAdapter('test-groq-key');
     await expect(adapter.search({ query: 'Data Analyst' })).rejects.toThrow(/quota or rate limit/i);
+  });
+});
+
+describe('identifyJobPortalSource', () => {
+  it.each([
+    ['https://www.linkedin.com/jobs/view/123', 'LinkedIn'],
+    ['https://in.indeed.com/viewjob?jk=abc', 'Indeed'],
+    ['https://www.naukri.com/job-listings/example', 'Naukri'],
+    ['https://www.foundit.in/job/example', 'Foundit'],
+    ['https://www.glassdoor.com/job-listing/example', 'Glassdoor'],
+    ['https://www.instahyre.com/jobs/example', 'Instahyre'],
+    ['https://jobs.lever.co/example/123', 'Employer Careers'],
+    ['https://notlinkedin.com/jobs/123', 'Employer Careers']
+  ])('classifies %s as %s', (url, expected) => {
+    expect(identifyJobPortalSource(url)).toBe(expected);
   });
 });

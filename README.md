@@ -29,7 +29,7 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 
 ### Job discovery
 - **Public live feeds:** Remotive, Remote OK, and Jobicy are queried on demand. They are not a complete global index.
-- **Groq Browser Search:** Optional discovery through Groq's hosted browser-search capability, using role/skill search terms and location filters. Results are candidates, not verified vacancies.
+- **Groq Browser Search:** Optional discovery through Groq's hosted browser-search capability. It searches established portals first (LinkedIn Jobs, Indeed, Naukri, Foundit, Glassdoor, and Instahyre), then official employer careers/ATS pages where appropriate. Results are labelled from the returned URL's actual host and remain unverified candidates until the vacancy and employer are independently checked. It does not search code repositories or scrape authenticated portal pages.
 - **Manual portals:** LinkedIn, Glassdoor, Indeed, Naukri, Foundit, Instahyre, and custom shortcuts open external sites. Users select and import listings themselves; BYOC does not scrape those portals.
 - **Adzuna:** Not active in this client-only build because protected server-side credentials would be required.
 - **Matching:** Candidate/job overlap is calculated locally. Insufficient profile data is shown as such rather than replaced with a fabricated score.
