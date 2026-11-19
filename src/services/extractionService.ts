@@ -596,7 +596,20 @@ export function parseRawResumeToStructured(
   const phoneMatch = rawText.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
   const linkedinMatch = rawText.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9_-]+/i);
   const githubMatch = rawText.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[a-zA-Z0-9_-]+/i);
-  const portfolioMatch = rawText.match(/(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9-]+\.(?:dev|me|io|com)/i);
+  const emailDomain = emailMatch?.[0].split('@')[1]?.toLowerCase() || '';
+  const portfolioPattern = /(?:https?:\/\/|www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:dev|me|io|com|in|net)(?:\/[^^\s|]*)?/i;
+  const explicitPortfolioMatch = rawText.match(/(?:portfolio|personal website|website|web site)\s*[:：-]\s*([^\n|]+)/i);
+  const headerPortfolioMatch = lines.slice(0, 8).map((line) => line.match(portfolioPattern)).find(Boolean);
+  const portfolioCandidate = (explicitPortfolioMatch?.[1] || headerPortfolioMatch?.[0] || '').trim().replace(/[),.;]+$/, '');
+  const portfolioHost = portfolioCandidate.replace(/^(?:https?:\/\/|www\.)/i, '').split('/')[0].toLowerCase();
+  const isEmailProvider = /^(?:gmail|googlemail|yahoo|outlook|hotmail|live|rediffmail|protonmail|icloud)\.(?:com|in|net)$/i.test(portfolioHost);
+  const portfolioValue = portfolioCandidate &&
+    portfolioHost !== emailDomain &&
+    !portfolioHost.endsWith('.' + emailDomain) &&
+    !isEmailProvider &&
+    !/(?:^|\.)linkedin\.com$|(?:^|\.)github\.com$/i.test(portfolioHost)
+      ? portfolioCandidate
+      : '';
 
   // Name extraction: inspect top lines for a standalone personal name
   let detectedName = '';
@@ -901,7 +914,7 @@ export function parseRawResumeToStructured(
       location: detectedLocation,
       linkedin: linkedinMatch ? linkedinMatch[0] : '',
       github: githubMatch ? githubMatch[0] : '',
-      portfolio: portfolioMatch ? portfolioMatch[0] : ''
+      portfolio: portfolioValue
     },
     headline: detectedHeadline,
     summary,
