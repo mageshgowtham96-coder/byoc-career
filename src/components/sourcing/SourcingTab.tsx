@@ -908,13 +908,13 @@ export const SourcingTab: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Honest Fit Score Badge */}
+                  {/* Evidence-limited keyword overlap indicator */}
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1">
                     {resumeIngested && job.fitScore !== null ? (
                       <>
                         <div className="flex items-baseline gap-1">
                           <span className="text-2xl font-black text-white font-mono">{job.fitScore}%</span>
-                          <span className="text-[10px] uppercase font-bold text-emerald-400">Match</span>
+                          <span className="text-[10px] uppercase font-bold text-emerald-400">Keyword overlap</span>
                         </div>
                         <div className="w-24 h-1.5 rounded-full bg-slate-700 overflow-hidden">
                           <div
@@ -923,7 +923,7 @@ export const SourcingTab: React.FC = () => {
                           />
                         </div>
                         <span className="text-[9px] text-slate-400 font-mono">
-                          {job.matchedKeywords.length}/{job.skillsRequired.length} Verified
+                          {job.matchedKeywords.length}/{job.skillsRequired.length} keywords
                         </span>
                       </>
                     ) : (
