@@ -10,7 +10,8 @@ import {
   Settings,
   FileText,
   GraduationCap,
-  ShieldCheck
+  ShieldCheck,
+  BookOpen
 } from 'lucide-react';
 
 interface NavItem {
@@ -35,7 +36,8 @@ export const NavigationShell: React.FC = () => {
     { id: 'customization', label: 'Tailor Kit', mobileLabel: 'Tailor', icon: Wand2 },
     { id: 'tracking', label: 'Applications', mobileLabel: 'Track', icon: KanbanSquare, badge: appCount > 0 ? appCount : undefined },
     { id: 'prepzone', label: 'Prep-Zone', mobileLabel: 'Prep', icon: GraduationCap },
-    { id: 'settings', label: 'Settings & Docs', mobileLabel: 'Setup', icon: Settings }
+    { id: 'documents', label: 'PDF Workspace', mobileLabel: 'PDFs', icon: BookOpen },
+    { id: 'settings', label: 'Settings', mobileLabel: 'Setup', icon: Settings }
   ];
 
   return (
@@ -96,7 +98,7 @@ export const NavigationShell: React.FC = () => {
         style={{ paddingBottom: 'max(0.35rem, env(safe-area-inset-bottom, 0px))' }}
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0A0F1C]/95 backdrop-blur-xl border-t border-slate-800 px-1 pt-1"
       >
-        <div className="w-full max-w-lg mx-auto flex items-center justify-between">
+        <div className="w-full max-w-lg mx-auto flex items-center justify-start overflow-x-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -107,7 +109,7 @@ export const NavigationShell: React.FC = () => {
                 type="button"
                 aria-label={item.label}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex-1 min-w-0 min-h-[44px] flex flex-col items-center justify-center py-1 px-0.5 rounded-lg transition relative cursor-pointer ${
+                className={`min-w-[52px] flex-1 min-h-[44px] flex flex-col items-center justify-center py-1 px-0.5 rounded-lg transition relative cursor-pointer ${
                   isActive ? 'text-sky-400 font-semibold' : 'text-slate-400 hover:text-slate-200 font-medium'
                 }`}
               >
