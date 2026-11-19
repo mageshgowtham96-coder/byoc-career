@@ -457,6 +457,24 @@ export const IntakeTab: React.FC = () => {
               <span>Half-Built Resume Builder</span>
             </button>
             <button
+              type="button"
+              onClick={() => void handleExportMasterResume('docx')}
+              disabled={isExportingMaster}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20 text-xs font-semibold disabled:opacity-50"
+            >
+              <FileCode className="w-3.5 h-3.5" />
+              <span>{isExportingMaster ? 'Exporting…' : 'Export DOCX'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleExportMasterResume('pdf')}
+              disabled={isExportingMaster}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20 text-xs font-semibold disabled:opacity-50"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Export PDF</span>
+            </button>
+            <button
               onClick={() => setShowClearConfirmModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 text-xs font-semibold transition cursor-pointer"
               title="Purge master resume and drafting collections"
@@ -611,6 +629,53 @@ export const IntakeTab: React.FC = () => {
             </details>
           </div>
 
+          {/* Optional Master Resume optimization: compare before accepting. */}
+          <div className="mb-5 rounded-2xl border border-violet-500/25 bg-violet-500/5 p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div>
+                <h4 className="text-xs font-bold text-violet-200">Optional Master Resume Optimization</h4>
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                  Ask Groq to improve wording and clarity using your structured profile only. Contact details and original uploaded text are not sent. This is optional, never replaces your source automatically, and must be reviewed before you approve the Master Resume.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleOptimizeMasterResume()}
+                disabled={!groqApiKey || isOptimizingMaster || isAiStructuring || isProcessing}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-violet-400/30 bg-violet-500/15 px-3 py-2 text-xs font-semibold text-violet-100 hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {isOptimizingMaster ? 'Optimizing…' : 'Suggest improvements'}
+              </button>
+            </div>
+            {!groqApiKey && <p className="text-[11px] text-amber-300">This additional feature uses your existing Groq key. The local Master Resume workflow remains available without it.</p>}
+            {optimizationError && <p role="alert" className="text-[11px] text-rose-300">{optimizationError}</p>}
+            {optimizedMasterPreview && (
+              <div className="space-y-3 rounded-xl border border-violet-400/25 bg-slate-950/60 p-3">
+                <p className="text-[11px] font-bold text-violet-200">Compare the proposed wording with your current draft</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div><p className="text-[10px] font-bold uppercase text-slate-500">Current summary</p><p className="mt-1 whitespace-pre-wrap text-xs text-slate-300">{stagedParsedResume.summary || 'Not provided'}</p></div>
+                  <div><p className="text-[10px] font-bold uppercase text-violet-300">Suggested summary</p><p className="mt-1 whitespace-pre-wrap text-xs text-white">{optimizedMasterPreview.summary || 'Not provided'}</p></div>
+                </div>
+                {optimizedMasterPreview.experiences.map((experience) => {
+                  const original = stagedParsedResume.experiences.find((item) => item.id === experience.id);
+                  if (!original) return null;
+                  return experience.bullets.map((bullet, index) => (
+                    <div key={experience.id + '-' + index} className="grid gap-2 border-t border-slate-800 pt-2 sm:grid-cols-2">
+                      <p className="text-[11px] text-slate-400">{original.bullets[index] || '—'}</p>
+                      <p className="text-[11px] text-white">{bullet}</p>
+                    </div>
+                  ));
+                })}
+                <p className="text-[10px] leading-relaxed text-amber-200">AI wording is a suggestion, not proof. Check every factual statement. Accepting applies it only to this staged draft; your active Master Resume changes only after the separate confirmation below.</p>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button type="button" onClick={() => setOptimizedMasterPreview(null)} className="rounded-lg border border-slate-600 px-3 py-2 text-[11px] font-semibold text-slate-300 hover:bg-slate-800">Discard suggestion</button>
+                  <button type="button" onClick={handleAcceptOptimizedMaster} className="rounded-lg bg-violet-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-violet-500">Use suggested wording</button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Editable Fields in Review Gate */}
           <div className="space-y-4 mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -621,7 +686,7 @@ export const IntakeTab: React.FC = () => {
                 <input
                   type="text"
                   value={editableName}
-                  onChange={(e) => setEditableName(e.target.value)}
+                  onChange={(e) => { setEditableName(e.target.value); setOptimizedMasterPreview(null); }}
                   placeholder="Candidate Full Name"
                   className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:border-indigo-500"
                 />
@@ -633,7 +698,7 @@ export const IntakeTab: React.FC = () => {
                 <input
                   type="email"
                   value={editableEmail}
-                  onChange={(e) => setEditableEmail(e.target.value)}
+                  onChange={(e) => { setEditableEmail(e.target.value); setOptimizedMasterPreview(null); }}
                   placeholder="candidate@domain.com"
                   className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
                 />
@@ -647,7 +712,7 @@ export const IntakeTab: React.FC = () => {
               <input
                 type="text"
                 value={editableHeadline}
-                onChange={(e) => setEditableHeadline(e.target.value)}
+                onChange={(e) => { setEditableHeadline(e.target.value); setOptimizedMasterPreview(null); }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -659,7 +724,7 @@ export const IntakeTab: React.FC = () => {
               <textarea
                 rows={3}
                 value={editableStagedSummary}
-                onChange={(e) => setEditableStagedSummary(e.target.value)}
+                onChange={(e) => { setEditableStagedSummary(e.target.value); setOptimizedMasterPreview(null); }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs leading-relaxed focus:outline-none focus:border-indigo-500"
               />
             </div>
