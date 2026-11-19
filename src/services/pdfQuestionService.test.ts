@@ -3,7 +3,12 @@ import { askPdfQuestion } from './pdfQuestionService';
 
 const { mockCallGroqChat } = vi.hoisted(() => ({ mockCallGroqChat: vi.fn() }));
 
-vi.mock('./groqService', () => ({ callGroqChat: mockCallGroqChat }));
+vi.mock('./groqService', () => ({
+  callGroqChat: mockCallGroqChat,
+  GroqApiError: class GroqApiError extends Error {
+    constructor(message: string) { super(message); this.name = 'GroqApiError'; }
+  }
+}));
 
 describe('PDF question privacy and bounds', () => {
   beforeEach(() => vi.clearAllMocks());
