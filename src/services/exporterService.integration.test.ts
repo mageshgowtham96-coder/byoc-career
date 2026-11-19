@@ -27,9 +27,18 @@ describe('Master Resume document export integration', () => {
     const docx = await generateDocxResume(artifact, resume);
     expect(docx.size).toBeGreaterThan(0);
 
-    const file = new File([docx], 'asha-master-resume.docx', {
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    const docxBytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error || new Error('Could not read generated DOCX blob.'));
+      reader.readAsArrayBuffer(docx);
     });
+    // JSDOM's File does not expose arrayBuffer(); model the browser File contract used by the extractor.
+    const file = {
+      name: 'asha-master-resume.docx',
+      size: docxBytes.byteLength,
+      arrayBuffer: async () => docxBytes
+    } as unknown as File;
     const imported = await extractResumeFile(file);
     expect(imported.success, imported.error || 'DOCX re-import failed without an error message').toBe(true);
     expect(imported.rawText).toContain('ஆஷா ராவ்');
