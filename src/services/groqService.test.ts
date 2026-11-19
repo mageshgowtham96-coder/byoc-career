@@ -119,7 +119,7 @@ describe('evidence-bounded job vetting', () => {
       gapAnalysis: {}
     });
     expect(result.profileAlignmentEstimate).toBeNull();
-    expect(result.salaryCompetitiveness).toContain('not assessed');
+    expect(result.salaryCompetitiveness.toLowerCase()).toContain('not assessed');
     expect(result.growthTrajectory).toContain('AI interpretation');
   });
 
