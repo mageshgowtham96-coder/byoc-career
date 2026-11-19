@@ -31,7 +31,7 @@ describe('Master Resume document export integration', () => {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     });
     const imported = await extractResumeFile(file);
-    expect(imported.success).toBe(true);
+    expect(imported.success, imported.error || 'DOCX re-import failed without an error message').toBe(true);
     expect(imported.rawText).toContain('ஆஷா ராவ்');
     expect(imported.rawText).toContain('Commerce graduate with project experience');
     expect(imported.rawText).toContain('Prepared weekly operational reports');
