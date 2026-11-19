@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ExportedMaterialRecord, TailoredArtifact, MasterResume } from '../types';
-import { generatePlainTextResume, generatePdfResume, generateDocxResume } from '../services/exporterService';
+import { dispatchExportFile, generatePlainTextResume, generatePdfResume, generateDocxResume } from '../services/exporterService';
 
 // Mock the docx and pdf-lib modules
 vi.mock('docx', () => ({
@@ -387,5 +387,19 @@ describe('Export Service', () => {
       expect(bullet.tailoredBullet).toBeDefined();
       expect(bullet.matchRationale).toBeDefined();
     });
+  });
+});
+
+describe('dispatchExportFile cancellation', () => {
+  it('does not report success when the user cancels the native share sheet', async () => {
+    const share = vi.fn().mockRejectedValue(new DOMException('Share cancelled', 'AbortError'));
+    vi.stubGlobal('navigator', {
+      canShare: vi.fn().mockReturnValue(true),
+      share
+    });
+    const result = await dispatchExportFile(new Blob(['resume']), 'resume.txt', 'text/plain');
+    expect(result).toBe(false);
+    expect(share).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
   });
 });
