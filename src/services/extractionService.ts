@@ -752,7 +752,7 @@ export function parseRawResumeToStructured(
     }
   }
 
-  // 4. Experiences Extraction (strictly parsed, zero fabrication)
+  // 4. Experiences Extraction (support common one-line and multi-line layouts)
   const experiences: ExperienceItem[] = [];
   const expIndex = lines.findIndex((line) => /^(?:experience|work experience|employment history|work history|professional experience)(?:\s*(?::|[-–—])\s*.*)?$/i.test(line));
 
@@ -760,51 +760,10 @@ export function parseRawResumeToStructured(
     const expSlice = lines.slice(expIndex + 1);
     let currentExp: Partial<ExperienceItem> | null = null;
     let bullets: string[] = [];
+    let pendingDates: { startDate: string; endDate: string; isCurrent: boolean } | null = null;
 
-    for (let i = 0; i < expSlice.length; i++) {
-      const line = expSlice[i];
-      if (isResumeSectionHeading(line)) {
-        break;
-      }
-
-      const dateMatch = line.match(/(20\d\d|19\d\d|present|current)/i);
-      const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('*') || /^\d+\./.test(line);
-
-      if (dateMatch && !isBullet && line.length < 90) {
-        if (currentExp && bullets.length > 0) {
-          experiences.push({
-            id: 'exp-' + experiences.length,
-            company: currentExp.company || '',
-            role: currentExp.role || '',
-            startDate: currentExp.startDate || '',
-            endDate: currentExp.endDate || '',
-            location: currentExp.location || '',
-            bullets: [...bullets],
-            isCurrent: currentExp.isCurrent || false
-          });
-          bullets = [];
-        }
-
-        const parts = line.split(/[-–|,]/).map((p) => p.trim());
-        const role = parts[0] || '';
-        const company = parts[1] || '';
-        const isCurrent = /present|current/i.test(line);
-
-        currentExp = {
-          role,
-          company,
-          startDate: dateMatch[0],
-          endDate: isCurrent ? 'Present' : '',
-          isCurrent
-        };
-      } else if (isBullet) {
-        bullets.push(line.replace(/^[•\-*]\s*/, '').trim());
-      } else if (line.length > 25 && currentExp) {
-        bullets.push(line);
-      }
-    }
-
-    if (currentExp && (bullets.length > 0 || currentExp.role || currentExp.company)) {
+    const flushExperience = () => {
+      if (!currentExp || !(currentExp.role || currentExp.company || bullets.length)) return;
       experiences.push({
         id: 'exp-' + experiences.length,
         company: currentExp.company || '',
@@ -813,9 +772,108 @@ export function parseRawResumeToStructured(
         endDate: currentExp.endDate || '',
         location: currentExp.location || '',
         bullets: [...bullets],
-        isCurrent: currentExp.isCurrent || false
+        isCurrent: Boolean(currentExp.isCurrent || /^(present|current)$/i.test(currentExp.endDate || ''))
       });
+      currentExp = null;
+      bullets = [];
+    };
+
+    const parseExperienceHeader = (value: string): Pick<ExperienceItem, 'role' | 'company' | 'location'> => {
+      const cleaned = value.replace(/[()[\]]/g, '').replace(/[|,–—-]+$/g, '').trim();
+      const atMatch = cleaned.match(/^(.+?)\s+at\s+(.+)$/i);
+      if (atMatch) return { role: atMatch[1].trim(), company: atMatch[2].trim(), location: '' };
+
+      const parts = cleaned.split(/\s*\|\s*|\s+[-–—]\s+|\s*,\s*/).map((part) => part.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        const companyFirst = /\b(inc\.?|llc|ltd\.?|limited|corp\.?|corporation|technologies|solutions|services|bank|university|hospital|group|pvt\.?)\b/i.test(parts[0]);
+        const roleSecond = /\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|officer|support|sales|marketing|finance)\b/i.test(parts[1]);
+        return companyFirst && roleSecond
+          ? { role: parts[1], company: parts[0], location: parts[2] || '' }
+          : { role: parts[0], company: parts[1], location: parts[2] || '' };
+      }
+      return { role: cleaned, company: '', location: '' };
+    };
+
+    const dateRangePattern = /((?:(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*)?(?:19|20)\d{2})\s*(?:[-–—]|to)\s*((?:(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*)?(?:19|20)\d{2}|present|current)/i;
+    const dateOnlyPattern = /^(?:(?:(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*)?(?:19|20)\d{2}|present|current)$/i;
+
+    for (const rawLine of expSlice) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      if (isResumeSectionHeading(line)) break;
+
+      const isBullet = /^[•*\-–]\s*/.test(line) || /^\d+[.)]\s*/.test(line);
+      if (isBullet) {
+        if (currentExp) bullets.push(line.replace(/^[•*\-–]\s*/, '').replace(/^\d+[.)]\s*/, '').trim());
+        continue;
+      }
+
+      const dateRange = dateRangePattern.exec(line);
+      if (dateRange) {
+        const headerText = line.slice(0, dateRange.index).replace(/[|,–—-]+$/g, '').trim();
+        if (headerText) {
+          if (currentExp && bullets.length > 0) flushExperience();
+          if (!currentExp) currentExp = parseExperienceHeader(headerText);
+          else if (currentExp.role && !currentExp.company) currentExp.company = parseExperienceHeader(headerText).role;
+          else {
+            flushExperience();
+            currentExp = parseExperienceHeader(headerText);
+          }
+        }
+        if (!currentExp) currentExp = {};
+        currentExp.startDate = dateRange[1].trim();
+        currentExp.endDate = dateRange[2].trim();
+        currentExp.isCurrent = /^(present|current)$/i.test(dateRange[2].trim());
+        continue;
+      }
+
+      if (dateOnlyPattern.test(line)) {
+        if (!currentExp) {
+          pendingDates = { startDate: line, endDate: '', isCurrent: /^(present|current)$/i.test(line) };
+        } else if (!currentExp.startDate) {
+          currentExp.startDate = line;
+        } else if (!currentExp.endDate) {
+          currentExp.endDate = line;
+          currentExp.isCurrent = /^(present|current)$/i.test(line);
+        } else if (bullets.length > 0) {
+          flushExperience();
+          pendingDates = { startDate: line, endDate: '', isCurrent: /^(present|current)$/i.test(line) };
+        }
+        continue;
+      }
+
+      if (!currentExp) {
+        currentExp = { ...parseExperienceHeader(line), ...(pendingDates || {}) };
+        pendingDates = null;
+        continue;
+      }
+
+      if (!currentExp.company && currentExp.role && bullets.length === 0) {
+        currentExp.company = line;
+        if (pendingDates) {
+          currentExp.startDate = pendingDates.startDate;
+          currentExp.endDate = pendingDates.endDate;
+          currentExp.isCurrent = pendingDates.isCurrent;
+          pendingDates = null;
+        }
+        continue;
+      }
+
+      if (currentExp.company && !currentExp.location && bullets.length === 0 && line.includes(',') && line.length < 90) {
+        currentExp.location = line;
+        continue;
+      }
+
+      if (bullets.length > 0) {
+        flushExperience();
+        currentExp = { ...parseExperienceHeader(line), ...(pendingDates || {}) };
+        pendingDates = null;
+      } else if (!currentExp.role) {
+        currentExp.role = line;
+      }
     }
+
+    flushExperience();
   }
 
   // 5. Education Extraction (strictly parsed, zero fabrication)
