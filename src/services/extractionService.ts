@@ -618,12 +618,12 @@ export function parseRawResumeToStructured(
     }
   }
 
-  const explicitLocationMatch = rawText.match(/(?:^|\\n)\\s*(?:location|based in|city|address)\\s*[:：-]\\s*([^\\n]+)/i);
+  const explicitLocationMatch = rawText.match(/(?:^|\n)\s*(?:location|based in|city|address)\s*[:：-]\s*([^\n]+)/i);
   const headerLocationLine = lines.slice(0, 10).find((line) => {
     if (line.length < 5 || line.length > 90 || !line.includes(',')) return false;
-    if (line.includes('@') || /https?:\\/\\//i.test(line) || /\\d/.test(line)) return false;
+    if (line.includes('@') || /https?:\/\//i.test(line) || /\d/.test(line)) return false;
     if (isResumeSectionHeading(line)) return false;
-    if (/\\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance)\\b/i.test(line)) return false;
+    if (/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance)\b/i.test(line)) return false;
     return line.split(',').filter((part) => part.trim().length > 1).length >= 2;
   });
   const detectedLocation = (explicitLocationMatch?.[1] || headerLocationLine || '')
