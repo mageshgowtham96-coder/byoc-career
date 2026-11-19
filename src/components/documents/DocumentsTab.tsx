@@ -59,7 +59,9 @@ export const DocumentsTab: React.FC = () => {
       if (files.length > 1) {
         const bytes = await mergePdfs(files);
         const mergedFile = new File([createPdfBlob(bytes)], 'BYOC_Merged_Document.pdf', { type: 'application/pdf' });
-        await setCurrentPdf(mergedFile);
+        const extraction = await extractResumeFile(mergedFile);
+        await setCurrentPdf(mergedFile, extraction.success ? extraction.rawText : '');
+        if (!extraction.success) setExtractionMessage(extraction.error || 'The merged PDF has no locally readable text. OCR is not available yet.');
         addToast({ type: 'success', message: `Merged ${files.length} PDFs locally.` });
       } else {
         const nextFile = files[0];
@@ -76,7 +78,9 @@ export const DocumentsTab: React.FC = () => {
 
   const applyPdfBytes = async (bytes: Uint8Array, name: string) => {
     const nextFile = new File([createPdfBlob(bytes)], name, { type: 'application/pdf' });
-    await setCurrentPdf(nextFile);
+    const extraction = await extractResumeFile(nextFile);
+    await setCurrentPdf(nextFile, extraction.success ? extraction.rawText : '');
+    if (!extraction.success) setExtractionMessage(extraction.error || 'No readable text was found in the resulting PDF.');
     addToast({ type: 'success', message: 'PDF operation completed locally. Review and download the result.' });
   };
 
@@ -185,6 +189,7 @@ export const DocumentsTab: React.FC = () => {
                 {previewUrl && <a href={previewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sky-300">Open separately <ExternalLink className="h-3 w-3" /></a>}
               </div>
               <iframe title="PDF document preview" src={previewUrl} className="h-[min(68vh,760px)] min-h-[360px] w-full bg-white" />
+              <p className="border-t border-slate-800 px-3 py-2 text-[11px] text-slate-500">PDF preview support depends on the browser. If this panel is blank in Android, use Open separately or Download.</p>
             </div>
             <p className="rounded-lg bg-slate-900/60 p-3 text-xs text-slate-400">{extractionMessage}</p>
           </div>
@@ -207,7 +212,7 @@ export const DocumentsTab: React.FC = () => {
 
             <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-white"><MessageCircle className="h-4 w-4 text-violet-300" />Ask this PDF</h2>
-              <p className="mt-2 text-xs leading-relaxed text-slate-400">Optional AI assistance using your existing Groq key. When you submit, the extracted document text and your question are sent to Groq. Do not include documents you do not want to share with that provider.</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-400">Optional AI assistance using your existing Groq key. When you submit, the extracted document text and your question are sent to Groq. Do not include documents you do not want to share with that provider. AI answers can be incomplete or wrong; verify important details against the PDF.</p>
               <div className="mt-3 space-y-2">
                 {chat.map((entry, index) => <div key={index} className="space-y-1 rounded-lg bg-slate-950/70 p-3 text-xs"><p className="font-semibold text-sky-200">You: {entry.question}</p><p className="whitespace-pre-wrap text-slate-200">{entry.answer}</p></div>)}
               </div>
