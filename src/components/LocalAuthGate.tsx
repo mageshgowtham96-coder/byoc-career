@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { AUTH_COPY, AUTH_LANGUAGES, type AuthLocale } from '../i18n/authLocale';
 import {
   useWizardStore,
   DEFAULT_CANDIDATE_PREFERENCES,
@@ -60,6 +61,9 @@ import {
 } from '../services/emailSyncService';
 
 export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [locale, setLocale] = useState<AuthLocale>(() => { try { const saved = window.localStorage.getItem('byoc_ui_language'); return saved && saved in AUTH_COPY ? saved as AuthLocale : 'en'; } catch { return 'en'; } });
+  const t = (key: keyof typeof AUTH_COPY.en) => AUTH_COPY[locale][key] || AUTH_COPY.en[key];
+  useEffect(() => { try { window.localStorage.setItem('byoc_ui_language', locale); } catch { /* optional preference */ } }, [locale]);
   const {
     user,
     isAuthenticated,
@@ -669,11 +673,15 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <div
       key={envelopeVersion}
-      className="min-h-screen bg-[#070B14] flex flex-col justify-center items-center p-4 relative overflow-hidden select-none"
+      lang={locale}
+      dir={locale === "ur" ? "rtl" : "ltr"}
+      className="byoc-auth-screen min-h-screen flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden select-none"
     >
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] bg-gradient-to-br from-indigo-500/12 to-sky-500/8 rounded-full blur-3xl pointer-events-none" />
+      <div className="auth-ambient auth-ambient-one" /><div className="auth-ambient auth-ambient-two" /><div className="auth-scanline" />
+      <div className="auth-language"><span>{t("language")}</span><select aria-label="Choose language" value={locale} onChange={(e) => setLocale(e.target.value as AuthLocale)}>{AUTH_LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language.native}</option>)}</select></div>
+      <div className="auth-layout"><section className="auth-hero" aria-label="BYOC introduction"><div className="auth-eyebrow"><span className="auth-live-dot" />PRIVATE CAREER COMMAND CENTER</div><div className="auth-hero-logo"><ChakraLogo size={104} spin={false} glow={true} /></div><p className="auth-kicker">BYOC <span>// CAREER OS</span></p><h1>{t("title")}</h1><p className="auth-hero-subtitle">{t("subtitle")}</p><div className="auth-phase-rail"><span>01 INGEST</span><i /><span>02 SOURCE</span><i /><span>03 TAILOR</span><i /><span>04 APPLY</span><i /><span>05 GROW</span></div><div className="auth-privacy"><ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" /><span>{t("privacy")}</span></div></section>
 
-      <div className="w-full max-w-md bg-[#0F172A]/95 border border-slate-800 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 text-center">
+      <div className="auth-panel w-full max-w-md bg-[#0F172A]/90 border border-sky-400/20 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 text-center">
         <div className="flex justify-center mb-4">
           <ChakraLogo size={64} spin={false} glow={true} />
         </div>
@@ -836,7 +844,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
               <form onSubmit={handleInitializeOrMigrateVault} className="space-y-4 text-left">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    User Name {step === 'details' ? '*' : '(Optional)'}
+                    {t('name')} {step === 'details' ? '*' : '(Optional)'}
                   </label>
                   <input
                     type="text"
@@ -850,7 +858,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Contact Email {step === 'details' ? '*' : '(Optional)'}
+                    {t('email')} {step === 'details' ? '*' : '(Optional)'}
                   </label>
                   <input
                     type="email"
@@ -864,7 +872,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Vault Passphrase * (Min 8 Characters)
+                    {t('passphrase')} * (Min 8 Characters)
                   </label>
                   <div className="relative">
                     <input
@@ -951,7 +959,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                     </>
                   ) : (
                     <>
-                      <span>{step === 'migrate' ? 'Encrypt & Migrate Workspace' : 'Initialize Encrypted Vault'}</span>
+                      <span>{step === 'migrate' ? 'Encrypt & Migrate Workspace' : t('create')}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -1069,7 +1077,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       ) : (
                         <>
                           <KeyRound className="w-4 h-4" />
-                          <span>Unlock Local Vault</span>
+                          <span>{t('unlock')}</span>
                         </>
                       )}
                     </button>
@@ -1151,6 +1159,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
