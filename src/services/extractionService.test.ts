@@ -147,7 +147,8 @@ describe('DOCX document structure extraction', () => {
     expect(result.rawText).toContain('Table role: Risk Analyst');
     expect(result.rawText).toContain('Table employer: Sample Bank');
     expect(result.rawText).toContain('மொழி: தமிழ்');
-    expect(result.rawText).toContain('https://www.linkedin.com/in/asha-rao');
+    expect(result.rawText).toContain('LinkedIn Profile: https://www.linkedin.com/in/asha-rao');
+    expect(result.rawText.match(/LinkedIn Profile/g)).toHaveLength(1);
   });
   it('accepts a short but readable resume instead of imposing an arbitrary ten-word minimum', async () => {
     const text = `Asha Rao\nasha@example.com\nSQL`;
