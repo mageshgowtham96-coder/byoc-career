@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getGroqRetryDelayMs, isRetryableGroqStatus } from './groqService';
+import { getGroqRetryDelayMs, isRetryableGroqStatus, selectGroqChatModel } from './groqService';
 
 describe('Groq retry policy', () => {
   it.each([408, 425, 429, 500, 502, 503, 504])('classifies %s as potentially transient', (status) => {
@@ -24,5 +24,25 @@ describe('Groq retry policy', () => {
     expect(getGroqRetryDelayMs(503, null, 1, 0)).toBe(400);
     expect(getGroqRetryDelayMs(503, null, 1, 1)).toBe(600);
     expect(getGroqRetryDelayMs(503, null, 2, 0)).toBe(800);
+  });
+});
+
+describe('Groq model selection', () => {
+  it('prefers the current production GPT-OSS model over older catalog entries', () => {
+    expect(selectGroqChatModel([
+      'whisper-large-v3',
+      'llama-3.3-70b-versatile',
+      'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b'
+    ])).toBe('openai/gpt-oss-120b');
+  });
+
+  it('uses GPT-OSS 20B when 120B is not enabled for the key', () => {
+    expect(selectGroqChatModel(['whisper-large-v3', 'openai/gpt-oss-20b']))
+      .toBe('openai/gpt-oss-20b');
+  });
+
+  it('never chooses a speech model or a retired Llama model as fallback', () => {
+    expect(selectGroqChatModel(['whisper-large-v3', 'llama-3.3-70b-versatile'])).toBeNull();
   });
 });
