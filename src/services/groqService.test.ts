@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { getGroqRetryDelayMs, isRetryableGroqStatus, selectGroqChatModel } from './groqService';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { callGroqChat, getGroqRetryDelayMs, GroqApiError, isRetryableGroqStatus, selectGroqChatModel } from './groqService';
+
+const fetchMock = vi.fn();
+beforeEach(() => { vi.stubGlobal('fetch', fetchMock); fetchMock.mockReset(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('Groq retry policy', () => {
   it.each([408, 425, 429, 500, 502, 503, 504])('classifies %s as potentially transient', (status) => {
@@ -44,5 +48,50 @@ describe('Groq model selection', () => {
 
   it('never chooses a speech model or a retired Llama model as fallback', () => {
     expect(selectGroqChatModel(['whisper-large-v3', 'llama-3.3-70b-versatile'])).toBeNull();
+  });
+});
+
+describe('Groq chat request resilience', () => {
+  it('retries one transient 503 and returns the successful response', async () => {
+    vi.useFakeTimers();
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false, status: 503, headers: { get: () => null },
+        text: async () => '{"error":{"message":"temporarily unavailable"}}'
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: { get: () => null },
+        json: async () => ({ choices: [{ message: { content: '{"ok":true}' }, finish_reason: 'stop' }] })
+      });
+
+    const request = callGroqChat('system', 'user', 'test-key', 'openai/gpt-oss-120b');
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(request).resolves.toBe('{"ok":true}');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry a 429 when the provider supplies no short Retry-After', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false, status: 429, headers: { get: () => null },
+      text: async () => '{"error":{"message":"quota exceeded"}}'
+    });
+    await expect(callGroqChat('system', 'user', 'test-key', 'openai/gpt-oss-120b'))
+      .rejects.toMatchObject({ code: 'RATE_LIMITED', status: 429 });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('rejects truncated output rather than returning an incomplete draft', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: { get: () => null },
+        json: async () => ({ choices: [{ message: { content: '{"partial":' }, finish_reason: 'length' }] })
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200, headers: { get: () => null },
+        json: async () => ({ choices: [{ message: { content: '{"partial":' }, finish_reason: 'length' }] })
+      });
+    await expect(callGroqChat('system', 'user', 'test-key', 'openai/gpt-oss-120b'))
+      .rejects.toMatchObject({ code: 'OUTPUT_TRUNCATED' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
