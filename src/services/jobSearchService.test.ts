@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GroqBrowserSearchJobAdapter, identifyJobPortalSource, isLiveDiscoveredJobSource } from './jobSearchService';
+import { GroqBrowserSearchJobAdapter, identifyJobPortalSource, isLiveDiscoveredJobSource, JobicyJobAdapter } from './jobSearchService';
 
 const fetchMock = vi.fn();
 
@@ -135,5 +135,73 @@ describe('isLiveDiscoveredJobSource', () => {
     ['Company Careers', false]
   ])('classifies %s as discovered=%s', (source, expected) => {
     expect(isLiveDiscoveredJobSource(source)).toBe(expected);
+  });
+});
+
+
+describe('JobicyJobAdapter', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('follows the public cursor feed and preserves real posting links', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({
+          jobs: [{
+            id: 101, jobTitle: 'Frontend Engineer', companyName: 'Acme',
+            jobGeo: 'Worldwide', jobDescription: '<p>React and TypeScript</p>',
+            url: 'https://jobicy.com/jobs/101', pubDate: '2026-11-18'
+          }],
+          hasMore: true, nextCursor: 'cursor-page-2'
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({
+          jobs: [{
+            id: 102, jobTitle: 'UI Engineer', companyName: 'Example',
+            jobGeo: 'Worldwide', jobDescription: 'Build accessible interfaces',
+            url: 'https://jobicy.com/jobs/102', pubDate: '2026-11-17'
+          }],
+          hasMore: false, nextCursor: null
+        })
+      });
+
+    const adapter = new JobicyJobAdapter();
+    const jobs = await adapter.search({ query: 'Frontend Engineer', country: 'GLOBAL' });
+
+    expect(jobs).toHaveLength(2);
+    expect(jobs.map((job) => job.url)).toEqual([
+      'https://jobicy.com/jobs/101',
+      'https://jobicy.com/jobs/102'
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('count=100');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('tag=Frontend+Engineer');
+    expect(String(fetchMock.mock.calls[1][0])).toContain('cursor=cursor-page-2');
+  });
+
+  it('stops when a feed repeats a cursor and caps requests at three pages', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true, status: 200,
+      json: async () => ({ jobs: [], hasMore: true, nextCursor: 'same-cursor' })
+    });
+
+    const adapter = new JobicyJobAdapter();
+    await adapter.search({ query: 'Product Manager' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not call Jobicy without a role or skill query', async () => {
+    const adapter = new JobicyJobAdapter();
+    await expect(adapter.search({})).resolves.toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
