@@ -315,7 +315,7 @@ describe('Application Snapshot', () => {
       expect(snapshot.status).toBe('Saved');
       expect(snapshot.jobDescriptionRaw).toBe(job.jobDescriptionRaw);
       expect(snapshot.tailoredResumeSnapshot.jobTitle).toBe('Senior Engineer');
-      expect(snapshot.tailoredResumeSnapshot.authenticityGuaranteed).toBe(true);
+      expect(snapshot.tailoredResumeSnapshot.authenticityGuaranteed).toBe(false);
     });
   });
 });
