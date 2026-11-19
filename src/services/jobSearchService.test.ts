@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ArbeitnowJobAdapter, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter } from './jobSearchService';
+import { ArbeitnowJobAdapter, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms } from './jobSearchService';
 
 const fetchMock = vi.fn();
 
@@ -129,7 +129,7 @@ describe('JobicyJobAdapter', () => {
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[0][0])).toContain('count=100');
-    expect(String(fetchMock.mock.calls[0][0])).toContain('tag=Frontend+Engineer');
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain('tag=');
     expect(String(fetchMock.mock.calls[1][0])).toContain('cursor=cursor-page-2');
   });
 
@@ -168,5 +168,67 @@ describe('isPostedWithinDays', () => {
 
   it('allows all dates when the user selects any date', () => {
     expect(isPostedWithinDays('Unspecified', 0, now)).toBe(true);
+  });
+});
+
+
+describe('multi-term role matching', () => {
+  it.each([
+    ['fraud analyst', 'Fraud & Risk Analyst', true],
+    ['fraud analyst', 'Senior Analyst, Fraud Prevention', true],
+    ['data analyst', 'Senior Data & Reporting Analyst', true],
+    ['software engineer', 'Software Engineer II', true],
+    ['fraud analyst', 'Fraud Operations Associate', false],
+    ['customer support', 'Customer Success Manager', false]
+  ])('matches %s against %s => %s', (query, title, expected) => {
+    expect(matchesJobSearchTerms(query, title)).toBe(expected);
+  });
+
+  it('matches terms across title, skills and description rather than requiring one exact phrase', () => {
+    expect(matchesJobSearchTerms(
+      'fraud analyst',
+      'Risk Operations Specialist',
+      ['Fraud Detection', 'Transaction Monitoring'],
+      'Partner with analysts to investigate suspicious transactions'
+    )).toBe(true);
+  });
+});
+
+describe('LiveJobSearchEngine provider isolation', () => {
+  it('keeps successful results when another provider fails', async () => {
+    const goodJob = {
+      id: 'mock-fraud-1',
+      title: 'Fraud & Risk Analyst',
+      company: 'Example Payments',
+      location: 'Worldwide',
+      workplaceType: 'Remote' as const,
+      salary: 'Undisclosed',
+      postedDate: '2026-11-18',
+      jobDescriptionRaw: 'Investigate suspicious transactions and fraud alerts.',
+      url: 'https://example.com/jobs/fraud-analyst',
+      source: 'Mock Public Feed',
+      skillsRequired: ['Fraud Detection', 'Transaction Monitoring'],
+      fitScore: null,
+      matchedKeywords: [],
+      missingKeywords: [],
+      experienceLevel: 'Unspecified' as const
+    };
+    const failingProvider = {
+      id: 'slow-feed', name: 'Slow Feed', isConfigured: true, requiresAuth: false,
+      search: vi.fn(async () => { throw new Error('Slow Feed timed out after 15 seconds.'); })
+    };
+    const workingProvider = {
+      id: 'working-feed', name: 'Working Feed', isConfigured: true, requiresAuth: false,
+      search: vi.fn(async () => [goodJob])
+    };
+
+    const result = await new LiveJobSearchEngine([failingProvider, workingProvider]).executeLiveSearch(
+      { query: 'fraud analyst', country: 'GLOBAL' }, null
+    );
+
+    expect(result.jobs.map((job) => job.title)).toEqual(['Fraud & Risk Analyst']);
+    expect(result.providerStatuses.find((status) => status.id === 'slow-feed')?.status).toBe('error');
+    expect(result.providerStatuses.find((status) => status.id === 'working-feed')?.count).toBe(1);
+    expect(result.error).toContain('Slow Feed timed out');
   });
 });
