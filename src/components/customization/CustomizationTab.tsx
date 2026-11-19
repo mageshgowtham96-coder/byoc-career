@@ -118,7 +118,7 @@ export const CustomizationTab: React.FC = () => {
       coverLetter: '',
       interviewPrepQuestions: [],
       generationTimestamp: new Date().toISOString(),
-      authenticityGuaranteed: true,
+      authenticityGuaranteed: false,
       exportedMaterials: []
     };
 
