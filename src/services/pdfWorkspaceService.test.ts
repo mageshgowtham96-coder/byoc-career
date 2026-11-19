@@ -27,8 +27,17 @@ async function createPdf(pageCount: number): Promise<File> {
   } as unknown as File;
 }
 
+async function readBlob(blob: Blob): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
 async function readPdfPageCount(blob: Blob): Promise<number> {
-  const bytes = await blob.arrayBuffer();
+  const bytes = await readBlob(blob);
   const pdf = await PDFDocument.load(bytes);
   return pdf.getPageCount();
 }
