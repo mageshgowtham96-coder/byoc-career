@@ -64,7 +64,7 @@ describe('GroqBrowserSearchJobAdapter', () => {
     expect(body.tool_choice).toBe('required');
     expect(body.tools).toEqual([{ type: 'browser_search' }]);
     expect(body.reasoning_effort).toBe('low');
-    expect(body.citation_options).toBe('disabled');
+    expect(body.citation_options).toBe('enabled');
     expect(body.messages[0].content).toContain('Data Analyst');
     expect(body.messages[0].content).toContain('Chennai');
     expect(body.messages[0].content).toContain('Relevant skills: SQL, Power BI');
