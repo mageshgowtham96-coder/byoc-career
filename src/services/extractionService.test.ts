@@ -127,4 +127,12 @@ describe('DOCX document structure extraction', () => {
     expect(result.rawText).toContain('asha@example.com');
     expect(result.rawText).toContain('Portfolio: asha.example');
   });
+  it('accepts a short but readable resume instead of imposing an arbitrary ten-word minimum', async () => {
+    const text = 'Asha Rao\\nasha@example.com\\nSQL';
+    const file = { name: 'short-resume.txt', size: text.length, text: async () => text } as unknown as File;
+    const result = await extractResumeFile(file);
+    expect(result.success).toBe(true);
+    expect(result.wordCount).toBe(3);
+  });
+
 });
