@@ -68,6 +68,7 @@ vi.mock('../utils/tailoredBulletResolver', () => ({
     projects: resume.projects,
     education: resume.education,
     certifications: resume.certifications,
+    additionalEvidence: resume.additionalEvidence || [],
     coverLetter: artifact.coverLetter
   }))
 }));
@@ -174,6 +175,7 @@ describe('Export Service', () => {
         link: 'https://github.com/project'
       }
     ],
+    additionalEvidence: ['Volunteer coordinator — organised weekly community learning sessions'],
     certifications: [
       {
         id: 'cert-1',
@@ -211,6 +213,12 @@ describe('Export Service', () => {
       expect(text).toContain('Led a cross-functional team');
     });
 
+    it('includes additional career evidence in the exportable resume', () => {
+      const text = generatePlainTextResume(createMockArtifact(), createMockResume());
+      expect(text).toContain('ADDITIONAL CAREER EVIDENCE');
+      expect(text).toContain('Volunteer coordinator');
+    });
+
     it('includes all major resume sections', () => {
       const artifact = createMockArtifact();
       const resume = createMockResume();
@@ -237,6 +245,14 @@ describe('Export Service', () => {
       
       expect(blob).toBeInstanceOf(Blob);
       expect(blob.type).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    });
+
+    it('includes additional career evidence in the generated DOCX', async () => {
+      const { TextRun } = await import('docx');
+      await generateDocxResume(createMockArtifact(), createMockResume());
+      expect(TextRun).toHaveBeenCalledWith(expect.objectContaining({
+        text: 'Volunteer coordinator — organised weekly community learning sessions'
+      }));
     });
 
     it('calls Packer.toBlob with document', async () => {
