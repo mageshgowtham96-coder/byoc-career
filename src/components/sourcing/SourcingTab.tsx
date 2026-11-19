@@ -189,7 +189,7 @@ export const SourcingTab: React.FC = () => {
         }
         const source = (job.source || '').toLowerCase();
         // Hide legacy Groq-discovered candidates retained in older local vaults; do not delete user data.
-        if (source.includes('groq search')) return false;
+        if (source.includes('groq')) return false;
         const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes(source);
         const isLiveDiscoveredJob = isLiveDiscoveredJobSource(job.source);
         if (isLiveDiscoveredJob && postedWithinDays > 0 && !isPostedWithinDays(job.postedDate, postedWithinDays)) return false;
