@@ -52,15 +52,15 @@ describe('Provider Abstraction', () => {
     it('gemini config has models list', () => {
       const config = getProviderConfig('gemini');
       expect(Array.isArray(config.models)).toBe(true);
-      expect(config.models).toContain('gemini-1.5-pro');
+      expect(config.models).toContain('gemini-2.5-flash');
     });
   });
 
   describe('Client-Usability Check', () => {
-    it('all three providers are client-usable', () => {
+    it('does not advertise Gemini as usable in the browser-only release', () => {
       expect(isProviderClientUsable('groq')).toBe(true);
       expect(isProviderClientUsable('openrouter')).toBe(true);
-      expect(isProviderClientUsable('gemini')).toBe(true);
+      expect(isProviderClientUsable('gemini')).toBe(false);
     });
   });
 
@@ -89,31 +89,19 @@ describe('Provider Abstraction', () => {
       expect(manager.getSelectedProvider()).toBeNull();
     });
 
-    it('attemptChat falls back when primary fails', async () => {
+    it('does not silently send candidate data to another provider when the selected provider fails', async () => {
       const manager = new ProviderManager();
       manager.init();
       manager.setSelectedProvider('groq');
-      
+
       const apiKeys = { groq: 'key-g', openrouter: 'key-o', gemini: 'key-m' };
-      
-      // Mock groq failure
       const { callGroqChat } = await import('../services/groqService');
       (callGroqChat as any).mockRejectedValueOnce(new Error('Groq Down'));
-      
-      // Mock openrouter success
-      (global.fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          choices: [{ message: { content: 'openrouter success' } }],
-          model: 'openrouter-model'
-        })
-      });
-      
-      const result = await manager.attemptChat('sys', 'user', apiKeys);
-      expect(result).not.toBeNull();
-      expect(result?.provider).toBe('openrouter');
-      expect(result?.content).toBe('openrouter success');
-    });
+
+      await expect(manager.attemptChat('sys', 'candidate data', apiKeys)).rejects.toThrow('Groq Down');
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(manager.getSelectedProvider()).toBe('groq');
+    });;
   });
 
   describe('GroqProvider', () => {
