@@ -7,6 +7,7 @@ import {
   resolveTailoredResumeForExportAndPreview
 } from '../../utils/tailoredBulletResolver';
 import type { TailoredArtifact, TailoredVariant } from '../../types';
+import { hasCareerEvidence } from '../../utils/resumeReadiness';
 import {
   Wand2,
   Sparkles,
@@ -126,7 +127,7 @@ export const CustomizationTab: React.FC = () => {
   };
 
   // Action Gating Checks
-  const hasResume = Boolean(masterResume && (masterResume.rawText.length > 20 || masterResume.experiences.length > 0));
+  const hasResume = hasCareerEvidence(masterResume);
   const hasJob = Boolean(selectedJob);
 
   const handleGenerateTailoring = async () => {
