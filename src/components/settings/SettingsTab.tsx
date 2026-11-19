@@ -78,7 +78,7 @@ export const SettingsTab: React.FC = () => {
   const handleSaveKey = async () => {
     const trimmed = inputKey.trim();
     setGroqApiKey(trimmed);
-    setIsLiveApiMode(true);
+    setIsLiveApiMode(Boolean(trimmed));
     const synced = await syncVaultFromStoreNow();
 
     if (trimmed) {
