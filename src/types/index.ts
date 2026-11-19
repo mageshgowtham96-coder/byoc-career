@@ -179,8 +179,8 @@ export interface InterviewQuestion {
 
 export interface TailoredVariant {
   id: string; // e.g. 'variant-a' | 'variant-b' | 'variant-c'
-  name: string; // e.g. 'Variant A: High-Impact Metric & Leadership'
-  badge: string; // e.g. 'Leadership & Scale'
+  name: string; // e.g. 'Variant A: Role-Relevant Evidence'
+  badge: string; // e.g. 'Role Alignment'
   description: string;
   tailoredSummary: string;
   highlightedSkills: string[];
