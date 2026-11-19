@@ -333,20 +333,13 @@ export const IntakeTab: React.FC = () => {
 
   const handleRevertToLocalParse = () => {
     if (!localStagedProfile) return;
-    const reviewedLocal = applyResumeIntakeReviewEdits(localStagedProfile, {
-      name: editableName,
-      email: editableEmail,
-      headline: editableHeadline,
-      summary: editableStagedSummary
-    });
-    setLocalStagedProfile(reviewedLocal);
-    setStagedParsedResume(reviewedLocal);
+    setStagedParsedResume(localStagedProfile);
     setOptimizedMasterPreview(null);
     setOptimizationError(null);
-    setEditableStagedSummary(reviewedLocal.summary);
-    setEditableHeadline(reviewedLocal.headline);
-    setEditableName(reviewedLocal.contactInfo.name || '');
-    setEditableEmail(reviewedLocal.contactInfo.email || '');
+    setEditableStagedSummary(localStagedProfile.summary);
+    setEditableHeadline(localStagedProfile.headline);
+    setEditableName(localStagedProfile.contactInfo.name || '');
+    setEditableEmail(localStagedProfile.contactInfo.email || '');
     setAiStructuringError(null);
   };
 
@@ -720,7 +713,12 @@ export const IntakeTab: React.FC = () => {
                 <input
                   type="text"
                   value={editableName}
-                  onChange={(e) => { setEditableName(e.target.value); setOptimizedMasterPreview(null); }}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setEditableName(value);
+                    setLocalStagedProfile((current) => current ? { ...current, contactInfo: { ...current.contactInfo, name: value } } : current);
+                    setOptimizedMasterPreview(null);
+                  }}
                   placeholder="Candidate Full Name"
                   className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:border-indigo-500"
                 />
@@ -732,7 +730,12 @@ export const IntakeTab: React.FC = () => {
                 <input
                   type="email"
                   value={editableEmail}
-                  onChange={(e) => { setEditableEmail(e.target.value); setOptimizedMasterPreview(null); }}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setEditableEmail(value);
+                    setLocalStagedProfile((current) => current ? { ...current, contactInfo: { ...current.contactInfo, email: value } } : current);
+                    setOptimizedMasterPreview(null);
+                  }}
                   placeholder="candidate@domain.com"
                   className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
                 />
@@ -746,7 +749,12 @@ export const IntakeTab: React.FC = () => {
               <input
                 type="text"
                 value={editableHeadline}
-                onChange={(e) => { setEditableHeadline(e.target.value); setOptimizedMasterPreview(null); }}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditableHeadline(value);
+                  setLocalStagedProfile((current) => current ? { ...current, headline: value } : current);
+                  setOptimizedMasterPreview(null);
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -758,7 +766,12 @@ export const IntakeTab: React.FC = () => {
               <textarea
                 rows={3}
                 value={editableStagedSummary}
-                onChange={(e) => { setEditableStagedSummary(e.target.value); setOptimizedMasterPreview(null); }}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditableStagedSummary(value);
+                  setLocalStagedProfile((current) => current ? { ...current, summary: value } : current);
+                  setOptimizedMasterPreview(null);
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs leading-relaxed focus:outline-none focus:border-indigo-500"
               />
             </div>
