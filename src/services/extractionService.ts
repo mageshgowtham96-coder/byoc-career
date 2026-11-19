@@ -609,7 +609,9 @@ export function parseRawResumeToStructured(
     summary = summaryLines.join(' ').trim();
   }
 
-  // 3. Skills extraction (match terms ONLY if explicitly present in rawText)
+  // 3. Skills extraction. A technology word elsewhere in a resume is not proof
+  // that the candidate claims it as a skill. Populate structured skills only from
+  // an explicit skills/competencies section; preserve all other text in rawText.
   const technicalSkills: string[] = [];
   const softSkills: string[] = [];
   const tools: string[] = [];
@@ -617,35 +619,15 @@ export function parseRawResumeToStructured(
 
   const commonTech = [
     'React', 'TypeScript', 'JavaScript', 'Node.js', 'Next.js', 'Python', 'Go', 'Golang',
-    'Java', 'C++', 'C#', '.NET', 'Rust', 'GraphQL', 'Tailwind CSS', 'Redux', 'Zustand', 'HTML5', 'CSS3',
+    'R', 'C', 'C++', 'C#', '.NET', 'Java', 'Rust', 'GraphQL', 'Tailwind CSS', 'Redux', 'Zustand', 'HTML5', 'CSS3',
     'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Docker', 'Kubernetes', 'AWS', 'GCP', 'Azure', 'REST APIs',
     'Kafka', 'RabbitMQ', 'Microservices', 'FastAPI', 'Django', 'Spring Boot', 'SQL'
   ];
-
-  commonTech.forEach((tech) => {
-    const reg = new RegExp(`\\b${tech.replace(/[.+]/g, '\\$&')}\\b`, 'i');
-    if (reg.test(rawText) && !technicalSkills.includes(tech)) {
-      technicalSkills.push(tech);
-    }
-  });
-
-  const commonTools = ['Figma', 'Jira', 'Postman', 'VS Code', 'GitHub Actions', 'Datadog', 'Jest', 'Playwright', 'Git', 'Vite', 'Webpack', 'Docker', 'Terraform'];
-  commonTools.forEach((tool) => {
-    if (new RegExp(`\\b${tool}\\b`, 'i').test(rawText) && !tools.includes(tool)) {
-      tools.push(tool);
-    }
-  });
-
+  const commonTools = ['Excel', 'Power BI', 'Tableau', 'Figma', 'Jira', 'Postman', 'VS Code', 'GitHub Actions', 'Datadog', 'Jest', 'Playwright', 'Git', 'Vite', 'Webpack', 'Docker', 'Terraform'];
   const commonSoft = [
     'System Architecture', 'Agile Delivery', 'Cross-Functional Leadership',
     'Mentorship', 'Code Review', 'Stakeholder Management', 'Sprint Planning'
   ];
-  commonSoft.forEach((soft) => {
-    if (new RegExp(`\\b${soft}\\b`, 'i').test(rawText) && !softSkills.includes(soft)) {
-      softSkills.push(soft);
-    }
-  });
-
   // Match only exact section headings or headings followed by an explicit delimiter.
   // This prevents ordinary prose such as "Awards platform migration" from ending a section.
   const sectionHeadings = [
@@ -686,8 +668,15 @@ export function parseRawResumeToStructured(
       if (matchSectionHeading(line)) break;
       const entries = line.replace(/^[•*\-]\s*/, '').split(/[,;|•]/).map((entry) => entry.trim()).filter(Boolean);
       for (const entry of entries) {
-        if (entry.length > 1 && entry.length <= 80 && !domains.some((item) => item.toLowerCase() === entry.toLowerCase())) {
-          domains.push(entry);
+        if (entry.length > 0 && entry.length <= 80) {
+          const normalized = entry.toLowerCase();
+          const addUnique = (target: string[]) => {
+            if (!target.some((item) => item.toLowerCase() === normalized)) target.push(entry);
+          };
+          if (commonTools.some((item) => item.toLowerCase() === normalized)) addUnique(tools);
+          else if (commonTech.some((item) => item.toLowerCase() === normalized)) addUnique(technicalSkills);
+          else if (commonSoft.some((item) => item.toLowerCase() === normalized)) addUnique(softSkills);
+          else addUnique(domains);
         }
       }
     }
