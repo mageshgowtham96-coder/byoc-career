@@ -150,8 +150,9 @@ export class GroqProvider {
     }
 
     try {
-      const { getAvailableGroqModels } = await import('../services/groqService');
+      const { getAvailableGroqModels, selectGroqChatModel } = await import('../services/groqService');
       const models = await getAvailableGroqModels(apiKey.trim());
+      const selectedModel = selectGroqChatModel(models);
       
       this.state.metadata = {
         id: 'groq',
@@ -159,9 +160,9 @@ export class GroqProvider {
         contextLength: 8192,
         costPer1kTokens: null
       };
-      this.state.status = models.length > 0 ? 'available' : 'unavailable';
-      this.state.modelInUse = models[0] || undefined;
-      this.state.errorMessage = models.length === 0 ? 'No Groq models available. Check API key and quota.' : undefined;
+      this.state.status = selectedModel ? 'available' : 'unavailable';
+      this.state.modelInUse = selectedModel || undefined;
+      this.state.errorMessage = !selectedModel ? 'No supported Groq chat model is available for this key.' : undefined;
       return this.state;
     } catch (err: unknown) {
       this.state.status = 'error';
