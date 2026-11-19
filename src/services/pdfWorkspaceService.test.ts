@@ -99,7 +99,7 @@ describe('local PDF operations', () => {
   it('rotates only the requested page', async () => {
     const source = await createPdf(2);
     const rotated = await rotatePdfPage(source, 2, 90);
-    const pdf = await PDFDocument.load(await rotated.arrayBuffer());
+    const pdf = await PDFDocument.load(await readBlob(rotated));
     expect(pdf.getPage(0).getRotation().angle).toBe(0);
     expect(pdf.getPage(1).getRotation().angle).toBe(90);
   });
