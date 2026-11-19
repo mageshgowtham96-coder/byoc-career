@@ -627,8 +627,30 @@ export class JobicyJobAdapter implements JobProviderAdapter {
 
   async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
     if (!(params.query || params.targetRole || params.profession || params.skills?.length)) return [];
-    const payload = await fetchJsonWithTimeout('https://jobicy.com/api/jobs?count=50', this.name);
-    const items = Array.isArray(payload?.jobs) ? payload.jobs : [];
+
+    // Jobicy's public feed contains the most recent seven days and supports cursor pagination.
+    // Keep a bounded page count so a broad search cannot monopolize the user's mobile connection.
+    const searchTerm = (params.query || params.targetRole || params.profession || params.skills?.[0] || '').trim();
+    const tag = searchTerm.length >= 3 ? searchTerm.slice(0, 50) : '';
+    const baseUrl = new URL('https://jobicy.com/api/jobs');
+    baseUrl.searchParams.set('count', '100');
+    if (tag) baseUrl.searchParams.set('tag', tag);
+
+    const items: any[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+
+    for (let page = 0; page < 3; page += 1) {
+      const pageUrl = new URL(baseUrl.toString());
+      if (cursor) pageUrl.searchParams.set('cursor', cursor);
+      const payload = await fetchJsonWithTimeout(pageUrl.toString(), this.name);
+      if (Array.isArray(payload?.jobs)) items.push(...payload.jobs);
+      const nextCursor = typeof payload?.nextCursor === 'string' ? payload.nextCursor : '';
+      if (!payload?.hasMore || !nextCursor || seenCursors.has(nextCursor)) break;
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    }
+
     return items.map((item: any) => createRemoteFeedJob(item, this.id, this.name, {
       id: item.id,
       title: item.jobTitle,
