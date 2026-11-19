@@ -16,7 +16,7 @@ Let a person create their first useful Master Resume from a basic phone even if 
 - Reuse the existing encrypted `careerFormDraft`; do not create another profile store or cloud backend.
 - Add optional fields to the existing draft schema and preserve them in sanitization/migration.
 - Role prompts are local and free.
-- Translation is opt-in and sends only resume text fields needed for translation. Do not send email, phone, or social-profile URLs.
+- Translation is opt-in and sends only selected resume text fields. Dedicated contact, employer, institution, date, skill, technology, issuer, and link fields are omitted. Free-text summaries, role titles, bullets, and project descriptions may still contain personal or organization details, so disclose that clearly before the user opts in.
 - Preserve proper names, company/institution names, dates, numbers, and technical terms. Do not add achievements, metrics, responsibilities, or qualifications.
 - Keep source text and translated preview separate until the user explicitly accepts the translation.
 
