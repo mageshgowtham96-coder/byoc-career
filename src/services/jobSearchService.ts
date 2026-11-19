@@ -252,6 +252,20 @@ export function matchesRemoteCountryAndLocation(
 /**
  * Standardizes raw location names into clean city/country formatting
  */
+/** Matches every meaningful search term across a listing without requiring an exact phrase. */
+export function matchesJobSearchTerms(
+  query: string | undefined,
+  ...fields: Array<string | string[] | undefined>
+): boolean {
+  const normalizedQuery = (query || '').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ').trim();
+  if (!normalizedQuery) return true;
+  const terms = Array.from(new Set(normalizedQuery.split(/\\s+/).filter((term) => term.length > 1)));
+  if (terms.length === 0) return true;
+  const haystack = fields.flatMap((field) => Array.isArray(field) ? field : [field || ''])
+    .join(' ').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ');
+  return terms.every((term) => haystack.includes(term));
+}
+
 export function normalizeLocation(rawLocation?: string): string {
   if (!rawLocation) return 'Location Unspecified';
   const trimmed = rawLocation.trim();
@@ -394,7 +408,7 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
 
     try {
       const res = await fetch(
-        `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}&limit=15`,
+        `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}&limit=50`,
         { signal: controller.signal }
       );
       clearTimeout(timeoutId);
@@ -664,12 +678,10 @@ export class JobicyJobAdapter implements JobProviderAdapter {
     if (!(params.query || params.targetRole || params.profession || params.skills?.length)) return [];
 
     // Jobicy's public feed contains the most recent seven days and supports cursor pagination.
-    // Keep a bounded page count so a broad search cannot monopolize the user's mobile connection.
+    // Avoid its exact-tag filter: multi-word role phrases often do not match feed tags. Fetch a bounded sample and match locally.
     const searchTerm = (params.query || params.targetRole || params.profession || params.skills?.[0] || '').trim();
-    const tag = searchTerm.length >= 3 ? searchTerm.slice(0, 50) : '';
     const baseUrl = new URL('https://jobicy.com/api/jobs');
     baseUrl.searchParams.set('count', '100');
-    if (tag) baseUrl.searchParams.set('tag', tag);
 
     const items: any[] = [];
     const seenCursors = new Set<string>();
@@ -780,13 +792,13 @@ export function formatJobPostedDate(postedDate: string): string {
 }
 
 export class LiveJobSearchEngine {
-  private providers: JobProviderAdapter[] = [
+  constructor(private providers: JobProviderAdapter[] = [
     new PublicFeedsJobAdapter(),
     new RemoteOkJobAdapter(),
     new JobicyJobAdapter(),
     new ArbeitnowJobAdapter(),
     new AdzunaJobAdapter()
-  ];
+  ]) {}
 
   async executeLiveSearch(
     params: JobSearchQueryParams,
@@ -801,69 +813,72 @@ export class LiveJobSearchEngine {
 
     const gatheredJobs: JobPosting[] = [...existingJobs];
     const queriedSources: string[] = ['Local Stored Positions'];
-    const providerStatuses: JobProviderStatus[] = [
-      {
-        id: 'local_store',
-        name: 'Local Stored Positions',
-        status: 'queried',
-        count: existingJobs.length,
-        detail: `${existingJobs.length} locally saved or pasted position(s)`
-      }
-    ];
-    const providerErrors: string[] = [];
+    const providerStatuses: JobProviderStatus[] = [{
+      id: 'local_store',
+      name: 'Local Stored Positions',
+      status: 'queried',
+      count: existingJobs.length,
+      detail: `${existingJobs.length} locally saved or pasted position(s)`
+    }];
 
-    // Job discovery uses public, no-key feeds only. Portal shortcuts are provided separately in the UI.
-    const activeProviders: JobProviderAdapter[] = this.providers;
-
-    for (const provider of activeProviders) {
+    // Run independent public feeds concurrently. One slow/unavailable provider must not delay
+    // successful results from the other providers; each adapter retains its own request timeout.
+    const providerResults = await Promise.all(this.providers.map(async (provider) => {
       if (!provider.isConfigured) {
-        providerStatuses.push({
-          id: provider.id,
-          name: provider.name,
-          status: 'unconfigured',
-          count: 0,
-          detail: provider.statusReason || 'Provider not configured.'
-        });
-        continue;
+        return {
+          jobs: [] as JobPosting[],
+          queried: false,
+          status: {
+            id: provider.id, name: provider.name, status: 'unconfigured' as const, count: 0,
+            detail: provider.statusReason || 'Provider not configured.'
+          }
+        };
       }
 
-      if (normalizedParams.workplaceType && normalizedParams.workplaceType !== 'All' && normalizedParams.workplaceType !== 'Remote' && provider.remoteOnly) {
-        providerStatuses.push({
-          id: provider.id,
-          name: provider.name,
-          status: 'skipped',
-          count: 0,
-          detail: `Skipped: ${provider.name} only serves Remote positions (filter is set to ${normalizedParams.workplaceType}).`
-        });
-        continue;
+      if (normalizedParams.workplaceType && normalizedParams.workplaceType !== 'All' &&
+          normalizedParams.workplaceType !== 'Remote' && provider.remoteOnly) {
+        return {
+          jobs: [] as JobPosting[],
+          queried: false,
+          status: {
+            id: provider.id, name: provider.name, status: 'skipped' as const, count: 0,
+            detail: `Skipped: ${provider.name} only serves Remote positions (filter is set to ${normalizedParams.workplaceType}).`
+          }
+        };
       }
 
       try {
-        const providerJobs = await provider.search(normalizedParams);
-        queriedSources.push(provider.name);
-        gatheredJobs.push(...providerJobs);
-        providerStatuses.push({
-          id: provider.id,
-          name: provider.name,
-          status: 'queried',
-          count: providerJobs.length,
-          detail: `Returned ${providerJobs.length} matching listing(s). Source links lead to ${provider.name.replace(' Live', '')}.`
-        });
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : `${provider.name} request failed.`;
-        providerErrors.push(message);
-        providerStatuses.push({
-          id: provider.id,
-          name: provider.name,
-          status: 'error',
-          count: 0,
-          detail: message
-        });
+        const jobs = await provider.search(normalizedParams);
+        return {
+          jobs,
+          queried: true,
+          status: {
+            id: provider.id, name: provider.name, status: 'queried' as const, count: jobs.length,
+            detail: `Returned ${jobs.length} matching listing(s). Source links lead to ${provider.name.replace(' Live', '')}.`
+          }
+        };
+      } catch (error: unknown) {
+        return {
+          jobs: [] as JobPosting[],
+          queried: false,
+          error: error instanceof Error ? error.message : `${provider.name} request failed.`,
+          status: {
+            id: provider.id, name: provider.name, status: 'error' as const, count: 0,
+            detail: error instanceof Error ? error.message : `${provider.name} request failed.`
+          }
+        };
       }
+    }));
+
+    const providerErrors: string[] = [];
+    for (const result of providerResults) {
+      providerStatuses.push(result.status);
+      if (result.queried) queriedSources.push(result.status.name);
+      if (result.error) providerErrors.push(result.error);
+      gatheredJobs.push(...result.jobs);
     }
 
     const uniqueJobs = deduplicateJobs(gatheredJobs);
-
     const scoredJobs = uniqueJobs.map((job) => {
       const honestMatch = calculateHonestMatch(job, masterResume);
       return {
@@ -874,52 +889,36 @@ export class LiveJobSearchEngine {
       };
     });
 
-    const qLower = (normalizedParams.query || '').toLowerCase().trim();
     const locLower = (normalizedParams.location || '').toLowerCase().trim();
     const filtered = scoredJobs.filter((job) => {
-      if (qLower) {
-        const matchesQuery =
-          job.title.toLowerCase().includes(qLower) ||
-          job.company.toLowerCase().includes(qLower) ||
-          job.location.toLowerCase().includes(qLower) ||
-          (job.skillsRequired && job.skillsRequired.some((s) => s.toLowerCase().includes(qLower))) ||
-          (job.jobDescriptionRaw && job.jobDescriptionRaw.toLowerCase().includes(qLower));
-        if (!matchesQuery) return false;
-      }
+      if (!matchesJobSearchTerms(normalizedParams.query || normalizedParams.targetRole || normalizedParams.profession,
+        job.title, job.company, job.location, job.skillsRequired, job.jobDescriptionRaw)) return false;
 
       if (locLower) {
         const source = (job.source || '').toLowerCase();
-        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes(source);
-        const matchesLoc = !isLiveFeedJob || matchesRemoteCountryAndLocation(
-          job.location,
-          `${job.title} ${job.jobDescriptionRaw}`,
-          normalizedParams.country,
-          normalizedParams.location,
-          normalizedParams.includeWorldwideRemote
-        );
-        if (!matchesLoc) return false;
+        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live', 'arbeitnow live'].includes(source);
+        if (isLiveFeedJob && !matchesRemoteCountryAndLocation(
+          job.location, `${job.title} ${job.jobDescriptionRaw}`, normalizedParams.country,
+          normalizedParams.location, normalizedParams.includeWorldwideRemote
+        )) return false;
       }
 
-      if (normalizedParams.workplaceType && normalizedParams.workplaceType !== 'All') {
-        if (job.workplaceType.toLowerCase() !== normalizedParams.workplaceType.toLowerCase()) return false;
-      }
+      if (normalizedParams.workplaceType && normalizedParams.workplaceType !== 'All' &&
+          job.workplaceType.toLowerCase() !== normalizedParams.workplaceType.toLowerCase()) return false;
 
       if (normalizedParams.portal && normalizedParams.portal !== 'All') {
         const source = (job.source || '').toLowerCase();
         const isLiveSource = isLiveDiscoveredJobSource(job.source);
-        const matchesPortal =
-          normalizedParams.portal === 'User Import'
-            ? !isLiveSource
-            : (job.source && job.source.toLowerCase().includes(normalizedParams.portal.toLowerCase())) ||
-              (job.url && job.url.toLowerCase().includes(normalizedParams.portal.toLowerCase()));
+        const matchesPortal = normalizedParams.portal === 'User Import'
+          ? !isLiveSource
+          : (job.source && job.source.toLowerCase().includes(normalizedParams.portal.toLowerCase())) ||
+            (job.url && job.url.toLowerCase().includes(normalizedParams.portal.toLowerCase()));
         if (!matchesPortal) return false;
       }
-
       return true;
     });
 
     filtered.sort((a, b) => (b.fitScore ?? -1) - (a.fitScore ?? -1));
-
     return {
       jobs: filtered,
       totalFound: filtered.length,
