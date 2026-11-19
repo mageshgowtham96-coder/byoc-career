@@ -717,7 +717,8 @@ ${hasResume ? JSON.stringify({
   skills: masterResume?.skills,
   experience: masterResume?.experiences?.map(e => ({ role: e.role, company: e.company, bullets: e.bullets })),
   education: masterResume?.education,
-  projects: masterResume?.projects
+  projects: masterResume?.projects,
+  additionalEvidence: masterResume?.additionalEvidence
 }) : 'No candidate career profile supplied. Do not make candidate-fit claims.'}`;
 
   const rawJson = await callGroqChat(systemPrompt, userPrompt, apiKey);
@@ -939,7 +940,8 @@ ${JSON.stringify({
   experiences: masterResume.experiences,
   projects: masterResume.projects,
   education: masterResume.education,
-  certifications: masterResume.certifications
+  certifications: masterResume.certifications,
+  additionalEvidence: masterResume.additionalEvidence
 })}`;
 
   const rawJson = await callGroqChat(systemPrompt, userPrompt, apiKey);
