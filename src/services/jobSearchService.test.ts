@@ -90,6 +90,7 @@ describe('isPostedWithinDays', () => {
   it('includes dates inside the requested freshness window', () => {
     expect(isPostedWithinDays('2026-11-18', 7, now)).toBe(true);
     expect(isPostedWithinDays('2026-11-01', 30, now)).toBe(true);
+    expect(isPostedWithinDays('19/11/2026', 7, now)).toBe(true);
   });
 
   it('excludes stale or unreadable dates instead of treating them as current', () => {
