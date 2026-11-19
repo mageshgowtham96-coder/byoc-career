@@ -434,7 +434,7 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
           location: parsedLocation,
           workplaceType: 'Remote',
           salary: item.salary || 'Undisclosed',
-          postedDate: item.publication_date ? new Date(item.publication_date).toLocaleDateString() : 'Unspecified',
+          postedDate: item.publication_date || 'Unspecified',
           jobDescriptionRaw: plainDesc,
           url: item.url || '#',
           source: 'Remotive Live',
@@ -711,12 +711,37 @@ export function isLiveDiscoveredJobSource(source?: string): boolean {
 }
 
 /** Returns true only when a published date can be parsed and falls inside the selected freshness window. */
+function parsePostedDate(postedDate: string): Date | null {
+  const value = (postedDate || '').trim();
+  if (!value || /^(unspecified|unknown|just now)$/i.test(value)) return null;
+  const direct = new Date(value);
+  if (Number.isFinite(direct.getTime())) return direct;
+
+  // Handle common device-locale date strings (DD/MM/YYYY and DD-MM-YYYY).
+  const localDate = value.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (localDate) {
+    const first = Number(localDate[1]);
+    const second = Number(localDate[2]);
+    const year = Number(localDate[3]);
+    const day = first > 12 ? first : second > 12 ? second : first;
+    const month = first > 12 ? second : second > 12 ? first : second;
+    const parsed = new Date(year, month - 1, day);
+    if (parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day) return parsed;
+  }
+  return null;
+}
+
 export function isPostedWithinDays(postedDate: string, days: number, now = new Date()): boolean {
   if (!Number.isFinite(days) || days <= 0) return true;
-  const parsed = new Date(postedDate);
-  if (!Number.isFinite(parsed.getTime())) return false;
+  const parsed = parsePostedDate(postedDate);
+  if (!parsed) return false;
   const ageMs = now.getTime() - parsed.getTime();
   return ageMs >= -24 * 60 * 60 * 1000 && ageMs <= days * 24 * 60 * 60 * 1000;
+}
+
+export function formatJobPostedDate(postedDate: string): string {
+  const parsed = parsePostedDate(postedDate);
+  return parsed ? parsed.toLocaleDateString() : (postedDate || 'Unspecified');
 }
 
 export class LiveJobSearchEngine {
