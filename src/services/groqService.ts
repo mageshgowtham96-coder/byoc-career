@@ -373,45 +373,46 @@ export async function getAvailableGroqModels(apiKey: string): Promise<string[]> 
 /**
  * Resolves the optimal available Groq chat model
  */
+
+const PREFERRED_GROQ_CHAT_MODELS = [
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+  'qwen/qwen3.8-27b'
+] as const;
+
+/** Select only currently supported chat models; never pick speech/guard/retired IDs. */
+export function selectGroqChatModel(availableModels: string[]): string | null {
+  return PREFERRED_GROQ_CHAT_MODELS.find((model) => availableModels.includes(model)) || null;
+}
+
 async function resolveOptimalModel(apiKey: string): Promise<string> {
-  if (resolvedGroqModel && resolvedGroqModelForKey === apiKey) {
-    return resolvedGroqModel;
-  }
-  // Never reuse a model resolved with another user's BYOK credential.
+  if (resolvedGroqModel && resolvedGroqModelForKey === apiKey) return resolvedGroqModel;
   resolvedGroqModel = null;
   resolvedGroqModelForKey = null;
 
-  const preferredHierarchy = [
-    'openai/gpt-oss-120b',
-    'openai/gpt-oss-20b',
-    'qwen/qwen3.8-27b'
-  ];
-
   try {
     const available = await getAvailableGroqModels(apiKey);
-    for (const preferred of preferredHierarchy) {
-      if (available.includes(preferred)) {
-        resolvedGroqModel = preferred;
-        resolvedGroqModelForKey = apiKey;
-        return preferred;
-      }
+    const selected = selectGroqChatModel(available);
+    if (!selected) {
+      throw new GroqApiError(
+        'No supported Groq chat model is available for this API key.',
+        503,
+        'MODEL_NOT_AVAILABLE',
+        'Check the model access and rate-limit page for this Groq account. BYOC will not select a speech or deprecated model as a fallback.'
+      );
     }
-    // Fallback to first available chat model or default
-    const chatModels = available.filter((id) => !/(whisper|orpheus|speech|transcrib|tts|embed|prompt-guard|safeguard)/i.test(id));
-    if (chatModels.length > 0) {
-      resolvedGroqModel = chatModels[0];
-      resolvedGroqModelForKey = apiKey;
-      return chatModels[0];
-    }
-  } catch (e) {
-    // If discovery fails, default to primary recommended model
-    console.warn('Dynamic model resolution fallback:', e);
+    resolvedGroqModel = selected;
+    resolvedGroqModelForKey = apiKey;
+    return selected;
+  } catch (error) {
+    if (error instanceof GroqApiError && error.code === 'MODEL_NOT_AVAILABLE') throw error;
+    // The catalog can be temporarily unavailable. Fall back only to a currently documented
+    // production chat model; if the account cannot access it, the chat call reports that clearly.
+    console.warn('Groq model discovery fallback:', error);
+    resolvedGroqModel = 'openai/gpt-oss-120b';
+    resolvedGroqModelForKey = apiKey;
+    return resolvedGroqModel;
   }
-
-  // Current production-safe fallback; the previous Llama defaults were shut down in Aug 2026.
-  resolvedGroqModel = 'openai/gpt-oss-120b';
-  resolvedGroqModelForKey = apiKey;
-  return resolvedGroqModel;
 }
 
 /**
