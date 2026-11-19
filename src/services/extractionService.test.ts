@@ -186,6 +186,31 @@ Bachelor of Commerce - City University - 2025`);
 });
 
 
+describe('summary extraction completeness', () => {
+  it('keeps every summary line until the next exact section heading', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+Professional Summary
+First sentence describes the candidate.
+Second sentence describes the candidate.
+Third sentence describes the candidate.
+Fourth sentence describes the candidate.
+Fifth sentence describes the candidate.
+Sixth sentence describes the candidate.
+Skills
+SQL, Excel`);
+    expect(parsed.summary).toContain('Sixth sentence describes the candidate.');
+    expect(parsed.summary).not.toContain('SQL, Excel');
+  });
+
+  it('captures inline summary text after a colon', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+Professional Summary: Commerce graduate with practical data analysis experience.
+Skills
+Excel, SQL`);
+    expect(parsed.summary).toContain('Commerce graduate with practical data analysis experience.');
+  });
+});
+
 describe('resume identity and location extraction', () => {
   it('does not mistake a role headline for a candidate name and extracts a clear header location', () => {
     const parsed = parseRawResumeToStructured(`Software Engineer
