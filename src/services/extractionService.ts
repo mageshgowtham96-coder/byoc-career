@@ -549,7 +549,7 @@ export function parseRawResumeToStructured(
   const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
 
   // Exact or explicitly delimited headings only; ordinary prose is never a boundary.
-  const sectionHeadingPattern = /^(?:summary|profile|professional summary|about me|overview|executive summary|experience|work experience|professional experience|employment history|work history|education|academic background|academics|qualifications|projects|personal projects|key projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies|awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)(?:\s*(?::|[-–])\s*.*)?$/i;
+  const sectionHeadingPattern = /^(?:summary|profile|professional summary|about me|overview|executive summary|experience|work experience|professional experience|employment history|work history|education|academic background|academics|qualifications|projects|personal projects|key projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies|awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)(?:\s*(?::|[-–—])\s*.*)?$/i;
   const isResumeSectionHeading = (line: string) => sectionHeadingPattern.test(line.trim());
 
   // 1. Contact Info Extraction (strictly from regex matches)
@@ -594,7 +594,7 @@ export function parseRawResumeToStructured(
   }
 
   const summaryHeaderIdx = lines.findIndex((line) =>
-    /^(?:summary|profile|professional summary|about me|overview|executive summary)(?:\s*(?::|[-–])\s*.*)?$/i.test(line)
+    /^(?:summary|profile|professional summary|about me|overview|executive summary)(?:\s*(?::|[-–—])\s*.*)?$/i.test(line)
   );
 
   if (summaryHeaderIdx !== -1) {
@@ -695,7 +695,7 @@ export function parseRawResumeToStructured(
 
   // 4. Experiences Extraction (strictly parsed, zero fabrication)
   const experiences: ExperienceItem[] = [];
-  const expIndex = lines.findIndex((line) => /^(?:experience|work experience|employment history|work history|professional experience)(?:\s*(?::|[-–])\s*.*)?$/i.test(line));
+  const expIndex = lines.findIndex((line) => /^(?:experience|work experience|employment history|work history|professional experience)(?:\s*(?::|[-–—])\s*.*)?$/i.test(line));
 
   if (expIndex !== -1) {
     const expSlice = lines.slice(expIndex + 1);
@@ -761,7 +761,7 @@ export function parseRawResumeToStructured(
 
   // 5. Education Extraction (strictly parsed, zero fabrication)
   const education: EducationItem[] = [];
-  const eduIndex = lines.findIndex((line) => /^(?:education|academic background|academics|qualifications)(?:\s*(?::|[-–])\s*.*)?$/i.test(line));
+  const eduIndex = lines.findIndex((line) => /^(?:education|academic background|academics|qualifications)(?:\s*(?::|[-–—])\s*.*)?$/i.test(line));
 
   if (eduIndex !== -1) {
     const eduSlice = lines.slice(eduIndex + 1);
@@ -785,7 +785,7 @@ export function parseRawResumeToStructured(
 
   // 6. Projects & Certifications (strictly from detected headers, zero fabrication)
   const projects: ProjectItem[] = [];
-  const projIndex = lines.findIndex((line) => /^(?:projects|personal projects|key projects)(?:\s*(?::|[-–])\s*.*)?$/i.test(line));
+  const projIndex = lines.findIndex((line) => /^(?:projects|personal projects|key projects)(?:\s*(?::|[-–—])\s*.*)?$/i.test(line));
   if (projIndex !== -1) {
     const projSlice = lines.slice(projIndex + 1);
     let currentProject: ProjectItem | null = null;
@@ -817,7 +817,7 @@ export function parseRawResumeToStructured(
   }
 
   const additionalEvidence: string[] = [];
-  const additionalSectionPattern = /^(awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)(?:\s*(?::|[-–])\s*(.*))?$/i;
+  const additionalSectionPattern = /^(awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)(?:\s*(?::|[-–—])\s*(.*))?$/i;
   for (let index = 0; index < lines.length; index++) {
     const heading = lines[index].match(additionalSectionPattern);
     if (!heading) continue;
@@ -832,7 +832,7 @@ export function parseRawResumeToStructured(
   }
 
   const certifications: CertificationItem[] = [];
-  const certIndex = lines.findIndex((line) => /^(?:certifications|licenses|certificates)(?:\s*(?::|[-–])\s*.*)?$/i.test(line));
+  const certIndex = lines.findIndex((line) => /^(?:certifications|licenses|certificates)(?:\s*(?::|[-–—])\s*.*)?$/i.test(line));
   if (certIndex !== -1) {
     const certSlice = lines.slice(certIndex + 1);
     for (let i = 0; i < Math.min(certSlice.length, 10); i++) {
