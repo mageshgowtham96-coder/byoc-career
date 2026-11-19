@@ -209,7 +209,7 @@ describe('role-aware tailoring strategies', () => {
   it('does not generate a job-tailored resume when the profile contains no candidate evidence', async () => {
     const { tailorResumeWithGroq } = await import('./groqService');
     const emptyProfile = {
-      rawText: '',
+      rawText: 'Asha Rao asha@example.com +91 90000 00000',
       headline: '',
       summary: '',
       skills: { technical: [], soft: [], tools: [], domains: [] },
