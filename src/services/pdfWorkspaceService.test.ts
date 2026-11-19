@@ -1,0 +1,69 @@
+import { describe, expect, it } from 'vitest';
+import { PDFDocument, degrees } from 'pdf-lib';
+import {
+  inspectPdf,
+  mergePdfs,
+  extractPdfPages,
+  rotatePdfPage,
+  reorderPdfPages
+} from './pdfWorkspaceService';
+
+async function makePdf(pageCount = 2): Promise<File> {
+  const pdf = await PDFDocument.create();
+  for (let index = 0; index < pageCount; index += 1) pdf.addPage([300 + index, 400]);
+  const bytes = await pdf.save();
+  return new File([bytes], 'sample.pdf', { type: 'application/pdf' });
+}
+
+describe('PDF workspace validation', () => {
+  it('inspects page count and metadata locally', async () => {
+    const result = await inspectPdf(await makePdf(3));
+    expect(result.pageCount).toBe(3);
+    expect(result.fileName).toBe('sample.pdf');
+    expect(result.fileSize).toBeGreaterThan(0);
+  });
+
+  it('rejects empty files and non-PDF signatures', async () => {
+    await expect(inspectPdf(new File([], 'empty.pdf'))).rejects.toThrow(/empty/i);
+    await expect(inspectPdf(new File(['not a pdf'], 'fake.pdf'))).rejects.toThrow(/valid PDF/i);
+  });
+
+  it('rejects oversized files before parsing', async () => {
+    const oversized = { name: 'large.pdf', size: 10 * 1024 * 1024 + 1, slice: () => new Blob(['%PDF-']) } as unknown as File;
+    await expect(inspectPdf(oversized)).rejects.toThrow(/10 MB/i);
+  });
+
+  it('rejects malformed PDFs with a controlled error', async () => {
+    await expect(inspectPdf(new File(['%PDF-1.7\nnot really a document'], 'broken.pdf'))).rejects.toThrow(/could not be opened/i);
+  });
+});
+
+describe('PDF page operations', () => {
+  it('merges multiple PDFs in order', async () => {
+    const result = await mergePdfs([await makePdf(2), await makePdf(1)]);
+    const merged = await PDFDocument.load(result);
+    expect(merged.getPageCount()).toBe(3);
+  });
+
+  it('extracts selected 1-based pages', async () => {
+    const result = await extractPdfPages(await makePdf(3), [3, 1]);
+    const extracted = await PDFDocument.load(result);
+    expect(extracted.getPageCount()).toBe(2);
+    expect(extracted.getPage(0).getWidth()).toBe(302);
+  });
+
+  it('rotates only the requested page', async () => {
+    const result = await rotatePdfPage(await makePdf(2), 2, 90);
+    const rotated = await PDFDocument.load(result);
+    expect(rotated.getPage(0).getRotation().angle).toBe(0);
+    expect(rotated.getPage(1).getRotation().angle).toBe(90);
+  });
+
+  it('reorders pages and rejects duplicate or out-of-range selections', async () => {
+    const result = await reorderPdfPages(await makePdf(3), [3, 1, 2]);
+    const reordered = await PDFDocument.load(result);
+    expect(reordered.getPage(0).getWidth()).toBe(302);
+    await expect(reorderPdfPages(await makePdf(3), [1, 1])).rejects.toThrow(/each page once/i);
+    await expect(extractPdfPages(await makePdf(2), [3])).rejects.toThrow(/between 1 and 2/i);
+  });
+});
