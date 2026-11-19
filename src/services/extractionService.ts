@@ -705,7 +705,7 @@ export function parseRawResumeToStructured(
 
     for (let i = 0; i < expSlice.length; i++) {
       const line = expSlice[i];
-      if (/^(education|projects|certifications|skills|awards|honours|honors|publications|research|volunteering|volunteer experience|community involvement|languages|professional memberships|memberships|extracurricular activities)/i.test(line)) {
+      if (isResumeSectionHeading(line)) {
         break;
       }
 
@@ -768,7 +768,7 @@ export function parseRawResumeToStructured(
     const eduSlice = lines.slice(eduIndex + 1);
     for (let i = 0; i < Math.min(eduSlice.length, 20); i++) {
       const line = eduSlice[i];
-      if (/^(experience|projects|certifications|skills|awards|honours|honors|publications|research|volunteering|volunteer experience|community involvement|languages|professional memberships|memberships|extracurricular activities)/i.test(line)) {
+      if (isResumeSectionHeading(line)) {
         break;
       }
       if (/(bachelor|master|phd|b\.s|m\.s|b\.tech|m\.tech|bca|mca|degree|diploma|university|college|institute)/i.test(line)) {
@@ -796,7 +796,7 @@ export function parseRawResumeToStructured(
     };
     for (const rawLine of projSlice.slice(0, 40)) {
       const line = rawLine.trim();
-      if (/^(education|experience|work experience|certifications|skills|awards|honours|honors|publications|research|volunteering|volunteer experience|community involvement|languages|professional memberships|memberships|extracurricular activities)/i.test(line)) break;
+      if (isResumeSectionHeading(line)) break;
       if (!line || line.length > 500) continue;
       const isBullet = /^[•*\-–]\s*/.test(line) || /^\d+[.)]\s*/.test(line);
       const cleanLine = line.replace(/^[•*\-–]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
@@ -838,7 +838,7 @@ export function parseRawResumeToStructured(
     const certSlice = lines.slice(certIndex + 1);
     for (let i = 0; i < Math.min(certSlice.length, 10); i++) {
       const line = certSlice[i];
-      if (/^(education|experience|projects|skills|awards|honours|honors|publications|research|volunteering|volunteer experience|community involvement|languages|professional memberships|memberships|extracurricular activities)/i.test(line)) break;
+      if (isResumeSectionHeading(line)) break;
       if (line.length > 5 && line.length < 90) {
         certifications.push({
           id: 'cert-' + certifications.length,
