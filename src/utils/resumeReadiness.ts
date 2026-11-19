@@ -5,6 +5,22 @@ export interface ResumeReadiness {
   missingSections: string[];
 }
 
+/** Returns true when the profile contains any user-provided career evidence. */
+export function hasCareerEvidence(resume: MasterResume | null | undefined): boolean {
+  if (!resume) return false;
+  const hasSkills = Object.values(resume.skills || {}).some((items) => Array.isArray(items) && items.some((item) => item.trim()));
+  return Boolean(
+    resume.rawText?.trim() ||
+    resume.headline?.trim() ||
+    resume.summary?.trim() ||
+    hasSkills ||
+    resume.experiences?.length ||
+    resume.education?.length ||
+    resume.projects?.length ||
+    resume.certifications?.length
+  );
+}
+
 /**
  * Readiness measures whether the profile has enough useful evidence to create
  * a resume. It does not measure employability and does not require paid work
