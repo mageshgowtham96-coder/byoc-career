@@ -55,6 +55,11 @@ describe('PDF workspace validation', () => {
     await expect(inspectPdf(new File(['%PDF-1.7\\nnot really a document'], 'broken.pdf'))).rejects.toThrow(/could not be (opened|read)/i);
   });
 
+  it('accepts the 250-page device safety boundary', async () => {
+    const result = await inspectPdf(await makePdf(250));
+    expect(result.pageCount).toBe(250);
+  });
+
   it('rejects documents above the 250-page device safety ceiling', async () => {
     await expect(inspectPdf(await makePdf(251))).rejects.toThrow(/250 pages/i);
   });
@@ -85,6 +90,10 @@ describe('PDF page operations', () => {
     const rotated = await PDFDocument.load(result);
     expect(rotated.getPage(0).getRotation().angle).toBe(0);
     expect(rotated.getPage(1).getRotation().angle).toBe(90);
+  });
+
+  it('rejects merged output above the 250-page device safety ceiling', async () => {
+    await expect(mergePdfs([await makePdf(125), await makePdf(126)])).rejects.toThrow(/cannot exceed 250 pages/i);
   });
 
   it('rejects merging fewer than two documents', async () => {
