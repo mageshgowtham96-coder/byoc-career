@@ -348,7 +348,8 @@ export function calculateHonestMatch(
     ]),
     ...(masterResume.projects || []).flatMap((project) => [
       project.title, project.description, ...(project.technologies || [])
-    ])
+    ]),
+    ...(masterResume.additionalEvidence || [])
   ].join(' ');
 
   const matchedKeywords: string[] = [];
