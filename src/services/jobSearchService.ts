@@ -291,6 +291,14 @@ export function deduplicateJobs(jobs: JobPosting[]): JobPosting[] {
 }
 
 /**
+ * Merge newly discovered matches into the saved local collection without deleting
+ * older saved jobs merely because they do not match the current search query.
+ */
+export function mergeDiscoveredJobs(existingJobs: JobPosting[], discoveredJobs: JobPosting[]): JobPosting[] {
+  return deduplicateJobs([...existingJobs, ...discoveredJobs]);
+}
+
+/**
  * Calculates authentic match score strictly from verifiable profile facts vs job criteria.
  * Returns null if master resume is missing or profile data is insufficient.
  */
