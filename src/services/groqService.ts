@@ -423,6 +423,11 @@ async function resolveOptimalModel(apiKey: string): Promise<string> {
   }
 }
 
+/** Resolve the same account-accessible model used by the direct BYOK workflow. */
+export async function getPreferredGroqChatModel(apiKey: string): Promise<string> {
+  return resolveOptimalModel(apiKey);
+}
+
 /**
  * Core reliable Groq chat execution with 30s timeout and typed HTTP error handling
  */
