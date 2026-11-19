@@ -881,7 +881,7 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
 }
 
 /**
- * Tailors Resume Kit & Generates Exactly Three Sibling Variants using live Groq AI
+ * Tailors a resume kit with evidence-selected presentation strategies using live Groq AI
  */
 export async function tailorResumeWithGroq(
   job: JobPosting,
