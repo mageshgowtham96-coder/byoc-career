@@ -259,7 +259,7 @@ export function matchesJobSearchTerms(
 ): boolean {
   const normalizedQuery = (query || '').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ').trim();
   if (!normalizedQuery) return true;
-  const terms = Array.from(new Set(normalizedQuery.split(/\\s+/).filter((term) => term.length > 1)));
+  const terms = Array.from(new Set(normalizedQuery.split(/\s+/).filter((term) => term.length > 1)));
   if (terms.length === 0) return true;
   const haystack = fields.flatMap((field) => Array.isArray(field) ? field : [field || ''])
     .join(' ').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ');
