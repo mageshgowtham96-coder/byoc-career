@@ -40,7 +40,7 @@ export const PrepZone: React.FC = () => {
 
   const [activeTab, setActiveTabState] = useState<'domain' | 'rolespecific'>('domain');
   const [selectedCategory, setSelectedCategory] = useState<'All' | 'Technical' | 'Behavioral' | 'Situational' | 'Role-Specific'>('All');
-  const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>('q-arch-1');
+  const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>('q-role-1');
   const [candidateNotes, setCandidateNotes] = useState<Record<string, string>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isGeneratingPrep, setIsGeneratingPrep] = useState(false);
@@ -51,6 +51,8 @@ export const PrepZone: React.FC = () => {
 
   const hasStructuredEvidence = hasStructuredCareerEvidence(masterResume);
   const hasSkills = Boolean(masterResume && Object.values(masterResume.skills).some((items) => items.length > 0));
+  const primaryDomain = selectedJob?.title || masterResume?.headline || masterResume?.experiences?.[0]?.role || 'Career profile';
+  const primarySkill = masterResume?.skills.technical[0] || masterResume?.skills.tools[0] || masterResume?.skills.domains[0] || '';
   const domainQuestions = buildDomainPracticeQuestions(masterResume, selectedJob);
 
   const filteredDomainQuestions = domainQuestions.filter((q) =>
@@ -76,12 +78,18 @@ export const PrepZone: React.FC = () => {
     setIsGeneratingPrep(true);
     setPrepError(null);
     try {
-      const artifact = await tailorResumeWithGroq(selectedJob, masterResume, groqApiKey);
+      const generated = await tailorResumeWithGroq(selectedJob, masterResume, groqApiKey);
+      // Refreshing interview questions must not replace an already reviewed tailored resume.
+      const artifact = currentTailored
+        ? { ...currentTailored, interviewPrepQuestions: generated.interviewPrepQuestions }
+        : generated;
       saveTailoredArtifact(selectedJob.id, artifact);
       addToast({
         type: 'success',
         title: 'Evidence-Anchored Prep Ready',
-        message: `Generated ${artifact.interviewPrepQuestions.length} role-specific questions grounded in your resume.`
+        message: currentTailored
+          ? `Refreshed ${generated.interviewPrepQuestions.length} role-specific questions. Your existing tailored resume and review status were preserved.`
+          : `Generated ${generated.interviewPrepQuestions.length} role-specific questions and the initial tailored kit.`
       });
     } catch (err: unknown) {
       const msg = formatGroqError(err, 'Unable to generate AI prep questions.');
@@ -394,7 +402,7 @@ export const PrepZone: React.FC = () => {
                     {selectedJob.title}
                   </h3>
                   <p className="text-xs text-slate-300 mt-1">
-                    {hasCareerProfile
+                    {hasStructuredEvidence
                       ? 'Role-specific interview round structure based on the selected job listing, your Master Resume, and compensation settings.'
                       : 'Generic role-specific interview round structure based on the selected job listing (add a resume in Intake to include Master Resume evidence).'}
                   </p>
@@ -546,62 +554,46 @@ export const PrepZone: React.FC = () => {
                 )}
               </div>
 
-              {/* Company-Specific Interview Rounds Blueprint */}
+              {/* Illustrative interview preparation areas; actual employer stages are not known. */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <Target className="w-4 h-4 text-sky-400" />
-                  <span>Interview Rounds Architecture ({selectedJob.company})</span>
-                </h4>
-
+                <div>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <Target className="w-4 h-4 text-sky-400" />
+                    <span>Possible Interview Preparation Areas</span>
+                  </h4>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    Illustrative preparation only. BYOC does not know this employer's actual interview stages or timings.
+                  </p>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Round 1 */}
                   <div className="p-4 rounded-2xl bg-slate-800/90 border border-slate-700 space-y-2 text-left">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono uppercase font-bold text-sky-400">Round 01</span>
-                      <span className="px-2 py-0.5 rounded-md bg-slate-900 text-[10px] text-slate-400 font-mono">30-45 Mins</span>
-                    </div>
-                    <h5 className="text-sm font-bold text-white">Recruiter & Engineering Screen</h5>
+                    <span className="text-[10px] font-mono uppercase font-bold text-sky-400">Area 01 · Varies by employer</span>
+                    <h5 className="text-sm font-bold text-white">Introductory Conversation</h5>
                     <p className="text-[11px] text-slate-300 leading-relaxed">
-                      Assesses background alignment, availability ({candidatePreferences.noticePeriod || 'Not set'}), compensation target ({candidatePreferences.expectedCtc || 'Not set'}), and team fit.
+                      Be ready to explain your background, interest in the {selectedJob.title} role, availability and questions about the responsibilities.
                     </p>
                     <div className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-[10px] text-slate-400">
-                      <strong>Focus:</strong> Concise 2-minute overview covering{' '}
-                      {selectedJob.skillsRequired.slice(0, 3).join(', ') || selectedJob.title}.
+                      <strong>Preparation:</strong> Give a concise overview using only details recorded in your Master Resume.
                     </div>
                   </div>
-
-                  {/* Round 2 */}
                   <div className="p-4 rounded-2xl bg-slate-800/90 border border-slate-700 space-y-2 text-left">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono uppercase font-bold text-indigo-400">Round 02</span>
-                      <span className="px-2 py-0.5 rounded-md bg-slate-900 text-[10px] text-slate-400 font-mono">60 Mins</span>
-                    </div>
-                    <h5 className="text-sm font-bold text-white">Core Craft &amp; Applied Problem Solving</h5>
+                    <span className="text-[10px] font-mono uppercase font-bold text-indigo-400">Area 02 · Varies by employer</span>
+                    <h5 className="text-sm font-bold text-white">Role-Related Tasks &amp; Knowledge</h5>
                     <p className="text-[11px] text-slate-300 leading-relaxed">
-                      Deep-dive into real execution workflows, domain design decisions, and measurable trade-offs relevant to {selectedJob.title}.
+                      Review the requirements explicitly stated in the job listing and prepare to explain how you would approach relevant tasks.
                     </p>
                     <div className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-[10px] text-slate-400">
-                      <strong>Focus:</strong>{' '}
-                      {skill1
-                        ? `Practical scenario walkthroughs grounded in your listed skill (${skill1}) and requirements at ${selectedJob.company}.`
-                        : selectedJob.skillsRequired.length > 0
-                        ? `Generic practice walkthroughs for listed job requirements (${selectedJob.skillsRequired.slice(0, 2).join(', ')}) at ${selectedJob.company}.`
-                        : `Generic practice walkthroughs for ${selectedJob.title} constraints at ${selectedJob.company} (add your resume in Intake to anchor to your own skills).`}
+                      <strong>Focus:</strong> {selectedJob.skillsRequired.slice(0, 3).join(', ') || selectedJob.title}. Distinguish skills you have used from those you are still learning.
                     </div>
                   </div>
-
-                  {/* Round 3 */}
                   <div className="p-4 rounded-2xl bg-slate-800/90 border border-slate-700 space-y-2 text-left">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono uppercase font-bold text-purple-400">Round 03</span>
-                      <span className="px-2 py-0.5 rounded-md bg-slate-900 text-[10px] text-slate-400 font-mono">45-60 Mins</span>
-                    </div>
-                    <h5 className="text-sm font-bold text-white">Leadership &amp; Cross-Functional Collaboration</h5>
+                    <span className="text-[10px] font-mono uppercase font-bold text-purple-400">Area 03 · Varies by employer</span>
+                    <h5 className="text-sm font-bold text-white">Situational &amp; Behavioral Discussion</h5>
                     <p className="text-[11px] text-slate-300 leading-relaxed">
-                      Assesses handling conflicting stakeholder goals, cross-team communication, mentoring, and quality stewardship.
+                      Prepare examples of problem solving, learning, communication or handling a difficult task that are relevant to this role.
                     </p>
                     <div className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-[10px] text-slate-400">
-                      <strong>Focus:</strong> Defending project proposals and documented stakeholder alignment examples.
+                      <strong>Focus:</strong> Use the STAR structure where it fits, and be clear about your own contribution and the actual outcome.
                     </div>
                   </div>
                 </div>
@@ -612,21 +604,21 @@ export const PrepZone: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <MessageSquareQuote className="w-4 h-4 text-emerald-400" />
-                    <span>High-Conviction Questions to Ask {selectedJob.company}</span>
+                    <span>Questions to Ask the Interviewer</span>
                   </h4>
                   <span className="text-[10px] text-slate-400 font-mono">
                     Role Discovery Prompts
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Use targeted questions to evaluate ownership expectations, team cadence, and delivery metrics:
+                  Use these questions to clarify responsibilities, expectations, evaluation and available support:
                 </p>
 
                 <div className="space-y-2.5 pt-1">
                   {[
-                    `"How are major design proposals or process changes reviewed at ${selectedJob.company}, and how do cross-functional teams resolve competing trade-offs?"`,
-                    `"What outcomes define success in the first 90 days for the ${selectedJob.title} role within ${selectedJob.department || 'this team'}?"`,
-                    `"How does the team balance shipping new initiatives against maintaining reliability, quality standards, and operational sustainability?"`
+                    `"What are the main responsibilities and expected outcomes for the ${selectedJob.title} role in the first 90 days?"`,
+                    `"How is performance evaluated for this role, and what training or support is available to someone joining the team?"`,
+                    `"What are the most common challenges someone in this role should expect, and how does the team help address them?"`
                   ].map((qText, idx) => (
                     <div
                       key={idx}
