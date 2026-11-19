@@ -20,11 +20,12 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 
 ### Resume intake and Master Profile
 - Supported intake formats: PDF, DOCX, TXT, and MD.
-- Selectable-text extraction is supported; scanned/image-only PDFs and raster OCR are not.
+- DOCX/TXT/MD extraction is local. PDF intake uses a lightweight selectable-text parser and may fail on complex font encodings, unusual object streams or encrypted PDFs; scanned/image-only PDFs and raster OCR are not supported.
 - File size is limited to 10 MB. Corrupt or empty files are rejected.
-- Extracted facts are staged for user review before replacing the Master Resume.
+- Extracted facts are staged for user review before replacing the Master Resume. The source file itself is not modified or retained as a separate encrypted binary archive; extracted source text remains in the encrypted profile.
 - Experience bullets and skills are grounded in user-provided source material; missing facts must not be invented.
 - A guided Master Resume builder supports people who do not already have a CV. It asks role- and experience-specific questions locally, saves drafts inside the encrypted vault, and replaces the active profile only after the user confirms.
+- An optional Groq wording-optimization action proposes changes to the staged Master Resume. The user compares the headline, summary, experience bullets and project descriptions before accepting; a second confirmation is required to update the active Master Resume. The optimized profile remains structured and encrypted.
 - Optional English translation uses the existing Groq key only after an explicit click. Dedicated contact, employer, institution, date, skill, technology, issuer, and link fields are omitted; free-text summaries, role titles, bullets, and project descriptions may still contain personal or organization details. Users preview the translation and can restore the original-language draft.
 
 ### Job discovery
