@@ -490,7 +490,7 @@ export const CustomizationTab: React.FC = () => {
         </div>
       )}
 
-      {/* Multi-Option Customizer: 3 Sibling Variations Comparison Slab */}
+      {/* Role-relevant resume variation comparison */}
       {currentArtifact && currentArtifact.variants && currentArtifact.variants.length > 0 && (
         <div className="p-5 rounded-3xl bg-slate-800/80 border border-slate-700 space-y-3">
           <div className="flex items-center justify-between">
@@ -499,15 +499,15 @@ export const CustomizationTab: React.FC = () => {
                 Multi-Option Customizer
               </span>
               <h4 className="text-sm font-bold text-white">
-                Compare & Select Preferred Sibling Variation
+                Compare & Select Preferred Version
               </h4>
             </div>
             <span className="text-xs text-slate-400 font-mono">
-              3 Variations Generated
+              {currentArtifact.variants.length} Variations Generated
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pt-1">
             {currentArtifact.variants.map((variant) => {
               const isSelectedVariant = currentArtifact.selectedVariantId === variant.id;
               const variantPartition = partitionTailoredBullets(variant.optimizedBullets, masterResume);
