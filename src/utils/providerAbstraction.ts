@@ -175,8 +175,8 @@ export class GroqProvider {
       throw new Error('Groq API key is required.');
     }
 
-    const { callGroqChat } = await import('../services/groqService');
-    const model = this.config.models[0];
+    const { callGroqChat, getPreferredGroqChatModel } = await import('../services/groqService');
+    const model = await getPreferredGroqChatModel(apiKey.trim());
     const content = await callGroqChat(systemPrompt, userPrompt, apiKey.trim(), model);
     
     return {
