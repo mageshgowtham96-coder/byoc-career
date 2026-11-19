@@ -224,6 +224,23 @@ Bachelor of Commerce - City University - 2019`);
   });
 });
 
+describe('additional resume section boundaries', () => {
+  it('captures training while keeping references out of AI-ready additional evidence', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+Professional Summary
+Commerce graduate with analytical project experience.
+Skills
+SQL, Excel
+Professional Development
+Completed a business analytics course in 2025.
+References
+John Doe — john@example.com — +91 9876543210`);
+    expect(parsed.additionalEvidence).toContain('Professional Development: Completed a business analytics course in 2025.');
+    expect(parsed.additionalEvidence.some((item) => item.includes('john@example.com'))).toBe(false);
+    expect(parsed.skills.domains).not.toContain('John Doe — john@example.com — +91 9876543210');
+  });
+});
+
 describe('summary extraction completeness', () => {
   it('keeps every summary line until the next exact section heading', () => {
     const parsed = parseRawResumeToStructured(`Asha Rao
