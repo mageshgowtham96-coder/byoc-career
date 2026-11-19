@@ -577,8 +577,8 @@ export const SettingsTab: React.FC = () => {
               <ol className="list-decimal list-inside space-y-1.5 text-slate-400">
                 <li><strong className="text-slate-200">Intake:</strong> Upload your master resume or paste raw text, verify extracted milestones in the Review Gate, and approve into your vault.</li>
                 <li><strong className="text-slate-200">Sourcing:</strong> Paste job descriptions from any board or query the public Remotive, Remote OK, and Jobicy remote feeds. These are not an exhaustive global index; Adzuna needs server-side credentials, and LinkedIn/Glassdoor/Naukri/Indeed/Foundit/Instahyre remain shortcuts rather than live feeds.</li>
-                <li><strong className="text-slate-200">Vetting:</strong> Audit role requirements, culture signals, and skill gaps via Groq before investing time tailoring.</li>
-                <li><strong className="text-slate-200">Customize:</strong> Generate 3 strictly grounded resume variations, review diffs, export PDF/DOCX/TXT, and use questionnaire chips.</li>
+                <li><strong className="text-slate-200">Vetting:</strong> Compare stated job requirements with your career evidence via Groq. Company culture and salary-market competitiveness are not independently verified.</li>
+                <li><strong className="text-slate-200">Customize:</strong> Generate role-relevant resume versions from available evidence, review generated wording, export PDF/DOCX/TXT, and use questionnaire chips.</li>
                 <li><strong className="text-slate-200">Tracking &amp; Prep-Zone:</strong> Save immutable application snapshots, track interview stages, and practice domain-grounded prompts.</li>
               </ol>
             </>
@@ -589,7 +589,7 @@ export const SettingsTab: React.FC = () => {
               <p className="font-semibold text-white">AES-256-GCM Master Vault Key &amp; Recovery Architecture</p>
               <ul className="space-y-1.5 text-slate-400">
                 <li>• <strong className="text-slate-200">Encrypted At Rest:</strong> Your master resume, intake drafts, email interaction records, saved jobs, tailored kits, applications, preferences, and API keys are stored solely inside <span className="font-mono text-sky-400">byoc_secure_vault_envelope</span> using a random 256-bit Master Vault Key (AES-256-GCM).</li>
-                <li>• <strong className="text-slate-200">Key Wrapping:</strong> Your Vault Passphrase and Emergency Recovery Phrase (<span className="font-mono text-sky-400">BYOC-XXXX-...</span>) each derive a 256-bit PBKDF2-SHA256 (100,000 iterations) wrapping key.</li>
+                <li>• <strong className="text-slate-200">Key Wrapping:</strong> Your Vault Passphrase and Emergency Recovery Phrase (<span className="font-mono text-sky-400">BYOC-XXXX-...</span>) the passphrase derives a 256-bit PBKDF2-SHA256 key using 600,000 iterations. The random recovery phrase uses its separately recorded 100,000-iteration KDF.</li>
                 <li>• <strong className="text-slate-200">Offline Recovery:</strong> If you forget your passphrase, switch to Emergency Recovery on the unlock screen, verify your recovery phrase, and set a new passphrase without losing any stored data.</li>
                 <li>• <strong className="text-slate-200">Portable Backups:</strong> Export your encrypted vault envelope above to back up your ciphertext offline or import it onto another browser.</li>
               </ul>
