@@ -434,7 +434,7 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
           location: parsedLocation,
           workplaceType: 'Remote',
           salary: item.salary || 'Undisclosed',
-          postedDate: item.publication_date ? new Date(item.publication_date).toLocaleDateString() : 'Unspecified',
+          postedDate: item.publication_date || 'Unspecified',
           jobDescriptionRaw: plainDesc,
           url: item.url || '#',
           source: 'Remotive Live',
@@ -533,7 +533,7 @@ function parseSalaryRange(min: unknown, max: unknown, currency: unknown, period:
 
 function createRemoteFeedJob(item: any, sourceId: string, sourceName: string, fields: {
   id: unknown; title: unknown; company: unknown; location: unknown; description: unknown; url: unknown;
-  date?: unknown; salary?: string; tags?: unknown;
+  date?: unknown; salary?: string; tags?: unknown; workplaceType?: JobPosting['workplaceType'];
 }): JobPosting | null {
   const title = typeof fields.title === 'string' ? fields.title.trim() : '';
   const company = typeof fields.company === 'string' ? fields.company.trim() : '';
@@ -552,7 +552,7 @@ function createRemoteFeedJob(item: any, sourceId: string, sourceName: string, fi
     title,
     company,
     location,
-    workplaceType: 'Remote',
+    workplaceType: fields.workplaceType || 'Remote',
     salary: fields.salary || 'Undisclosed',
     postedDate: formatFeedDate(fields.date),
     jobDescriptionRaw: description,
@@ -616,6 +616,41 @@ export class RemoteOkJobAdapter implements JobProviderAdapter {
   }
 }
 
+/** Public, no-key Arbeitnow feed. Europe-focused listings retain the original Arbeitnow posting URL. */
+export class ArbeitnowJobAdapter implements JobProviderAdapter {
+  id = 'arbeitnow';
+  name = 'Arbeitnow Live';
+  requiresAuth = false;
+  remoteOnly = false;
+
+  get isConfigured(): boolean { return true; }
+
+  async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
+    if (!(params.query || params.targetRole || params.profession || params.skills?.length)) return [];
+    // The official public feed has no keyword parameter; fetch one bounded page and filter locally.
+    const payload = await fetchJsonWithTimeout('https://www.arbeitnow.com/api/job-board-api?page=1', this.name);
+    const items = Array.isArray(payload?.data) ? payload.data : [];
+    return items.map((item: any) => {
+      const createdAt = typeof item.created_at === 'number'
+        ? new Date(item.created_at * 1000).toISOString()
+        : item.created_at;
+      return createRemoteFeedJob(item, this.id, this.name, {
+        id: item.slug || item.id,
+        title: item.title,
+        company: item.company_name,
+        location: item.location || 'Location Unspecified',
+        description: item.description,
+        url: item.url,
+        date: createdAt,
+        tags: item.tags,
+        workplaceType: item.remote === true ? 'Remote' : 'Unspecified'
+      });
+    }).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
+      job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
+    ));
+  }
+}
+
 /** Public, no-key Jobicy feed. The free endpoint deliberately preserves Jobicy listing URLs for attribution and applications. */
 export class JobicyJobAdapter implements JobProviderAdapter {
   id = 'jobicy';
@@ -627,8 +662,30 @@ export class JobicyJobAdapter implements JobProviderAdapter {
 
   async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
     if (!(params.query || params.targetRole || params.profession || params.skills?.length)) return [];
-    const payload = await fetchJsonWithTimeout('https://jobicy.com/api/jobs?count=50', this.name);
-    const items = Array.isArray(payload?.jobs) ? payload.jobs : [];
+
+    // Jobicy's public feed contains the most recent seven days and supports cursor pagination.
+    // Keep a bounded page count so a broad search cannot monopolize the user's mobile connection.
+    const searchTerm = (params.query || params.targetRole || params.profession || params.skills?.[0] || '').trim();
+    const tag = searchTerm.length >= 3 ? searchTerm.slice(0, 50) : '';
+    const baseUrl = new URL('https://jobicy.com/api/jobs');
+    baseUrl.searchParams.set('count', '100');
+    if (tag) baseUrl.searchParams.set('tag', tag);
+
+    const items: any[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined;
+
+    for (let page = 0; page < 3; page += 1) {
+      const pageUrl = new URL(baseUrl.toString());
+      if (cursor) pageUrl.searchParams.set('cursor', cursor);
+      const payload = await fetchJsonWithTimeout(pageUrl.toString(), this.name);
+      if (Array.isArray(payload?.jobs)) items.push(...payload.jobs);
+      const nextCursor = typeof payload?.nextCursor === 'string' ? payload.nextCursor : '';
+      if (!payload?.hasMore || !nextCursor || seenCursors.has(nextCursor)) break;
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
+    }
+
     return items.map((item: any) => createRemoteFeedJob(item, this.id, this.name, {
       id: item.id,
       title: item.jobTitle,
@@ -648,7 +705,7 @@ export class JobicyJobAdapter implements JobProviderAdapter {
 export function buildLocationScopeNotice(country?: string, location?: string, includeWorldwideRemote = true): string {
   const cleanLoc = (location || '').trim();
   if (isWorldwideCountryCode(country)) {
-    return 'Worldwide remote mode: Remotive, Remote OK, and Jobicy public remote feeds are queried; results depend on each feed and are not an exhaustive global job index.';
+    return 'Worldwide mode queries Remotive, Remote OK, Jobicy, and Arbeitnow public feeds; results depend on each feed and are not an exhaustive global job index.';
   }
   const code = (country || '').trim().toUpperCase();
   const eligibility = includeWorldwideRemote ? `${code} / explicitly worldwide` : `${code} only`;
@@ -662,149 +719,64 @@ export function buildLocationScopeNotice(country?: string, location?: string, in
 /**
  * Central Multi-Provider Live Job Search Coordinator
  */
-/**
- * Groq-hosted browser discovery. Only role/skill and coarse location filters are sent;
- * candidate resumes, contact details, and application history are never included.
- * Returned listings are discovery candidates, not independently verified vacancies.
- */
-export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
-  id = 'groq_browser_search';
-  name = 'Groq Browser Search';
-  requiresAuth = true;
-  private apiKey: string;
-
-  constructor(apiKey: string) {
-    this.apiKey = apiKey.trim();
+/** Identifies the actual job-board host so discovery results can be filtered by portal. */
+export function identifyJobPortalSource(rawUrl: string): string {
+  try {
+    const host = new URL(rawUrl).hostname.toLowerCase().replace(/^www\./, '');
+    const portals: Array<{ domain: string; label: string }> = [
+      { domain: 'linkedin.com', label: 'LinkedIn' },
+      { domain: 'indeed.com', label: 'Indeed' },
+      { domain: 'indeed.co.in', label: 'Indeed' },
+      { domain: 'naukri.com', label: 'Naukri' },
+      { domain: 'foundit.in', label: 'Foundit' },
+      { domain: 'glassdoor.com', label: 'Glassdoor' },
+      { domain: 'instahyre.com', label: 'Instahyre' }
+    ];
+    const match = portals.find(({ domain }) => host === domain || host.endsWith(`.${domain}`));
+    return match?.label ?? 'Employer Careers';
+  } catch {
+    return 'Employer Careers';
   }
+}
 
-  get isConfigured(): boolean {
-    return this.apiKey.length > 0;
+/** True for jobs discovered from a public live feed, not user-entered records. */
+export function isLiveDiscoveredJobSource(source?: string): boolean {
+  const normalized = (source || '').toLowerCase();
+  return ['remotive live', 'remote ok live', 'jobicy live', 'arbeitnow live'].includes(normalized);
+}
+
+/** Returns true only when a published date can be parsed and falls inside the selected freshness window. */
+function parsePostedDate(postedDate: string): Date | null {
+  const value = (postedDate || '').trim();
+  if (!value || /^(unspecified|unknown|just now)$/i.test(value)) return null;
+  const direct = new Date(value);
+  if (Number.isFinite(direct.getTime())) return direct;
+
+  // Handle common device-locale date strings (DD/MM/YYYY and DD-MM-YYYY).
+  const localDate = value.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (localDate) {
+    const first = Number(localDate[1]);
+    const second = Number(localDate[2]);
+    const year = Number(localDate[3]);
+    const day = first > 12 ? first : second > 12 ? second : first;
+    const month = first > 12 ? second : second > 12 ? first : second;
+    const parsed = new Date(year, month - 1, day);
+    if (parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day) return parsed;
   }
+  return null;
+}
 
-  async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
-    const roleQuery = (params.query || params.targetRole || params.profession || params.skills?.slice(0, 5).join(' ') || '').trim();
-    if (!roleQuery) return [];
+export function isPostedWithinDays(postedDate: string, days: number, now = new Date()): boolean {
+  if (!Number.isFinite(days) || days <= 0) return true;
+  const parsed = parsePostedDate(postedDate);
+  if (!parsed) return false;
+  const ageMs = now.getTime() - parsed.getTime();
+  return ageMs >= -24 * 60 * 60 * 1000 && ageMs <= days * 24 * 60 * 60 * 1000;
+}
 
-    const searchContext = [
-      `Role or skills: ${roleQuery}`,
-      params.skills?.length ? `Relevant skills: ${params.skills.slice(0, 8).join(', ')}` : '',
-      params.country && !isWorldwideCountryCode(params.country) ? `Country: ${params.country}` : 'Country: worldwide',
-      params.location ? `Preferred location: ${params.location}` : '',
-      params.workplaceType && params.workplaceType !== 'All' ? `Workplace type: ${params.workplaceType}` : ''
-    ].filter(Boolean).join('\n');
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-    try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'openai/gpt-oss-20b',
-          messages: [{
-            role: 'user',
-            content: `Search the live web for up to 12 current job vacancies matching these constraints. Prefer direct employer career pages and official ATS postings (Greenhouse, Lever, Ashby, Workday, SmartRecruiters). Do not use recruiter reposts where an employer posting is available. Never invent a vacancy, company, date, or URL. Include only listings where you found a direct job-posting URL. Do not claim that a listing is verified or guaranteed active. Return ONLY a JSON object with this exact shape: {"jobs":[{"title":"string","company":"string","location":"string","workplaceType":"Remote|Hybrid|On-site|Unspecified","salary":"string","postedDate":"string","description":"string","url":"https://...","skillsRequired":["string"]}]}. If no reliable listings are found, return {"jobs":[]}. Search constraints:\n${searchContext}`
-          }],
-          temperature: 0.1,
-          reasoning_effort: 'low',
-          citation_options: 'enabled',
-          max_completion_tokens: 5000,
-          tool_choice: 'required',
-          tools: [{ type: 'browser_search' }]
-        }),
-        signal: controller.signal
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) throw new Error('Groq Browser Search quota or rate limit reached. Try again later or check your Groq account limits.');
-        throw new Error(`Groq Browser Search returned HTTP ${response.status}.`);
-      }
-
-      const payload = await response.json();
-      const content = payload?.choices?.[0]?.message?.content;
-      if (typeof content !== 'string' || !content.trim()) {
-        throw new Error('Groq Browser Search returned no listing data.');
-      }
-
-      const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
-      // Browser Search citations may be appended to the final message outside the JSON payload.
-      // Extract one balanced JSON object without treating braces inside quoted strings as structure.
-      const jsonStart = cleaned.indexOf('{');
-      let jsonEnd = -1;
-      let depth = 0;
-      let inString = false;
-      let escaped = false;
-      if (jsonStart >= 0) {
-        for (let i = jsonStart; i < cleaned.length; i++) {
-          const char = cleaned[i];
-          if (inString) {
-            if (escaped) escaped = false;
-            else if (char === '\\') escaped = true;
-            else if (char === '"') inString = false;
-            continue;
-          }
-          if (char === '"') inString = true;
-          else if (char === '{') depth++;
-          else if (char === '}' && --depth === 0) {
-            jsonEnd = i + 1;
-            break;
-          }
-        }
-      }
-      let parsed: any;
-      try {
-        if (jsonStart < 0 || jsonEnd < 0) throw new Error('No complete JSON object found.');
-        parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd));
-      } catch {
-        throw new Error('Groq Browser Search returned an unreadable result. No jobs were imported.');
-      }
-
-      if (!parsed || !Array.isArray(parsed.jobs)) {
-        throw new Error('Groq Browser Search response did not match the expected job-list format.');
-      }
-
-      return parsed.jobs.slice(0, 12).flatMap((item: any, index: number) => {
-        const title = typeof item?.title === 'string' ? item.title.trim().slice(0, 240) : '';
-        const company = typeof item?.company === 'string' ? item.company.trim().slice(0, 180) : '';
-        const url = sanitizeExternalHttpUrl(typeof item?.url === 'string' ? item.url : '');
-        if (!title || !company || !url) return [];
-
-        const workplace = ['Remote', 'Hybrid', 'On-site'].includes(item.workplaceType)
-          ? item.workplaceType
-          : 'Unspecified';
-        const skills = Array.isArray(item.skillsRequired)
-          ? item.skillsRequired.filter((skill: unknown): skill is string => typeof skill === 'string' && skill.trim().length > 0).slice(0, 12)
-          : [];
-        return [{
-          id: `groq-search-${encodeURIComponent(url).slice(-90)}-${index}`,
-          title,
-          company,
-          location: normalizeLocation(typeof item.location === 'string' ? item.location : ''),
-          workplaceType: workplace,
-          salary: typeof item.salary === 'string' ? item.salary.slice(0, 120) : 'Undisclosed',
-          postedDate: typeof item.postedDate === 'string' ? item.postedDate.slice(0, 80) : 'Unspecified',
-          jobDescriptionRaw: stripJobHtml(item.description, 4000),
-          url,
-          source: 'Groq Browser Search — verify before applying',
-          skillsRequired: skills,
-          fitScore: null,
-          matchedKeywords: [],
-          missingKeywords: [],
-          experienceLevel: 'Unspecified' as const
-        }];
-      });
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Groq Browser Search timed out after 45 seconds.');
-      }
-      throw error instanceof Error ? error : new Error('Groq Browser Search failed.');
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
+export function formatJobPostedDate(postedDate: string): string {
+  const parsed = parsePostedDate(postedDate);
+  return parsed ? parsed.toLocaleDateString() : (postedDate || 'Unspecified');
 }
 
 export class LiveJobSearchEngine {
@@ -812,14 +784,14 @@ export class LiveJobSearchEngine {
     new PublicFeedsJobAdapter(),
     new RemoteOkJobAdapter(),
     new JobicyJobAdapter(),
+    new ArbeitnowJobAdapter(),
     new AdzunaJobAdapter()
   ];
 
   async executeLiveSearch(
     params: JobSearchQueryParams,
     masterResume: MasterResume | null,
-    existingJobs: JobPosting[] = [],
-    groqApiKey?: string
+    existingJobs: JobPosting[] = []
   ): Promise<JobSearchResult> {
     const normalizedParams: JobSearchQueryParams = {
       ...params,
@@ -840,9 +812,8 @@ export class LiveJobSearchEngine {
     ];
     const providerErrors: string[] = [];
 
-    const activeProviders: JobProviderAdapter[] = groqApiKey?.trim()
-      ? [...this.providers, new GroqBrowserSearchJobAdapter(groqApiKey)]
-      : this.providers;
+    // Job discovery uses public, no-key feeds only. Portal shortcuts are provided separately in the UI.
+    const activeProviders: JobProviderAdapter[] = this.providers;
 
     for (const provider of activeProviders) {
       if (!provider.isConfigured) {
@@ -918,9 +889,6 @@ export class LiveJobSearchEngine {
 
       if (locLower) {
         const source = (job.source || '').toLowerCase();
-        const isGroqDiscoveryJob = source === 'groq browser search — verify before applying';
-        if (isGroqDiscoveryJob && !job.location.toLowerCase().includes(locLower)) return false;
-
         const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes(source);
         const matchesLoc = !isLiveFeedJob || matchesRemoteCountryAndLocation(
           job.location,
@@ -937,7 +905,8 @@ export class LiveJobSearchEngine {
       }
 
       if (normalizedParams.portal && normalizedParams.portal !== 'All') {
-        const isLiveSource = ['remotive live', 'remote ok live', 'jobicy live', 'groq browser search — verify before applying'].includes((job.source || '').toLowerCase());
+        const source = (job.source || '').toLowerCase();
+        const isLiveSource = isLiveDiscoveredJobSource(job.source);
         const matchesPortal =
           normalizedParams.portal === 'User Import'
             ? !isLiveSource

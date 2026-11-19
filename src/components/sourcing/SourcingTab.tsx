@@ -5,6 +5,9 @@ import {
   calculateHonestMatch,
   isWorldwideCountryCode,
   matchesRemoteCountryAndLocation,
+  isLiveDiscoveredJobSource,
+  isPostedWithinDays,
+  formatJobPostedDate,
   sanitizeExternalHttpUrl,
   mergePortalShortcuts,
   buildPortalShortcutUrl,
@@ -41,7 +44,6 @@ export const SourcingTab: React.FC = () => {
     selectedJobId,
     setSelectedJobId,
     masterResume,
-    groqApiKey,
     hasMasterResume,
     setActiveTab,
     addJob,
@@ -58,6 +60,7 @@ export const SourcingTab: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [workplaceFilter, setWorkplaceFilter] = useState<'All' | 'Remote' | 'Hybrid' | 'On-site'>('All');
   const [portalFilter, setPortalFilter] = useState<JobSourcePortal>('All');
+  const [postedWithinDays, setPostedWithinDays] = useState<number>(30);
   const [optionalLocation, setOptionalLocation] = useState(
     candidatePreferences?.preferredLocations?.[0] || ''
   );
@@ -125,8 +128,7 @@ export const SourcingTab: React.FC = () => {
           skills: masterResume?.skills.technical
         },
         masterResume,
-        jobs,
-        groqApiKey
+        jobs
       );
       setLiveSearchReport(res);
       if (res.jobs.length > 0) {
@@ -185,9 +187,12 @@ export const SourcingTab: React.FC = () => {
             (job.jobDescriptionRaw && job.jobDescriptionRaw.toLowerCase().includes(qLower));
           if (!matches) return false;
         }
-        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes((job.source || '').toLowerCase());
-        const isGroqDiscoveryJob = (job.source || '').toLowerCase() === 'groq browser search — verify before applying';
-        if (isGroqDiscoveryJob && locFilter && !job.location.toLowerCase().includes(locFilter.toLowerCase())) return false;
+        const source = (job.source || '').toLowerCase();
+        // Hide legacy Groq-discovered candidates retained in older local vaults; do not delete user data.
+        if (source.includes('groq')) return false;
+        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live', 'arbeitnow live'].includes(source);
+        const isLiveDiscoveredJob = isLiveDiscoveredJobSource(job.source);
+        if (isLiveDiscoveredJob && postedWithinDays > 0 && !isPostedWithinDays(job.postedDate, postedWithinDays)) return false;
         if (!isWorldwide && isLiveFeedJob) {
           const matchesLoc = matchesRemoteCountryAndLocation(
             job.location,
@@ -204,7 +209,7 @@ export const SourcingTab: React.FC = () => {
         if (portalFilter !== 'All') {
           const matchPortal =
             portalFilter === 'User Import'
-              ? (job.source || '').toLowerCase() !== 'remotive live'
+              ? !isLiveDiscoveredJob
               : (job.source && job.source.toLowerCase().includes(portalFilter.toLowerCase())) ||
                 (job.url && job.url.toLowerCase().includes(portalFilter.toLowerCase()));
           if (!matchPortal) return false;
@@ -212,7 +217,7 @@ export const SourcingTab: React.FC = () => {
         return true;
       })
       .sort((a, b) => (b.fitScore ?? -1) - (a.fitScore ?? -1));
-  }, [jobs, searchQuery, workplaceFilter, portalFilter, masterResume, isWorldwide, optionalLocation, candidatePreferences?.country, candidatePreferences?.includeWorldwideRemote]);
+  }, [jobs, searchQuery, workplaceFilter, portalFilter, postedWithinDays, masterResume, isWorldwide, optionalLocation, candidatePreferences?.country, candidatePreferences?.includeWorldwideRemote]);
 
   const handleSelectJob = (job: JobPosting) => {
     // Check Rejection Deduplication Guard
@@ -467,8 +472,8 @@ export const SourcingTab: React.FC = () => {
 
         <p className="text-[11px] text-slate-400 leading-relaxed">
           {isWorldwide
-            ? 'Worldwide mode queries the Remotive, Remote OK, and Jobicy remote feeds. Coverage depends on these feeds and is not an exhaustive global job index.'
-            : `Remotive, Remote OK, and Jobicy provide remote postings only and filter published locations for ${candidatePreferences?.country || 'IN'}${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' plus explicitly worldwide roles'}${
+            ? 'Worldwide mode queries the Remotive, Remote OK, Jobicy, and Arbeitnow public feeds. Coverage depends on these feeds and is not an exhaustive global job index.'
+            : `Remotive, Remote OK, and Jobicy provide remote postings; Arbeitnow adds Europe-focused roles and filter published locations for ${candidatePreferences?.country || 'IN'}${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' plus explicitly worldwide roles'}${
                 optionalLocation.trim() ? ` + "${optionalLocation.trim()}"` : ''
               }. City mentions in descriptions do not count as location evidence; hybrid/on-site openings must be saved or pasted.`}
         </p>
@@ -486,8 +491,19 @@ export const SourcingTab: React.FC = () => {
           </span>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="byoc-posted-within" className="text-[11px] text-slate-400 font-semibold">Posted:</label>
+          <select id="byoc-posted-within" value={postedWithinDays} onChange={(e) => setPostedWithinDays(Number(e.target.value))} className="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white text-xs">
+            <option value={7}>Past 7 days</option>
+            <option value={30}>Past 30 days</option>
+            <option value={90}>Past 90 days</option>
+            <option value={0}>Any date</option>
+          </select>
+          <span className="text-[10px] text-slate-500">Undated feed listings are hidden unless “Any date” is selected.</span>
+        </div>
+
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {(['All', 'Remotive Live', 'Remote OK Live', 'Jobicy Live', 'User Import'] as JobSourcePortal[]).map((portal) => {
+          {(['All', 'Remotive Live', 'Remote OK Live', 'Jobicy Live', 'Arbeitnow Live', 'LinkedIn', 'Indeed', 'Naukri', 'Foundit', 'Glassdoor', 'Instahyre', 'User Import'] as JobSourcePortal[]).map((portal) => {
             const isSelectedPortal = portalFilter === portal;
             return (
               <button
@@ -507,7 +523,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-          <strong className="text-slate-200">Live Query Status:</strong> Remotive, Remote OK, and Jobicy public remote feeds are queried on demand; listings retain source links and provider failures appear in search status. This is not a complete worldwide index. Adzuna is unavailable in client-only builds (requires server-side App ID &amp; Key). External portals (including Glassdoor, LinkedIn, Indeed, Naukri, Foundit, and Instahyre) remain shortcuts only—open a shortcut below, then paste the listing text &amp; link via <span className="text-sky-300 font-semibold">Add Custom Job Description</span>.
+          <strong className="text-slate-200">Live Query Status:</strong> BYOC queries public no-key feeds from Remotive, Remote OK, Jobicy, and Arbeitnow (Europe-focused). Results are ranked against your Master Resume using BYOC’s local job-description skill matching. These feeds focus on remote roles and do not cover every portal or city-specific vacancy. Use the external portal links below for broader regional listings, then paste the job description and original posting URL into BYOC for fit analysis and vetting.
         </div>
 
         {/* External Portal Shortcuts (Shortcut Only — No Live API) */}
@@ -522,7 +538,7 @@ export const SourcingTab: React.FC = () => {
                 </span>
               </h3>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Opens the portal search in a new tab using your current query (BYOC never scrapes sites or fetches Glassdoor results without an official API).
+                Opens the portal’s own job-search page in a new tab. If a live feed misses a local or regional vacancy, verify it there and import its job description and original link into BYOC.
               </p>
             </div>
 
@@ -577,12 +593,13 @@ export const SourcingTab: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-2">
             {portalShortcuts.map((shortcut) => {
-              const effectiveQuery =
+              const roleQuery =
                 searchQuery.trim() ||
                 candidatePreferences?.targetRole?.trim() ||
                 candidatePreferences?.profession?.trim() ||
                 masterResume?.skills.technical[0] ||
                 'software engineer';
+              const effectiveQuery = [roleQuery, isWorldwide ? '' : optionalLocation.trim()].filter(Boolean).join(' ');
               const targetHref = buildPortalShortcutUrl(shortcut.searchUrlTemplate, effectiveQuery);
               if (!targetHref) return null;
 
@@ -683,11 +700,7 @@ export const SourcingTab: React.FC = () => {
             : `${workplaceFilter} filters saved or pasted listings only; connected public feeds currently provide remote roles only.`}
       </p>
 
-      {groqApiKey?.trim() && (
-        <p className="-mt-1 text-[11px] text-slate-400 leading-relaxed">
-          Groq Browser Search is also used when you run a search. It sends the search query, relevant role/skill keywords, and location filters to Groq — not your full resume or contact fields. Keep this box to job-related terms, never personal details. Results are unverified candidates; check the employer’s official careers page.
-        </p>
-      )}
+
 
       {/* Live Search Feedback Banner */}
       {liveSearchReport && (
@@ -813,7 +826,7 @@ export const SourcingTab: React.FC = () => {
                         {job.company}
                       </span>
                       <span className="text-slate-600">•</span>
-                      <span className="text-[11px] text-slate-400">{job.postedDate}</span>
+                      <span className="text-[11px] text-slate-400">{formatJobPostedDate(job.postedDate)}</span>
 
                       {/* Source Portal Chip */}
                       <span className="px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300 border border-slate-600/50 text-[10px] font-mono font-semibold flex items-center gap-1">
