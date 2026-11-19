@@ -365,7 +365,7 @@ export function extractExternalHyperlinkTargets(relationshipsXml: string): Map<s
     const mode = tag.match(/\bTargetMode="([^"]+)"/i)?.[1];
     if (!id || !target || mode?.toLowerCase() !== 'external') continue;
     const decodedTarget = decodeXmlEntities(target);
-    if (/^https?:\/\//i.test(decodedTarget)) targets.set(id, decodedTarget);
+    if (/^(?:https?:\/\/|mailto:|tel:)/i.test(decodedTarget)) targets.set(id, decodedTarget);
   }
   return targets;
 }
