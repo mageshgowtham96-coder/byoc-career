@@ -647,16 +647,44 @@ export function parseRawResumeToStructured(
   const sectionHeadingPattern = /^(?:summary|profile|professional summary|about me|overview|executive summary|experience|work experience|professional experience|employment history|work history|education|academic background|academics|qualifications|projects|personal projects|key projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies|awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)(?:\s*(?::|[-–])\s*.*)?$/i;
   const isResumeSectionHeading = (line: string) => sectionHeadingPattern.test(line.trim());
 
-  // Preserve explicit user-authored skills and competencies even when they are outside
-  // BYOC's small common-technology dictionary (for example AML, KYC, chargebacks, or fraud ops).
-  // Supports both standalone headings and compact inline formats such as "Skills: AML, KYC, SQL".
-  const skillsHeaderPattern = /^(skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies)(?:\s*(?::|[-–])\s*(.*))?$/i;
-  const skillsHeaderIndex = lines.findIndex((line) => skillsHeaderPattern.test(line));
+  // Match only exact section headings or headings followed by an explicit delimiter.
+  // This prevents ordinary prose such as "Awards platform migration" from ending a section.
+  const sectionHeadings = [
+    'summary', 'profile', 'professional summary', 'experience', 'work experience',
+    'professional experience', 'employment history', 'work history', 'education',
+    'academic background', 'academics', 'qualifications', 'projects', 'personal projects',
+    'key projects', 'certifications', 'licenses', 'certificates', 'skills',
+    'technical skills', 'core skills', 'core competencies', 'key competencies',
+    'key skills', 'skills and competencies', 'skills & competencies', 'relevant skills',
+    'competencies', 'technical competencies', 'areas of expertise', 'professional skills',
+    'tools and technologies', 'awards', 'awards and honours', 'awards and honors',
+    'honours', 'honors', 'volunteering', 'volunteer experience', 'community involvement',
+    'publications', 'research', 'languages', 'professional memberships', 'memberships',
+    'extracurricular activities', 'activities', 'leadership activities', 'interests'
+  ];
+  const matchSectionHeading = (line: string): { heading: string; inlineContent: string } | null => {
+    const trimmed = line.trim();
+    for (const heading of sectionHeadings) {
+      const escaped = heading.replace(/[.*+?^()|[\]\\]/g, '\\$&');
+      const match = trimmed.match(new RegExp('^' + escaped + '(?:\\s*[:–—-]\\s*(.*))?$', 'i'));
+      if (match) return { heading, inlineContent: (match[1] || '').trim() };
+    }
+    return null;
+  };
+  const skillHeadings = [
+    'skills', 'technical skills', 'core skills', 'core competencies', 'key competencies',
+    'key skills', 'skills and competencies', 'skills & competencies', 'relevant skills',
+    'competencies', 'technical competencies', 'areas of expertise', 'professional skills',
+    'tools and technologies'
+  ];
+  const skillsHeaderIndex = lines.findIndex((line) =>
+    skillHeadings.some((heading) => matchSectionHeading(line)?.heading === heading)
+  );
   if (skillsHeaderIndex !== -1) {
-    const inlineSkills = lines[skillsHeaderIndex].match(skillsHeaderPattern)?.[2] || '';
+    const inlineSkills = matchSectionHeading(lines[skillsHeaderIndex])?.inlineContent || '';
     const skillLines = [inlineSkills, ...lines.slice(skillsHeaderIndex + 1)];
     for (const line of skillLines) {
-      if (isResumeSectionHeading(line)) break;
+      if (matchSectionHeading(line)) break;
       const entries = line.replace(/^[•*\-]\s*/, '').split(/[,;|•]/).map((entry) => entry.trim()).filter(Boolean);
       for (const entry of entries) {
         if (entry.length > 1 && entry.length <= 80 && !domains.some((item) => item.toLowerCase() === entry.toLowerCase())) {
