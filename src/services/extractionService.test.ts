@@ -116,11 +116,13 @@ describe('DOCX external hyperlink relationships', () => {
     const targets = extractExternalHyperlinkTargets(`<Relationships>
       <Relationship Id="rId1" Target="https://www.linkedin.com/in/asha-rao" TargetMode="External"/>
       <Relationship Id="rId2" Target="file:///private/path" TargetMode="External"/>
-      <Relationship Id="rId3" Target="https://example.com/internal"/>
+      <Relationship Id="rId3" Target="mailto:asha@example.com" TargetMode="External"/>
+      <Relationship Id="rId4" Target="https://example.com/internal"/>
     </Relationships>`);
     expect(targets.get('rId1')).toBe('https://www.linkedin.com/in/asha-rao');
     expect(targets.has('rId2')).toBe(false);
-    expect(targets.has('rId3')).toBe(false);
+    expect(targets.get('rId3')).toBe('mailto:asha@example.com');
+    expect(targets.has('rId4')).toBe(false);
   });
 });
 
