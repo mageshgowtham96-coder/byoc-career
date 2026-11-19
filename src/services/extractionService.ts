@@ -614,8 +614,8 @@ export function parseRawResumeToStructured(
 
   // Name extraction: inspect top lines for a standalone personal name
   let detectedName = '';
-  for (let i = 0; i < Math.min(lines.length, 6); i++) {
-    const line = lines[i];
+  const nameCandidates = lines.slice(0, 6).flatMap((line) => line.split(/[|•]/).map((part) => part.trim()));
+  for (const line of nameCandidates) {
     // Check if line looks like a person's name (2-4 capitalized words, no punctuation/emails)
     if (
       line.length >= 3 &&
