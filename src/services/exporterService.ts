@@ -28,7 +28,8 @@ export async function dispatchExportFile(blob: Blob, filename: string, mimeType:
           return true;
         } catch (err: unknown) {
           if (err instanceof Error && err.name === 'AbortError') {
-            return true;
+            // User cancelled the share sheet; do not report a successful export.
+            return false;
           }
           console.warn('Web Share failed, falling back to blob download anchor:', err);
         }
