@@ -354,10 +354,10 @@ export interface CandidatePreferences {
 
 export interface PracticeQuestion {
   id: string;
-  category: 'Technical' | 'Architecture' | 'Behavioral' | 'Leadership';
+  category: 'Technical' | 'Behavioral' | 'Situational' | 'Role-Specific';
   title: string;
   question: string;
-  difficulty: 'Mid' | 'Senior' | 'Staff / Lead';
+  difficulty: 'Foundational' | 'Mid' | 'Senior' | 'Role-appropriate';
   keyConcepts: string[];
   suggestedFramework: string;
   sampleEvidencePrompt: string;
