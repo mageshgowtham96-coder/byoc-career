@@ -704,156 +704,19 @@ export function identifyJobPortalSource(rawUrl: string): string {
   }
 }
 
-/**
- * Groq-hosted browser discovery. Only role/skill and coarse location filters are sent;
- * candidate resumes, contact details, and application history are never included.
- * Returned listings are discovery candidates, not independently verified vacancies.
- */
-/** True for jobs discovered from a live feed or Groq web search, not user-entered records. */
+/** True for jobs discovered from a public live feed, not user-entered records. */
 export function isLiveDiscoveredJobSource(source?: string): boolean {
   const normalized = (source || '').toLowerCase();
-  return ['remotive live', 'remote ok live', 'jobicy live'].includes(normalized) ||
-    normalized.includes('groq search');
+  return ['remotive live', 'remote ok live', 'jobicy live'].includes(normalized);
 }
 
-export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
-  id = 'groq_browser_search';
-  name = 'Groq Browser Search';
-  requiresAuth = true;
-  private apiKey: string;
-
-  constructor(apiKey: string) {
-    this.apiKey = apiKey.trim();
-  }
-
-  get isConfigured(): boolean {
-    return this.apiKey.length > 0;
-  }
-
-  async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
-    const roleQuery = (params.query || params.targetRole || params.profession || params.skills?.slice(0, 5).join(' ') || '').trim();
-    if (!roleQuery) return [];
-
-    const searchContext = [
-      `Role or skills: ${roleQuery}`,
-      params.skills?.length ? `Relevant skills: ${params.skills.slice(0, 8).join(', ')}` : '',
-      params.country && !isWorldwideCountryCode(params.country) ? `Country: ${params.country}` : 'Country: worldwide',
-      params.location ? `Preferred location: ${params.location}` : '',
-      params.workplaceType && params.workplaceType !== 'All' ? `Workplace type: ${params.workplaceType}` : ''
-    ].filter(Boolean).join('\n');
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-    try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'openai/gpt-oss-20b',
-          messages: [{
-            role: 'user',
-            content: `Search the live web for up to 12 current job vacancies matching these constraints. Search established job portals FIRST: LinkedIn Jobs, Indeed, Naukri, Foundit, Glassdoor, and Instahyre. Prefer the portal's individual job-listing page and preserve that exact portal URL. If a portal listing is unavailable or a direct employer posting is clearly better, use the employer's official careers page or official ATS posting (Greenhouse, Lever, Ashby, Workday, SmartRecruiters). Do not search GitHub/GitLab/Bitbucket repositories, source-code repositories, open-source project listings, or code examples. Do not use recruiter reposts when an original portal or employer posting is available. Never invent a vacancy, company, date, or URL. Include only listings where you found a direct job-posting URL, not a portal homepage or search-results page. Do not claim that a listing is verified or guaranteed active. Return ONLY a JSON object with this exact shape: {"jobs":[{"title":"string","company":"string","location":"string","workplaceType":"Remote|Hybrid|On-site|Unspecified","salary":"string","postedDate":"string","description":"string","url":"https://...","skillsRequired":["string"]}]}. If no reliable listings are found, return {"jobs":[]}. Search constraints:\n${searchContext}`
-          }],
-          temperature: 0.1,
-          reasoning_effort: 'low',
-          citation_options: 'enabled',
-          max_completion_tokens: 5000,
-          tool_choice: 'required',
-          tools: [{ type: 'browser_search' }]
-        }),
-        signal: controller.signal
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) throw new Error('Groq Browser Search quota or rate limit reached. Try again later or check your Groq account limits.');
-        throw new Error(`Groq Browser Search returned HTTP ${response.status}.`);
-      }
-
-      const payload = await response.json();
-      const content = payload?.choices?.[0]?.message?.content;
-      if (typeof content !== 'string' || !content.trim()) {
-        throw new Error('Groq Browser Search returned no listing data.');
-      }
-
-      const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
-      // Browser Search citations may be appended to the final message outside the JSON payload.
-      // Extract one balanced JSON object without treating braces inside quoted strings as structure.
-      const jsonStart = cleaned.indexOf('{');
-      let jsonEnd = -1;
-      let depth = 0;
-      let inString = false;
-      let escaped = false;
-      if (jsonStart >= 0) {
-        for (let i = jsonStart; i < cleaned.length; i++) {
-          const char = cleaned[i];
-          if (inString) {
-            if (escaped) escaped = false;
-            else if (char === '\\') escaped = true;
-            else if (char === '"') inString = false;
-            continue;
-          }
-          if (char === '"') inString = true;
-          else if (char === '{') depth++;
-          else if (char === '}' && --depth === 0) {
-            jsonEnd = i + 1;
-            break;
-          }
-        }
-      }
-      let parsed: any;
-      try {
-        if (jsonStart < 0 || jsonEnd < 0) throw new Error('No complete JSON object found.');
-        parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd));
-      } catch {
-        throw new Error('Groq Browser Search returned an unreadable result. No jobs were imported.');
-      }
-
-      if (!parsed || !Array.isArray(parsed.jobs)) {
-        throw new Error('Groq Browser Search response did not match the expected job-list format.');
-      }
-
-      return parsed.jobs.slice(0, 12).flatMap((item: any, index: number) => {
-        const title = typeof item?.title === 'string' ? item.title.trim().slice(0, 240) : '';
-        const company = typeof item?.company === 'string' ? item.company.trim().slice(0, 180) : '';
-        const url = sanitizeExternalHttpUrl(typeof item?.url === 'string' ? item.url : '');
-        if (!title || !company || !url) return [];
-
-        const workplace = ['Remote', 'Hybrid', 'On-site'].includes(item.workplaceType)
-          ? item.workplaceType
-          : 'Unspecified';
-        const skills = Array.isArray(item.skillsRequired)
-          ? item.skillsRequired.filter((skill: unknown): skill is string => typeof skill === 'string' && skill.trim().length > 0).slice(0, 12)
-          : [];
-        return [{
-          id: `groq-search-${encodeURIComponent(url).slice(-90)}-${index}`,
-          title,
-          company,
-          location: normalizeLocation(typeof item.location === 'string' ? item.location : ''),
-          workplaceType: workplace,
-          salary: typeof item.salary === 'string' ? item.salary.slice(0, 120) : 'Undisclosed',
-          postedDate: typeof item.postedDate === 'string' ? item.postedDate.slice(0, 80) : 'Unspecified',
-          jobDescriptionRaw: stripJobHtml(item.description, 4000),
-          url,
-          source: `${identifyJobPortalSource(url)} · Groq Search (unverified)`,
-          skillsRequired: skills,
-          fitScore: null,
-          matchedKeywords: [],
-          missingKeywords: [],
-          experienceLevel: 'Unspecified' as const
-        }];
-      });
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Groq Browser Search timed out after 45 seconds.');
-      }
-      throw error instanceof Error ? error : new Error('Groq Browser Search failed.');
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
+/** Returns true only when a published date can be parsed and falls inside the selected freshness window. */
+export function isPostedWithinDays(postedDate: string, days: number, now = new Date()): boolean {
+  if (!Number.isFinite(days) || days <= 0) return true;
+  const parsed = new Date(postedDate);
+  if (!Number.isFinite(parsed.getTime())) return false;
+  const ageMs = now.getTime() - parsed.getTime();
+  return ageMs >= -24 * 60 * 60 * 1000 && ageMs <= days * 24 * 60 * 60 * 1000;
 }
 
 export class LiveJobSearchEngine {
@@ -867,8 +730,7 @@ export class LiveJobSearchEngine {
   async executeLiveSearch(
     params: JobSearchQueryParams,
     masterResume: MasterResume | null,
-    existingJobs: JobPosting[] = [],
-    groqApiKey?: string
+    existingJobs: JobPosting[] = []
   ): Promise<JobSearchResult> {
     const normalizedParams: JobSearchQueryParams = {
       ...params,
@@ -889,9 +751,8 @@ export class LiveJobSearchEngine {
     ];
     const providerErrors: string[] = [];
 
-    const activeProviders: JobProviderAdapter[] = groqApiKey?.trim()
-      ? [...this.providers, new GroqBrowserSearchJobAdapter(groqApiKey)]
-      : this.providers;
+    // Job discovery uses public, no-key feeds only. Portal shortcuts are provided separately in the UI.
+    const activeProviders: JobProviderAdapter[] = this.providers;
 
     for (const provider of activeProviders) {
       if (!provider.isConfigured) {
@@ -967,9 +828,6 @@ export class LiveJobSearchEngine {
 
       if (locLower) {
         const source = (job.source || '').toLowerCase();
-        const isGroqDiscoveryJob = source.includes('groq search');
-        if (isGroqDiscoveryJob && !job.location.toLowerCase().includes(locLower)) return false;
-
         const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes(source);
         const matchesLoc = !isLiveFeedJob || matchesRemoteCountryAndLocation(
           job.location,
