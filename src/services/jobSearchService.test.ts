@@ -259,3 +259,17 @@ describe('mergeDiscoveredJobs', () => {
     expect(mergeDiscoveredJobs([saved], [])).toEqual([saved]);
   });
 });
+
+describe('deduplicateJobs location identity', () => {
+  it('keeps same-title openings from the same company when locations differ', () => {
+    const base = {
+      company: 'Example Co', workplaceType: 'Hybrid' as const, salary: 'Undisclosed',
+      postedDate: '2026-11-18', jobDescriptionRaw: 'Role details', url: 'https://example.com/jobs',
+      source: 'User Import', skillsRequired: [], fitScore: null, matchedKeywords: [],
+      missingKeywords: [], experienceLevel: 'Unspecified' as const
+    };
+    const bangalore = { ...base, id: 'job-in', title: 'Fraud Analyst', location: 'Bengaluru, India' };
+    const london = { ...base, id: 'job-uk', title: 'Fraud Analyst', location: 'London, UK' };
+    expect(mergeDiscoveredJobs([], [bangalore, london])).toHaveLength(2);
+  });
+});
