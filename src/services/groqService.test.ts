@@ -129,3 +129,51 @@ describe('evidence-bounded job vetting', () => {
     expect(result.profileAlignmentEstimate).toBe(100);
   });
 });
+
+
+describe('optional Master Resume optimization validation', () => {
+  const source = {
+    rawText: 'Unmodified original source text',
+    contactInfo: { name: 'Asha Rao', email: 'asha@example.com', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+    headline: 'Commerce Graduate',
+    summary: 'Student with project experience.',
+    skills: { technical: ['SQL'], soft: [], tools: ['Excel'], domains: [] },
+    experiences: [{
+      id: 'exp-1', company: 'Local Co-op', role: 'Intern', startDate: '2025', endDate: '2025',
+      location: '', bullets: ['Prepared weekly reports.'], isCurrent: false
+    }],
+    education: [],
+    projects: [{ id: 'proj-1', title: 'Sales Analysis', description: 'Used Excel to analyse sales.', technologies: ['Excel'] }],
+    certifications: [],
+    additionalEvidence: ['Tamil — Native'],
+    stats: { wordCount: 20, pageCount: 1, charCount: 120, lastParsedDate: '2026-11-20T00:00:00.000Z', sourceFileName: 'resume.docx' }
+  } as any;
+
+  it('changes only requested presentation fields and preserves the original profile evidence', async () => {
+    const { validateOptimizedMasterResume } = await import('./groqService');
+    const optimized = validateOptimizedMasterResume({
+      headline: 'Commerce Graduate | Data Analysis',
+      summary: 'Commerce graduate with practical sales analysis project experience.',
+      experiences: [{ id: 'exp-1', bullets: ['Prepared weekly operational reports.'] }],
+      projects: [{ id: 'proj-1', description: 'Analysed sales trends using Excel.' }]
+    }, source);
+
+    expect(optimized.headline).toContain('Data Analysis');
+    expect(optimized.experiences[0].bullets).toEqual(['Prepared weekly operational reports.']);
+    expect(optimized.projects[0].description).toContain('sales trends');
+    expect(optimized.rawText).toBe(source.rawText);
+    expect(optimized.skills).toEqual(source.skills);
+    expect(optimized.contactInfo).toEqual(source.contactInfo);
+    expect(source.experiences[0].bullets).toEqual(['Prepared weekly reports.']);
+  });
+
+  it('rejects invented experience records and changes to the number of source bullets', async () => {
+    const { validateOptimizedMasterResume } = await import('./groqService');
+    expect(() => validateOptimizedMasterResume({
+      experiences: [{ id: 'invented', bullets: ['Managed a team of ten.'] }]
+    }, source)).toThrowError();
+    expect(() => validateOptimizedMasterResume({
+      experiences: [{ id: 'exp-1', bullets: ['Prepared reports.', 'Increased revenue by 40%.'] }]
+    }, source)).toThrowError();
+  });
+});
