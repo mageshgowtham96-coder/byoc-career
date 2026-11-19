@@ -18,7 +18,12 @@ async function loadValidatedPdf(file: File): Promise<PDFDocument> {
   if (file.size === 0) throw new Error('The PDF file is empty.');
   if (file.size > MAX_PDF_BYTES) throw new Error('PDF files must be 10 MB or smaller on this device.');
   if (!file.name.toLowerCase().endsWith('.pdf')) throw new Error('Choose a file with a .pdf extension.');
-  const fileBytes = await file.arrayBuffer();
+  let fileBytes: ArrayBuffer;
+  try {
+    fileBytes = await file.arrayBuffer();
+  } catch {
+    throw new Error('This PDF file could not be read. Please choose it again or use another copy.');
+  }
   const signature = new TextDecoder().decode(fileBytes.slice(0, 5));
   if (signature !== '%PDF-') throw new Error('This does not appear to be a valid PDF file.');
   let document: PDFDocument;
