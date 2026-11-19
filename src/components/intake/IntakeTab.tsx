@@ -333,14 +333,20 @@ export const IntakeTab: React.FC = () => {
 
   const handleRevertToLocalParse = () => {
     if (!localStagedProfile) return;
-    setOptimizedMasterPreview(null);
-    setStagedParsedResume(localStagedProfile);
+    const reviewedLocal = applyResumeIntakeReviewEdits(localStagedProfile, {
+      name: editableName,
+      email: editableEmail,
+      headline: editableHeadline,
+      summary: editableStagedSummary
+    });
+    setLocalStagedProfile(reviewedLocal);
+    setStagedParsedResume(reviewedLocal);
     setOptimizedMasterPreview(null);
     setOptimizationError(null);
-    setEditableStagedSummary(localStagedProfile.summary);
-    setEditableHeadline(localStagedProfile.headline);
-    setEditableName(localStagedProfile.contactInfo.name || '');
-    setEditableEmail(localStagedProfile.contactInfo.email || '');
+    setEditableStagedSummary(reviewedLocal.summary);
+    setEditableHeadline(reviewedLocal.headline);
+    setEditableName(reviewedLocal.contactInfo.name || '');
+    setEditableEmail(reviewedLocal.contactInfo.email || '');
     setAiStructuringError(null);
   };
 
@@ -367,7 +373,7 @@ export const IntakeTab: React.FC = () => {
   const handleGuidedBuilderComplete = (profile: MasterResume) => {
     setOptimizedMasterPreview(null);
     setStagedParsedResume(profile);
-    if (!localStagedProfile) setLocalStagedProfile(profile);
+    setLocalStagedProfile(profile);
     setEditableStagedSummary(profile.summary);
     setEditableHeadline(profile.headline);
     setEditableName(profile.contactInfo.name || '');
@@ -651,7 +657,7 @@ export const IntakeTab: React.FC = () => {
               <div>
                 <h4 className="text-xs font-bold text-violet-200">Optional Master Resume Optimization</h4>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                  Ask Groq to improve wording and clarity using your structured profile only. Contact details and original uploaded text are not sent. This is optional, never replaces your source automatically, and must be reviewed before you approve the Master Resume.
+                  Ask Groq to improve wording and clarity using your structured profile only. Dedicated contact fields and original uploaded text are excluded; personal details typed into free-text bullets, project descriptions or other evidence may still be sent. This is optional and never replaces your source automatically.
                 </p>
               </div>
               <button
