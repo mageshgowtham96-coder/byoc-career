@@ -676,9 +676,9 @@ export const IntakeTab: React.FC = () => {
               <div className="space-y-3 rounded-xl border border-violet-400/25 bg-slate-950/60 p-3">
                 <p className="text-[11px] font-bold text-violet-200">Compare the proposed wording with your current draft</p>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div><p className="text-[10px] font-bold uppercase text-slate-500">Current headline</p><p className="mt-1 whitespace-pre-wrap text-xs text-slate-300">{stagedParsedResume.headline || 'Not provided'}</p></div>
+                  <div><p className="text-[10px] font-bold uppercase text-slate-500">Current headline</p><p className="mt-1 whitespace-pre-wrap text-xs text-slate-300">{editableHeadline || 'Not provided'}</p></div>
                   <div><p className="text-[10px] font-bold uppercase text-violet-300">Suggested headline</p><p className="mt-1 whitespace-pre-wrap text-xs text-white">{optimizedMasterPreview.headline || 'Not provided'}</p></div>
-                  <div><p className="text-[10px] font-bold uppercase text-slate-500">Current summary</p><p className="mt-1 whitespace-pre-wrap text-xs text-slate-300">{stagedParsedResume.summary || 'Not provided'}</p></div>
+                  <div><p className="text-[10px] font-bold uppercase text-slate-500">Current summary</p><p className="mt-1 whitespace-pre-wrap text-xs text-slate-300">{editableStagedSummary || 'Not provided'}</p></div>
                   <div><p className="text-[10px] font-bold uppercase text-violet-300">Suggested summary</p><p className="mt-1 whitespace-pre-wrap text-xs text-white">{optimizedMasterPreview.summary || 'Not provided'}</p></div>
                 </div>
                 {optimizedMasterPreview.projects.map((project) => {
