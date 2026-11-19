@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseRawResumeToStructured, validateExtractedSchema } from './extractionService';
+import { extractResumeFile, parseRawResumeToStructured, validateExtractedSchema } from './extractionService';
 import { assessResumeReadiness } from '../utils/resumeReadiness';
 
 const DUMMY_FRAUD_ANALYST_RESUME = `Priya Sharma
