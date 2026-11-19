@@ -7,6 +7,7 @@ import {
   matchesRemoteCountryAndLocation,
   isLiveDiscoveredJobSource,
   isPostedWithinDays,
+  formatJobPostedDate,
   sanitizeExternalHttpUrl,
   mergePortalShortcuts,
   buildPortalShortcutUrl,
@@ -822,7 +823,7 @@ export const SourcingTab: React.FC = () => {
                         {job.company}
                       </span>
                       <span className="text-slate-600">•</span>
-                      <span className="text-[11px] text-slate-400">{job.postedDate}</span>
+                      <span className="text-[11px] text-slate-400">{formatJobPostedDate(job.postedDate)}</span>
 
                       {/* Source Portal Chip */}
                       <span className="px-2 py-0.5 rounded-full bg-slate-700/60 text-slate-300 border border-slate-600/50 text-[10px] font-mono font-semibold flex items-center gap-1">
