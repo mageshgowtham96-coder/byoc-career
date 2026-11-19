@@ -400,8 +400,8 @@ export const PrepZone: React.FC = () => {
                   </h3>
                   <p className="text-xs text-slate-300 mt-1">
                     {hasStructuredEvidence
-                      ? 'Role-specific interview round structure based on the selected job listing, your Master Resume, and compensation settings.'
-                      : 'Generic role-specific interview round structure based on the selected job listing (add a resume in Intake to include Master Resume evidence).'}
+                      ? 'Role-specific preparation based on the selected job listing and your structured Master Resume evidence. Actual employer interview stages are not known.'
+                      : 'Generic preparation based on the selected job listing. Add structured career evidence in Intake to personalize questions; actual employer interview stages are not known.'}
                   </p>
                 </div>
 
@@ -431,7 +431,7 @@ export const PrepZone: React.FC = () => {
                       <span>Evidence-Anchored AI Interview Questions ({selectedJob.company})</span>
                     </h4>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Grounded in your Master Profile milestones and target job requirements via Groq (no fabricated accomplishments).
+                      Each question references a saved career-evidence item. Talking points are prompts for your review, not verified claims.
                     </p>
                   </div>
 
@@ -453,7 +453,7 @@ export const PrepZone: React.FC = () => {
                           ? 'Generating...'
                           : currentTailored && (currentTailored.interviewPrepQuestions?.length || 0) > 0
                           ? 'Refresh AI Questions'
-                          : 'Generate Interview Questions & Tailored Kit'}
+                          : currentTailored ? 'Generate AI Questions' : 'Generate Interview Questions & Tailored Kit'}
                       </span>
                     </button>
                   )}
@@ -527,8 +527,8 @@ export const PrepZone: React.FC = () => {
                       {!hasStructuredEvidence
                         ? 'Add and confirm structured career evidence in Intake first so AI prep questions can be grounded in your actual profile.'
                         : !groqApiKey.trim()
-                        ? 'No Groq API key configured. Add your key in Settings to generate AI prep questions, or use the offline interview blueprint and Domain Role Practice below.'
-                        : 'No AI prep questions generated for this role yet. Click "Generate AI Prep Questions" above or synthesize a 3-variant kit in Customization.'}
+                        ? 'No Groq API key configured. Add your key in Settings to generate AI prep questions, or use the illustrative preparation areas and General Career Practice below.'
+                        : 'No AI prep questions generated for this role yet. Generate interview questions above or create a tailored kit in Customization.'}
                     </span>
                     {!hasStructuredEvidence ? (
                       <button
