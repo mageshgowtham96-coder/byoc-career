@@ -86,6 +86,14 @@ export const CustomizationTab: React.FC = () => {
 
   const handleCopyChip = (key: string, value: string) => {
     if (!value.trim()) return;
+    if (currentArtifact?.variants.length && !currentArtifact.reviewConfirmed) {
+      addToast({
+        type: 'warning',
+        title: 'Factual Review Required',
+        message: 'Review the AI-generated wording and confirm its claims against your Master Resume and the supplied job description before copying.'
+      });
+      return;
+    }
     navigator.clipboard.writeText(value);
     setCopiedField(key);
     setTimeout(() => setCopiedField(null), 2000);
@@ -96,7 +104,7 @@ export const CustomizationTab: React.FC = () => {
   };
 
   const handleCreateOfflineBaselineKit = () => {
-    if (!masterResume || !selectedJob) {
+    if (!masterResume || !hasResume || !selectedJob) {
       addToast({
         type: 'warning',
         message: 'Load a Master Resume in Intake and select a target job in Sourcing first.'
@@ -173,7 +181,7 @@ export const CustomizationTab: React.FC = () => {
   };
 
   const handleDraftScreeningAnswer = async () => {
-    if (!masterResume || !selectedJob || !groqApiKey) {
+    if (!masterResume || !hasResume || !selectedJob || !groqApiKey) {
       addToast({
         type: 'warning',
         title: 'Questionnaire Draft Unavailable',
@@ -206,7 +214,7 @@ export const CustomizationTab: React.FC = () => {
   };
 
   const handleExport = async (format: 'pdf' | 'docx' | 'txt') => {
-    if (!currentArtifact || !masterResume || !selectedJob) {
+    if (!currentArtifact || !masterResume || !hasResume || !selectedJob) {
       addToast({
         type: 'warning',
         message: 'Prepare or generate an application kit before exporting.'
@@ -818,7 +826,7 @@ export const CustomizationTab: React.FC = () => {
                 </span>
                 <button
                   type="button"
-                  disabled={!currentArtifact.coverLetter}
+                  disabled={!currentArtifact.coverLetter || (currentArtifact.variants.length > 0 && !currentArtifact.reviewConfirmed)}
                   onClick={() => handleCopyChip('coverLetterTab', currentArtifact.coverLetter || '')}
                   className="px-3 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 disabled:opacity-40 disabled:cursor-not-allowed text-indigo-300 text-[11px] font-semibold transition cursor-pointer flex items-center gap-1"
                 >
@@ -903,7 +911,7 @@ export const CustomizationTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleExport('pdf')}
-                  disabled={isExporting !== null || !currentArtifact.reviewConfirmed}
+                  disabled={isExporting !== null || !hasResume || !currentArtifact.reviewConfirmed}
                   className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5 text-rose-400" />
