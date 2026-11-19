@@ -71,19 +71,23 @@ export const PrepZone: React.FC = () => {
     setIsGeneratingPrep(true);
     setPrepError(null);
     try {
-      const generated = await tailorResumeWithGroq(selectedJob, masterResume, groqApiKey);
-      // Refreshing interview questions must not replace an already reviewed tailored resume.
-      const artifact = currentTailored
-        ? { ...currentTailored, interviewPrepQuestions: generated.interviewPrepQuestions }
-        : generated;
-      saveTailoredArtifact(selectedJob.id, artifact);
-      addToast({
-        type: 'success',
-        title: 'Evidence-Anchored Prep Ready',
-        message: currentTailored
-          ? `Refreshed ${generated.interviewPrepQuestions.length} role-specific questions. Your existing tailored resume and review status were preserved.`
-          : `Generated ${generated.interviewPrepQuestions.length} role-specific questions and the initial tailored kit.`
-      });
+      if (currentTailored) {
+        const questions = await generateInterviewPrepQuestionsWithGroq(selectedJob, masterResume, groqApiKey);
+        saveInterviewPrepQuestions(selectedJob.id, questions);
+        addToast({
+          type: 'success',
+          title: 'Evidence-Anchored Prep Refreshed',
+          message: `Refreshed ${questions.length} role-specific questions. Your existing tailored resume and review status were preserved.`
+        });
+      } else {
+        const artifact = await tailorResumeWithGroq(selectedJob, masterResume, groqApiKey);
+        saveTailoredArtifact(selectedJob.id, artifact);
+        addToast({
+          type: 'success',
+          title: 'Initial Tailored Kit Ready',
+          message: `Generated ${artifact.interviewPrepQuestions.length} interview questions and the initial tailored application kit.`
+        });
+      }
     } catch (err: unknown) {
       const msg = formatGroqError(err, 'Unable to generate AI prep questions.');
       setPrepError(msg);
@@ -449,7 +453,7 @@ export const PrepZone: React.FC = () => {
                           ? 'Generating...'
                           : currentTailored && currentTailored.interviewPrepQuestions.length > 0
                           ? 'Refresh AI Questions'
-                          : 'Generate AI Prep Questions'}
+                          : 'Generate Interview Questions & Tailored Kit'}
                       </span>
                     </button>
                   )}
