@@ -36,4 +36,15 @@ describe('role-relevant tailoring strategies', () => {
     }));
     expect(strategies.map((item) => item.badge)).toEqual(['Relevant Experience', 'Projects & Learning', 'ATS Alignment']);
   });
+
+  it('uses certifications and additional career evidence when no employment, project or education records exist', () => {
+    const strategies = getTailoringStrategies(job, makeProfile({
+      certifications: [{ id: 'c1', name: 'Customer Service Foundations', issuer: 'Open Learning', issueDate: '2025' }],
+      additionalEvidence: ['Volunteering: Helped coordinate a community learning centre.', 'Languages: Tamil — Native']
+    }));
+    expect(strategies.map((item) => item.badge)).toEqual(['Career Evidence', 'ATS Alignment']);
+    expect(strategies[0].description).toMatch(/volunteering.*languages/i);
+    expect(strategies.some((item) => /paid employment/i.test(item.description))).toBe(true);
+  });
+
 });
