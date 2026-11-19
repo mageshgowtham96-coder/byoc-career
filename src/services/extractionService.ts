@@ -491,8 +491,8 @@ async function extractDocxText(file: File): Promise<string> {
         ? mainEntry
         : extractZipEntryViaCentralDirectory(bytes, partPath);
       if (!entry) continue;
-      totalDocxUncompressedBytes += entry.uncompressedSize;
-      if (totalDocxUncompressedBytes > MAX_DECOMPRESSED_DOCUMENT_BYTES) {
+      const remainingDocxBudget = MAX_DECOMPRESSED_DOCUMENT_BYTES - totalDocxUncompressedBytes;
+      if (remainingDocxBudget <= 0 || entry.uncompressedSize > remainingDocxBudget) {
         throw new Error('DOCX document parts exceed the 20MB combined extraction safety limit.');
       }
 
@@ -500,7 +500,7 @@ async function extractDocxText(file: File): Promise<string> {
       if (entry.compressionMethod === 0) {
         xmlBytes = entry.compressedBytes;
       } else if (entry.compressionMethod === 8) {
-        xmlBytes = await decompressBytes(entry.compressedBytes, 'deflate-raw');
+        xmlBytes = await decompressBytes(entry.compressedBytes, 'deflate-raw', remainingDocxBudget);
       } else {
         throw new Error(
           'DOCX contains an unsupported ZIP compression method (' + entry.compressionMethod +
@@ -508,6 +508,10 @@ async function extractDocxText(file: File): Promise<string> {
         );
       }
 
+      totalDocxUncompressedBytes += xmlBytes.byteLength;
+      if (totalDocxUncompressedBytes > MAX_DECOMPRESSED_DOCUMENT_BYTES) {
+        throw new Error('DOCX document parts exceed the 20MB combined extraction safety limit.');
+      }
       if (xmlBytes.byteLength !== entry.uncompressedSize) {
         throw new Error('DOCX ' + partPath + ' did not match its declared uncompressed size. The archive may be damaged.');
       }
