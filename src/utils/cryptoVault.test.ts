@@ -12,6 +12,7 @@ import {
   bufferToBase64,
   sha256Hex,
   sanitizeStoredVaultEnvelopeMetadata,
+  isValidVaultEnvelope,
   hasDemoWorkspaceIdentity,
   stripDemoWorkspaceName,
   stripDemoWorkspaceEmail,
@@ -99,6 +100,23 @@ const mockCrypto = {
 Object.defineProperty(global, 'crypto', { value: mockCrypto, writable: true });
 
 describe('Crypto Vault Core', () => {
+  it('continues to accept legacy v3/v4 vault envelopes while requiring separate recovery KDF metadata for v5', () => {
+    const base = {
+      encrypted: true as const,
+      kdf: { algorithm: 'PBKDF2' as const, iterations: 100000, salt: 'c2FsdA==', hash: 'SHA-256' as const },
+      iv: 'aXY=',
+      ciphertext: 'Y2lwaGVydGV4dA==',
+      meta: { id: 'user-1', name: 'Test User', email: 'test@example.com', biometricEnabled: false, updatedAt: '' }
+    };
+    expect(isValidVaultEnvelope({ ...base, version: 3 })).toBe(true);
+    expect(isValidVaultEnvelope({ ...base, version: 4, passphraseWrappedVaultKey: 'wrapped' })).toBe(true);
+    expect(isValidVaultEnvelope({
+      ...base, version: 5,
+      recoveryKdf: { algorithm: 'PBKDF2', iterations: 100000, hash: 'SHA-256' }
+    })).toBe(true);
+    expect(isValidVaultEnvelope({ ...base, version: 5 })).toBe(false);
+  });
+
   it('creates v5 vaults with a stronger passphrase KDF and separately recorded recovery KDF', async () => {
     const data: DecryptedVaultData = {
       masterResume: null,
