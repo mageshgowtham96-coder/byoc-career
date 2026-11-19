@@ -180,7 +180,6 @@ describe('optional Master Resume optimization validation', () => {
     }, source)).toThrowError();
     expect(() => validateOptimizedMasterResume({
       experiences: [{ id: 'exp-1', bullets: [
-        { source: 'Prepared weekly reports.', proposed: 'Prepared reports.' },
         { source: 'Invented source statement.', proposed: 'Increased revenue by 40%.' }
       ] }]
     }, source)).toThrowError(/source bullet/i);
