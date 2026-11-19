@@ -33,13 +33,13 @@ describe('resume intake review edits', () => {
     expect(profile.contactInfo.name).toBe('Original Name');
   });
 
-  it('keeps extracted values when a review field is blank', () => {
+  it('allows the user to explicitly clear incorrect extracted values', () => {
     const result = applyResumeIntakeReviewEdits(profile, {
       name: '  ', email: '', headline: '', summary: ''
     });
-    expect(result.contactInfo.name).toBe('Original Name');
-    expect(result.contactInfo.email).toBe('old@example.com');
-    expect(result.headline).toBe('Original headline');
-    expect(result.summary).toBe('Original summary');
+    expect(result.contactInfo.name).toBe('');
+    expect(result.contactInfo.email).toBe('');
+    expect(result.headline).toBe('');
+    expect(result.summary).toBe('');
   });
 });
