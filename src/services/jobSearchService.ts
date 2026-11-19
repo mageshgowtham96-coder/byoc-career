@@ -710,7 +710,7 @@ export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
           }],
           temperature: 0.1,
           reasoning_effort: 'low',
-          citation_options: 'disabled',
+          citation_options: 'enabled',
           max_completion_tokens: 5000,
           tool_choice: 'required',
           tools: [{ type: 'browser_search' }]
@@ -730,9 +730,34 @@ export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
       }
 
       const cleaned = content.replace(/```json\n?|\n?```/g, '').trim();
+      // Browser Search citations may be appended to the final message outside the JSON payload.
+      // Extract one balanced JSON object without treating braces inside quoted strings as structure.
+      const jsonStart = cleaned.indexOf('{');
+      let jsonEnd = -1;
+      let depth = 0;
+      let inString = false;
+      let escaped = false;
+      if (jsonStart >= 0) {
+        for (let i = jsonStart; i < cleaned.length; i++) {
+          const char = cleaned[i];
+          if (inString) {
+            if (escaped) escaped = false;
+            else if (char === '\\\\') escaped = true;
+            else if (char === '"') inString = false;
+            continue;
+          }
+          if (char === '"') inString = true;
+          else if (char === '{') depth++;
+          else if (char === '}' && --depth === 0) {
+            jsonEnd = i + 1;
+            break;
+          }
+        }
+      }
       let parsed: any;
       try {
-        parsed = JSON.parse(cleaned);
+        if (jsonStart < 0 || jsonEnd < 0) throw new Error('No complete JSON object found.');
+        parsed = JSON.parse(cleaned.slice(jsonStart, jsonEnd));
       } catch {
         throw new Error('Groq Browser Search returned an unreadable result. No jobs were imported.');
       }
