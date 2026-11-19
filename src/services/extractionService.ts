@@ -377,7 +377,9 @@ function extractParagraphsFromDocumentXml(xml: string, hyperlinkTargets: Map<str
 
   for (const block of paragraphBlocks) {
     const pieces: string[] = [];
-    let match: RegExp    while ((match = tokenRegex.exec(block)) !== null) {
+    let match: RegExpExecArray | null;
+    tokenRegex.lastIndex = 0;
+    while ((match = tokenRegex.exec(block)) !== null) {
       if (match[1] !== undefined) {
         const relationshipId = match[1].match(/\br:id="([^"]+)"/i)?.[1];
         const visibleText = Array.from(match[2].matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi))
@@ -391,9 +393,6 @@ function extractParagraphsFromDocumentXml(xml: string, hyperlinkTargets: Map<str
       } else if (/^<w:tab/i.test(match[0])) {
         pieces.push('\t');
       } else {
-        pieces.push('\n');
-      }
-    } else {
         pieces.push('\n');
       }
     }
@@ -414,7 +413,6 @@ function extractParagraphsFromDocumentXml(xml: string, hyperlinkTargets: Map<str
   }
   return fallbackPieces.join(' ').trim();
 }
-
 function extractZipEntryViaCentralDirectory(
   bytes: Uint8Array,
   targetEntryPath: string
