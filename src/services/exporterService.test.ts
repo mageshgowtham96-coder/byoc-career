@@ -306,6 +306,14 @@ describe('Export Service', () => {
       expect(blob).toBeInstanceOf(Blob);
       expect(blob.size).toBeGreaterThan(0);
     });
+
+    it('refuses to silently strip non-Latin resume text from PDF output', async () => {
+      const artifact = createMockArtifact();
+      const resume = createMockResume();
+      resume.contactInfo.name = 'தமிழ் வேட்பாளர்';
+      await expect(generatePdfResume(artifact, resume))
+        .rejects.toThrow(/cannot safely render.*Unicode|Unicode.*DOCX/i);
+    });
   });
 
   describe('dispatchExportFile', () => {
@@ -430,12 +438,4 @@ describe('dispatchExportFile cancellation', () => {
       vi.unstubAllGlobals();
     }
   });
-  it('refuses to silently strip non-Latin resume text from PDF output', async () => {
-    const artifact = createMockArtifact();
-    const resume = createMockResume();
-    resume.contactInfo.name = 'தமிழ் வேட்பாளர்';
-    await expect(generatePdfResume(artifact, resume))
-      .rejects.toThrow(/cannot safely render.*Unicode|Unicode.*DOCX/i);
-  });
-
 });
