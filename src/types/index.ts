@@ -75,10 +75,15 @@ export interface MasterResume {
 }
 
 export interface JobVetting {
-  cultureFit: number; // 0 - 100
+  /** AI-estimated alignment of supplied candidate evidence to the supplied JD; null when evidence is insufficient. */
+  profileAlignmentEstimate: number | null;
+  /** @deprecated Retained only so older encrypted vault snapshots can still be read. Never display as a culture score. */
+  cultureFit?: number;
   redFlags: string[];
   greenFlags: string[];
+  /** AI interpretation of progression signals explicitly present in the job description, not a promise from the employer. */
   growthTrajectory: string;
+  /** Always discloses that market competitiveness is not assessed without independent salary data. */
   salaryCompetitiveness: string;
   pros: string[];
   cons: string[];
