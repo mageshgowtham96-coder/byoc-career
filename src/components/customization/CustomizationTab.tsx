@@ -159,7 +159,7 @@ export const CustomizationTab: React.FC = () => {
       addToast({
         type: 'success',
         title: 'Tailored Kit Synthesized',
-        message: '3 AI draft variations generated. Review all generated wording before use.'
+        message: `${artifact.variants.length} evidence-relevant draft variation${artifact.variants.length === 1 ? '' : 's'} generated. Review all generated wording before use.`
       });
     } catch (err: unknown) {
       const msg = formatGroqError(err, 'Tailoring generation failed.');
