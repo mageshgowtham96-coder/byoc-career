@@ -99,6 +99,25 @@ const mockCrypto = {
 Object.defineProperty(global, 'crypto', { value: mockCrypto, writable: true });
 
 describe('Crypto Vault Core', () => {
+  it('creates v5 vaults with a stronger passphrase KDF and separately recorded recovery KDF', async () => {
+    const data: DecryptedVaultData = {
+      masterResume: null,
+      jobs: [],
+      selectedJobId: null,
+      tailoredArtifacts: {},
+      applications: [],
+      unsavedQueue: [],
+      candidatePreferences: {}
+    };
+    const { envelope } = await encryptVault(data, 'correct horse battery staple', {
+      id: 'test-user', name: 'Test User', email: 'test@example.com',
+      biometricEnabled: false, updatedAt: new Date().toISOString()
+    }, 'BYOC-ABCD-EFGH-JKLM-NPQR');
+    expect(envelope.version).toBe(5);
+    expect(envelope.kdf.iterations).toBe(600000);
+    expect(envelope.recoveryKdf?.iterations).toBe(100000);
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     Object.keys(mockLocalStorage).forEach(k => delete mockLocalStorage[k]);
