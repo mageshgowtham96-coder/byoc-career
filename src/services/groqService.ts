@@ -899,18 +899,28 @@ export function getTailoringStrategies(job: JobPosting, masterResume: MasterResu
       description: `Prioritize the candidate's documented work roles and original contribution bullets that relate to ${targetRole}.`
     });
   }
-  if (masterResume.projects?.length || masterResume.education?.length) {
+  const hasProjectsOrEducation = Boolean(masterResume.projects?.length || masterResume.education?.length);
+  if (hasProjectsOrEducation) {
     strategies.push({
       id: 'variant-projects',
       name: 'Projects and learning evidence',
       badge: 'Projects & Learning',
-      description: `Prioritize documented projects, education and demonstrated transferable skills for ${targetRole}; do not imply paid employment where none exists.`
+      description: `Prioritize documented projects, education, certifications and other demonstrated transferable evidence for ${targetRole}; do not imply paid employment where none exists.`
     });
   }
+  const hasAdditionalEvidence = Boolean(masterResume.certifications?.length || masterResume.additionalEvidence?.length);
+  if (hasAdditionalEvidence && !hasProjectsOrEducation) {
+    strategies.push({
+      id: 'variant-evidence',
+      name: 'Additional career evidence',
+      badge: 'Career Evidence',
+      description: `Prioritize documented certifications, volunteering, awards, publications, languages and memberships relevant to ${targetRole}; do not convert these into invented employment.`
+    });
+  }
+  const hasStructuredSkills = Object.values(masterResume.skills || {}).some((items) => items?.length);
   const hasAnyProfileEvidence = Boolean(
-    masterResume.rawText?.trim() ||
-    masterResume.summary?.trim() ||
-    Object.values(masterResume.skills || {}).some((items) => items?.length)
+    masterResume.rawText?.trim() || masterResume.summary?.trim() || hasStructuredSkills ||
+    masterResume.experiences?.length || hasProjectsOrEducation || hasAdditionalEvidence
   );
   if (!strategies.length && hasAnyProfileEvidence) {
     strategies.push({
