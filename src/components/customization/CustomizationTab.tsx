@@ -218,7 +218,7 @@ export const CustomizationTab: React.FC = () => {
       addToast({
         type: 'warning',
         title: 'Factual Review Required',
-        message: 'Review the summary, skills, rewritten bullets and cover letter. Confirm that every factual statement is supported by your career profile before exporting.'
+        message: 'Review the summary, skills, rewritten bullets and cover letter. Confirm candidate claims against your Master Profile and job-specific claims against the supplied job description before exporting.'
       });
       return;
     }
@@ -885,7 +885,7 @@ export const CustomizationTab: React.FC = () => {
                 className="mt-0.5 accent-emerald-500"
               />
               <span className="text-[11px] leading-relaxed text-slate-300">
-                I reviewed this resume version and confirm its factual details are supported by my Master Profile. I understand AI wording is a draft, not independent verification.
+                I reviewed this resume version. Candidate claims are supported by my Master Profile, and job-specific claims by the supplied job description. I understand AI wording is a draft, not independent verification.
               </span>
             </label>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
