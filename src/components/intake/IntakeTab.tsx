@@ -12,6 +12,7 @@ import { ChakraLogo } from '../ChakraLogo';
 import { GuidedMasterResumeBuilder } from './GuidedMasterResumeBuilder';
 import { createCareerDraftFromMasterResume } from '../../utils/guidedResumeMapper';
 import { assessResumeReadiness } from '../../utils/resumeReadiness';
+import { applyResumeIntakeReviewEdits } from '../../utils/resumeIntake';
 import type { MasterResume, ExperienceItem } from '../../types';
 import {
   UploadCloud,
@@ -225,7 +226,13 @@ export const IntakeTab: React.FC = () => {
     setIsAiStructuring(true);
     setAiStructuringError(null);
     try {
-      const structured = await parseResumeWithGroq(stagedParsedResume, groqApiKey);
+      const reviewedSource = applyResumeIntakeReviewEdits(stagedParsedResume, {
+        name: editableName,
+        email: editableEmail,
+        headline: editableHeadline,
+        summary: editableStagedSummary
+      });
+      const structured = await parseResumeWithGroq(reviewedSource, groqApiKey);
       setStagedParsedResume(structured);
       setEditableStagedSummary(structured.summary);
       setEditableHeadline(structured.headline);
