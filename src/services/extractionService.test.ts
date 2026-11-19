@@ -308,6 +308,16 @@ Builds reliable software systems.`);
     expect(parsed.headline).toBe('Software Engineer');
   });
 
+  it('separates a comma-delimited candidate name from a location in the same header line', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao, Chennai, India
+Software Engineer
+asha@example.com
+Professional Summary
+Builds reliable software systems.`);
+    expect(parsed.contactInfo.name).toBe('Asha Rao');
+    expect(parsed.contactInfo.location).toBe('Chennai, India');
+  });
+
   it('does not treat an email provider or social profile URL as a personal portfolio', () => {
     const parsed = parseRawResumeToStructured(`Asha Rao
 asha@gmail.com
