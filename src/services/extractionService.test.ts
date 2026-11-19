@@ -45,3 +45,86 @@ describe('resume extraction resource limits', () => {
     expect(result.error).toContain('10MB limit');
   });
 });
+
+function crc32(bytes: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function makeStoredDocxArchive(entries: Array<{ name: string; xml: string }>): Uint8Array {
+  const encoder = new TextEncoder();
+  const localParts: Uint8Array[] = [];
+  const centralParts: Uint8Array[] = [];
+  let localOffset = 0;
+
+  for (const entry of entries) {
+    const name = encoder.encode(entry.name);
+    const data = encoder.encode(entry.xml);
+    const crc = crc32(data);
+    const local = new Uint8Array(30 + name.length + data.length);
+    const lv = new DataView(local.buffer);
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(4, 20, true);
+    lv.setUint16(6, 0x0800, true);
+    lv.setUint16(8, 0, true);
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, data.length, true);
+    lv.setUint32(22, data.length, true);
+    lv.setUint16(26, name.length, true);
+    local.set(name, 30);
+    local.set(data, 30 + name.length);
+    localParts.push(local);
+
+    const central = new Uint8Array(46 + name.length);
+    const cv = new DataView(central.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, data.length, true);
+    cv.setUint32(24, data.length, true);
+    cv.setUint16(28, name.length, true);
+    cv.setUint32(42, localOffset, true);
+    central.set(name, 46);
+    centralParts.push(central);
+    localOffset += local.length;
+  }
+
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(8, entries.length, true);
+  ev.setUint16(10, entries.length, true);
+  ev.setUint32(12, centralSize, true);
+  ev.setUint32(16, localOffset, true);
+  const all = [...localParts, ...centralParts, eocd];
+  const result = new Uint8Array(all.reduce((sum, part) => sum + part.length, 0));
+  let offset = 0;
+  for (const part of all) { result.set(part, offset); offset += part.length; }
+  return result;
+}
+
+describe('DOCX document structure extraction', () => {
+  it('includes content from the main document, tables, headers and footers', async () => {
+    const xml = (text: string) => `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:body></w:document>`;
+    const archive = makeStoredDocxArchive([
+      { name: 'word/document.xml', xml: xml('Asha Rao\nBachelor of Commerce') },
+      { name: 'word/header1.xml', xml: xml('asha@example.com') },
+      { name: 'word/footer1.xml', xml: xml('Portfolio: asha.example') }
+    ]);
+    const buffer = archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer;
+    const file = { name: 'resume.docx', size: buffer.byteLength, arrayBuffer: async () => buffer } as unknown as File;
+    const result = await extractResumeFile(file);
+    expect(result.success).toBe(true);
+    expect(result.rawText).toContain('Asha Rao');
+    expect(result.rawText).toContain('asha@example.com');
+    expect(result.rawText).toContain('Portfolio: asha.example');
+  });
+});
