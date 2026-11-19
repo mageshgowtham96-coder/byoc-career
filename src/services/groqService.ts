@@ -368,6 +368,7 @@ export async function getAvailableGroqModels(apiKey: string): Promise<string[]> 
   } finally {
     clearTimeout(timeoutId);
   }
+}
 
 /**
  * Resolves the optimal available Groq chat model
