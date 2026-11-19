@@ -619,16 +619,18 @@ export function parseRawResumeToStructured(
   }
 
   const explicitLocationMatch = rawText.match(/(?:^|\n)\s*(?:location|based in|city|address)\s*[:：-]\s*([^\n]+)/i);
-  const headerLocationLine = lines.slice(0, 10).find((line) => {
-    if (line.length < 5 || line.length > 90 || !line.includes(',')) return false;
-    if (line.includes('@') || /https?:\/\//i.test(line) || /\d/.test(line)) return false;
-    if (isResumeSectionHeading(line)) return false;
-    if (/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance)\b/i.test(line)) return false;
-    return line.split(',').filter((part) => part.trim().length > 1).length >= 2;
-  });
-  const detectedLocation = (explicitLocationMatch?.[1] || headerLocationLine || '')
-    .split('|')[0]
-    .trim();
+  const headerLocationLine = lines.slice(0, 10)
+    .flatMap((line) => line.split(/[|•]/))
+    .map((part) => part.trim())
+    .find((part) => {
+      if (part.length < 5 || part.length > 90 || !part.includes(',')) return false;
+      if (part.includes('@') || /https?:\/\//i.test(part) || /\d/.test(part)) return false;
+      if (/\b(inc\.?|llc|ltd\.?|limited|corp\.?|corporation|pvt\.?|private limited)\b/i.test(part)) return false;
+      if (isResumeSectionHeading(part)) return false;
+      if (/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance)\b/i.test(part)) return false;
+      return part.split(',').filter((item) => item.trim().length > 1).length >= 2;
+    });
+  const detectedLocation = (explicitLocationMatch?.[1] || headerLocationLine || '').trim();
 
   // 2. Headline & Professional Summary
   let detectedHeadline = '';
