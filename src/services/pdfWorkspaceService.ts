@@ -27,12 +27,13 @@ async function loadValidatedPdf(file: File): Promise<PDFDocument> {
   const signature = new TextDecoder().decode(fileBytes.slice(0, 5));
   if (signature !== '%PDF-') throw new Error('This does not appear to be a valid PDF file.');
   let document: PDFDocument;
+  let pageCount: number;
   try {
     document = await PDFDocument.load(fileBytes, { updateMetadata: false });
+    pageCount = document.getPageCount();
   } catch {
     throw new Error('This PDF could not be opened. It may be malformed, encrypted, or use an unsupported feature.');
   }
-  const pageCount = document.getPageCount();
   if (pageCount < 1) throw new Error('The PDF contains no pages.');
   if (pageCount > MAX_PDF_PAGES) throw new Error(`This PDF has ${pageCount} pages. The device-safe limit is ${MAX_PDF_PAGES} pages.`);
   return document;
