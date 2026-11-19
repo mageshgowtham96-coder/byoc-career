@@ -58,6 +58,8 @@ export interface MasterResume {
   education: EducationItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
+  /** User-authored evidence not covered by standard resume sections (awards, volunteering, publications, languages, memberships, etc.). */
+  additionalEvidence?: string[];
   sourceLanguage?: string;
   sourceLanguageOther?: string;
   currentRole?: string;
@@ -458,5 +460,6 @@ export interface CareerApplicationFormState {
   originalLanguageSnapshot?: string;
   projects?: ProjectItem[];
   certifications?: CertificationItem[];
+  additionalEvidence?: string[];
 }
 
