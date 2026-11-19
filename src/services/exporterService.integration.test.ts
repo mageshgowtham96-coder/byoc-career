@@ -44,6 +44,8 @@ describe('Master Resume document export integration', () => {
     expect(imported.rawText).toContain('ஆஷா ராவ்');
     expect(imported.rawText).toContain('Commerce graduate with project experience');
     expect(imported.rawText).toContain('Prepared weekly operational reports');
+    expect(imported.rawText).toContain('PROFESSIONAL EXPERIENCE');
+    expect(imported.rawText).not.toContain('TAILORED PROFESSIONAL EXPERIENCE');
     expect(imported.rawText).toContain('Retail Sales Analysis');
     expect(imported.rawText).toContain('Tamil — Native');
     expect(resume.rawText).toBe('Original uploaded resume text stays in the structured encrypted profile.');
