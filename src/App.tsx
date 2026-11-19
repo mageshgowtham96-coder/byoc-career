@@ -24,6 +24,7 @@ const CustomizationTab = lazy(() => import('./components/customization/Customiza
 const TrackingTab = lazy(() => import('./components/tracking/TrackingTab').then((m) => ({ default: m.TrackingTab })));
 const PrepZone = lazy(() => import('./pages/PrepZone').then((m) => ({ default: m.PrepZone })));
 const SettingsTab = lazy(() => import('./components/settings/SettingsTab').then((m) => ({ default: m.SettingsTab })));
+const DocumentsTab = lazy(() => import('./components/DocumentsTab').then((m) => ({ default: m.DocumentsTab })));
 
 const TabLoadingFallback: React.FC = () => (
   <div role="status" aria-live="polite" className="flex min-h-48 items-center justify-center">
@@ -118,6 +119,9 @@ export default function App() {
               </div>
               <div className={activeTab === 'prepzone' ? 'block animate-in fade-in duration-150' : 'hidden'}>
                 {shouldRenderTab('prepzone') && <Suspense fallback={<TabLoadingFallback />}><PrepZone /></Suspense>}
+              </div>
+              <div className={activeTab === 'documents' ? 'block animate-in fade-in duration-150' : 'hidden'}>
+                {shouldRenderTab('documents') && <Suspense fallback={<TabLoadingFallback />}><DocumentsTab /></Suspense>}
               </div>
               <div className={activeTab === 'settings' ? 'block animate-in fade-in duration-150' : 'hidden'}>
                 {shouldRenderTab('settings') && <Suspense fallback={<TabLoadingFallback />}><SettingsTab /></Suspense>}
