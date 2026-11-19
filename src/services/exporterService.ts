@@ -169,10 +169,22 @@ export function generatePlainTextResume(artifact: TailoredArtifact, resume: Mast
 }
 
 function toPdfSafeText(text: string): string {
-  return (text || '')
+  const normalized = (text || '')
     .replace(/[\r\n]+/g, ' ')
-    .replace(/\u2192/g, '->')
-    .replace(/[^\x20-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2022]/g, ' ');
+    .replace(/\u2192/g, '->');
+  const supportedExtendedCharacters = new Set([
+    0x2013, 0x2014, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022
+  ]);
+  const unsupported = Array.from(normalized).find((character) => {
+    const codePoint = character.codePointAt(0) || 0;
+    return codePoint > 0xff && !supportedExtendedCharacters.has(codePoint);
+  });
+  if (unsupported) {
+    throw new Error(
+      'PDF export cannot safely render this Unicode script with the built-in standard fonts. Export as DOCX to preserve every character; the original and approved resume data remain unchanged.'
+    );
+  }
+  return normalized.replace(/[^\x20-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2022]/g, ' ');
 }
 
 /**
