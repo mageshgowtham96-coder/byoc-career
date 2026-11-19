@@ -44,8 +44,8 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 
 ### Vetting and tailoring
 - AI vetting is explicitly user-triggered. The selected job details and relevant Master Resume evidence are sent to Groq only after the user chooses **Run AI Vetting**.
-- Vetting is career-fit guidance. It does **not** independently verify employer identity, company legitimacy, vacancy status, or salary claims.
-- Three tailored variants are available: Leadership & Scale, Systems & Reliability, and ATS Alignment.
+- Vetting compares the supplied job description with candidate evidence. It does **not** independently verify employer identity, company legitimacy, vacancy status, culture, salary-market competitiveness, or hiring probability. Profile alignment is labelled as an AI estimate, not a verified match.
+- Tailored resume versions are selected from evidence actually present in the profile (work experience, projects/education, and ATS alignment); BYOC does not force leadership or systems-architecture variants onto unrelated roles.
 - AI-generated summaries, cover letters, screening answers, and interview prompts require user review.
 - Tailored application snapshots preserve the selected job description and generated materials. Moving a saved application to Applied requires explicit confirmation.
 
@@ -56,7 +56,7 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 
 ## 3. Privacy and Security
 
-- Career records and the Groq API key are stored in the local encrypted vault using AES-256-GCM. The current vault format derives wrapping keys with PBKDF2-HMAC-SHA256 (100,000 iterations).
+- Career records and the Groq API key are stored in the local encrypted vault using AES-256-GCM. Vault v5 uses PBKDF2-HMAC-SHA256 with 600,000 iterations for user passphrases and separately records the recovery-phrase KDF. Existing v3/v4 vaults remain readable and are upgraded after successful passphrase unlock.
 - A passphrase or Emergency Recovery Phrase is required to unlock the vault after a cold start.
 - Platform biometrics are an in-session convenience gate for an already-unlocked session. They do not unlock the encrypted vault and are not server-verified identity proof.
 - BYOC sends no career data to Groq merely because the app is opened. Job discovery uses public no-key feeds and external portal links; it does not send job-search terms to Groq. Each remaining AI action is user-triggered. Resume structuring sends the extracted resume text, which may contain contact information. Vetting sends the selected job and relevant profile evidence, without contact fields. Tailoring sends the selected job and resume evidence, including the candidate name, but not email, phone, or social-profile URLs.
