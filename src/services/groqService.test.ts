@@ -238,3 +238,80 @@ describe('role-aware tailoring strategies', () => {
   });
 
 });
+
+
+describe('evidence-grounded interview preparation', () => {
+  const resume = {
+    rawText: 'Private raw document text must not be sent.',
+    contactInfo: { name: 'Asha Rao', email: 'asha@example.com', phone: '+91 90000 00000', location: 'Chennai', linkedin: '', github: '', portfolio: '' },
+    headline: 'Operations Analyst',
+    summary: 'Commerce graduate with operations reporting project experience.',
+    skills: { technical: ['Excel'], soft: ['Communication'], tools: ['SQL'], domains: ['Operations'] },
+    experiences: [{
+      id: 'exp-1', company: 'Community Co-op', role: 'Operations Intern', startDate: '2025', endDate: '2025',
+      location: 'Chennai', bullets: ['Prepared weekly operational reports using Excel.'], isCurrent: false
+    }],
+    education: [], projects: [], certifications: [], additionalEvidence: [],
+    stats: { wordCount: 40, pageCount: 1, charCount: 200, lastParsedDate: '2026-11-20T00:00:00.000Z', sourceFileName: 'resume.docx' }
+  } as any;
+  const job = {
+    id: 'job-1', title: 'Operations Analyst', company: 'Acme', skillsRequired: ['Excel'],
+    jobDescriptionRaw: 'Prepare reports and maintain accurate records.'
+  } as any;
+
+  it('builds evidence references from structured fields only', async () => {
+    const { buildInterviewEvidenceMap } = await import('./groqService');
+    const evidence = buildInterviewEvidenceMap(resume);
+    expect(Object.values(evidence)).toContain('Listed technical skill: Excel');
+    expect(Object.values(evidence).some((item) => item.includes('Prepared weekly operational reports using Excel.'))).toBe(true);
+    expect(Object.values(evidence).some((item) => item.includes('Private raw document text'))).toBe(false);
+    expect(Object.values(evidence).some((item) => item.includes('asha@example.com'))).toBe(false);
+  });
+
+  it('resolves each generated evidence ID to the exact saved source text', async () => {
+    const { buildInterviewEvidenceMap, validateInterviewPrepQuestions } = await import('./groqService');
+    const evidence = buildInterviewEvidenceMap(resume);
+    const evidenceId = Object.keys(evidence).find((id) => id.startsWith('experience:'))!;
+    const parsed = {
+      questions: [0, 1, 2].map((index) => ({
+        question: `How did you approach this recorded task, example ${index + 1}?`,
+        category: index === 0 ? 'Technical' : index === 1 ? 'Behavioral' : 'Role-Specific',
+        suggestedTalkingPoints: ['Explain your own steps.', 'Describe what you learned.'],
+        evidenceId
+      }))
+    };
+    const validated = validateInterviewPrepQuestions(parsed, evidence);
+    expect(validated).toHaveLength(3);
+    expect(validated[0].authenticEvidenceRef).toBe(evidence[evidenceId]);
+  });
+
+  it('rejects invented evidence references and unsupported question categories', async () => {
+    const { buildInterviewEvidenceMap, validateInterviewPrepQuestions } = await import('./groqService');
+    const evidence = buildInterviewEvidenceMap(resume);
+    const base = {
+      question: 'How would you approach this responsibility?',
+      category: 'Situational',
+      suggestedTalkingPoints: ['Clarify the task.'],
+      evidenceId: 'not-in-the-master-resume'
+    };
+    expect(() => validateInterviewPrepQuestions({ questions: [base, base, base] }, evidence))
+      .toThrowError(/candidate evidence that does not exist/i);
+    expect(() => validateInterviewPrepQuestions({
+      questions: Array.from({ length: 3 }, () => ({ ...base, evidenceId: Object.keys(evidence)[0], category: 'Leadership' }))
+    }, evidence)).toThrowError(/unsupported question category/i);
+  });
+
+  it('refuses personalized interview generation when only contact details are present', async () => {
+    const { generateInterviewPrepQuestionsWithGroq } = await import('./groqService');
+    const contactOnly = {
+      ...resume,
+      rawText: 'Asha Rao asha@example.com +91 90000 00000',
+      summary: '',
+      skills: { technical: [], soft: [], tools: [], domains: [] },
+      experiences: [], education: [], projects: [], certifications: [], additionalEvidence: []
+    };
+    await expect(generateInterviewPrepQuestionsWithGroq(job, contactOnly, 'test-key'))
+      .rejects.toMatchObject({ code: 'INSUFFICIENT_CANDIDATE_EVIDENCE' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
