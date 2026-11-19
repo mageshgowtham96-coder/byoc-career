@@ -81,10 +81,9 @@ export const PROVIDER_CONFIGS = {
     name: 'Groq',
     baseURL: 'https://api.groq.com/openai/v1/chat/completions',
     models: [
-      'llama-3.3-70b-versatile',
-      'llama-3.1-70b-versatile',
-      'llama-3.1-8b-instant',
-      'mixtral-8x7b-32768'
+      'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b',
+      'qwen/qwen3.8-27b'
     ],
     timeoutMs: 30000
   },
@@ -101,7 +100,7 @@ export const PROVIDER_CONFIGS = {
   },
   gemini: {
     name: 'Gemini',
-    models: ['gemini-1.5-pro', 'gemini-1.5-flash'],
+    models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite'],
     timeoutMs: 30000
   }
 } as const;
@@ -119,7 +118,9 @@ export function getProviderConfig<K extends keyof typeof PROVIDER_CONFIGS>(name:
 export function isProviderClientUsable(name: keyof typeof PROVIDER_CONFIGS): boolean {
   const cfg = PROVIDER_CONFIGS[name];
   if (!cfg) return false;
-  return true; // All three are client-usable with proper SDKs
+  // Gemini is intentionally disabled in BYOC's browser-only release until a
+  // server-side proxy or explicit browser-key risk acceptance is implemented.
+  return name === 'groq' || name === 'openrouter';
 }
 
 /**
@@ -308,6 +309,7 @@ export class GeminiProvider {
   };
 
   private genaiClient: any = null;
+  private genaiClientKey: string | null = null;
 
   async checkAvailability(apiKey: string): Promise<ProviderState> {
     this.state = {
@@ -326,6 +328,7 @@ export class GeminiProvider {
     try {
       const { GoogleGenAI } = await import('@google/genai');
       this.genaiClient = new GoogleGenAI({ apiKey: apiKey.trim() });
+      this.genaiClientKey = apiKey.trim();
       
       // Test with a minimal request
       const result = await this.genaiClient.models.generateContent({
@@ -354,9 +357,10 @@ export class GeminiProvider {
       throw new Error('Gemini API key is required.');
     }
 
-    if (!this.genaiClient) {
+    if (!this.genaiClient || this.genaiClientKey !== apiKey.trim()) {
       const { GoogleGenAI } = await import('@google/genai');
       this.genaiClient = new GoogleGenAI({ apiKey: apiKey.trim() });
+      this.genaiClientKey = apiKey.trim();
     }
 
     const result = await this.genaiClient.models.generateContent({
@@ -441,39 +445,14 @@ export class ProviderManager {
     userPrompt: string,
     apiKeys: Record<string, string>
   ): Promise<{ content: string; model: string; provider: keyof typeof PROVIDER_CONFIGS } | null> {
-    // Try selected provider first
-    if (this.selectedProvider) {
-      const provider = this.providers.get(this.selectedProvider);
-      if (provider) {
-        try {
-          const apiKey = apiKeys[this.selectedProvider] || '';
-          const response = await provider.callChat(systemPrompt, userPrompt, apiKey);
-          return { content: response.content, model: response.model, provider: this.selectedProvider };
-        } catch (err: unknown) {
-          console.warn(`Provider ${this.selectedProvider} failed:`, err);
-        }
-      }
-    }
+    // Never silently forward a resume or job history to a different company.
+    // Cross-provider failover requires an explicit user selection/consent in the UI.
+    if (!this.selectedProvider) return null;
+    const provider = this.providers.get(this.selectedProvider);
+    const apiKey = apiKeys[this.selectedProvider] || '';
+    if (!provider || !apiKey.trim()) return null;
 
-    // Fallback: try available providers in preference order
-    const fallbackOrder: (keyof typeof PROVIDER_CONFIGS)[] = ['groq', 'openrouter', 'gemini'];
-    for (const name of fallbackOrder) {
-      if (name === this.selectedProvider) continue;
-      const provider = this.providers.get(name);
-      if (!provider) continue;
-      const apiKey = apiKeys[name] || '';
-      if (!apiKey) continue;
-      
-      try {
-        const response = await provider.callChat(systemPrompt, userPrompt, apiKey);
-        this.setSelectedProvider(name);
-        return { content: response.content, model: response.model, provider: name };
-      } catch (err: unknown) {
-        console.warn(`Provider ${name} fallback failed:`, err);
-        continue;
-      }
-    }
-
-    return null;
+    const response = await provider.callChat(systemPrompt, userPrompt, apiKey);
+    return { content: response.content, model: response.model, provider: this.selectedProvider };
   }
-}
+}}
