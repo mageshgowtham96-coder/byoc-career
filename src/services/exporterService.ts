@@ -250,6 +250,7 @@ function toPdfSafeText(text: string): string {
 export async function generatePdfResume(artifact: TailoredArtifact, resume: MasterResume): Promise<Blob> {
   const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
   const resolved = resolveTailoredResumeForExportAndPreview(artifact, resume);
+  const isMasterResume = artifact.jobId === 'master-resume';
   const pdfDoc = await PDFDocument.create();
   let page = pdfDoc.addPage([612, 792]); // Standard US Letter (points)
   const { width, height } = page.getSize();
@@ -381,7 +382,7 @@ export async function generatePdfResume(artifact: TailoredArtifact, resume: Mast
 
   // Core Competencies
   if (resolved.skills.length > 0) {
-    drawSectionHeader('Target Core Competencies');
+    drawSectionHeader(isMasterResume ? 'Core Competencies' : 'Target Core Competencies');
     const skillsLine = toPdfSafeText(resolved.skills.join('  •  '));
     const skillLines = wrapText(skillsLine, contentWidth, 8.5, fontRegular);
     skillLines.forEach((line) => {
@@ -400,7 +401,7 @@ export async function generatePdfResume(artifact: TailoredArtifact, resume: Mast
 
   // Professional Experience
   if (resolved.experiences.length > 0) {
-    drawSectionHeader('Tailored Professional Experience');
+    drawSectionHeader(isMasterResume ? 'Professional Experience' : 'Tailored Professional Experience');
     resolved.experiences.forEach(({ experience: exp, bullets }) => {
       checkPageSpace(45);
 
