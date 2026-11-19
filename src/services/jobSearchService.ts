@@ -822,7 +822,7 @@ export class LiveJobSearchEngine {
 
     // Run independent public feeds concurrently. One slow/unavailable provider must not delay
     // successful results from the other providers; each adapter retains its own request timeout.
-    const providerResults = await Promise.all(this.providers.map(async (provider) => {
+    const providerResults: Array<{ jobs: JobPosting[]; queried: boolean; error?: string; status: JobProviderStatus }> = await Promise.all(this.providers.map(async (provider) => {
       if (!provider.isConfigured) {
         return {
           jobs: [] as JobPosting[],
