@@ -115,18 +115,19 @@ export async function extractResumeFile(file?: File | null): Promise<ExtractionR
     const wordCount = words.length;
     const charCount = cleanedText.length;
 
-    // Scanned Image / Empty / Complex Encoded Stream Detection
-    if (wordCount < 10) {
+    // Empty extraction is a failure; short but readable documents remain valid input.
+    // Do not label encrypted/complex PDFs or short DOCX files as scanned images.
+    if (wordCount === 0) {
       return {
         success: false,
-        isScannedImage: true,
+        isScannedImage: false,
         rawText: cleanedText,
         wordCount,
         pageCount: detectedPages || 1,
         charCount,
         fileName,
         error:
-          'No readable text stream could be extracted. Scanned image PDFs, encrypted PDFs, and complex font-encoded PDFs require Manual Paste Fallback (or .docx/.txt/.md upload).'
+          'No readable text could be extracted. The document may be image-based, encrypted, or use an unsupported encoding. The original file is not modified; try another export or use Manual Paste.'
       };
     }
 
