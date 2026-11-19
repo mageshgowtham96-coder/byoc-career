@@ -1197,6 +1197,14 @@ export async function tailorResumeWithGroq(
       'INSUFFICIENT_CANDIDATE_EVIDENCE'
     );
   }
+  const interviewEvidenceMap = buildInterviewEvidenceMap(masterResume);
+  if (Object.keys(interviewEvidenceMap).length === 0) {
+    throw new GroqApiError(
+      'No structured candidate evidence is available for interview preparation. Add or review truthful profile details in Intake first.',
+      422,
+      'INSUFFICIENT_CANDIDATE_EVIDENCE'
+    );
+  }
   const strategySchema = JSON.stringify({
     variants: strategies.map((strategy) => ({
       id: strategy.id,
