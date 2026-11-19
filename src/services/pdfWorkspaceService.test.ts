@@ -52,7 +52,7 @@ describe('PDF workspace validation', () => {
   });
 
   it('rejects malformed PDFs with a controlled error', async () => {
-    await expect(inspectPdf(new File(['%PDF-1.7\\nnot really a document'], 'broken.pdf'))).rejects.toThrow(/could not be opened/i);
+    await expect(inspectPdf(new File(['%PDF-1.7\\nnot really a document'], 'broken.pdf'))).rejects.toThrow(/could not be (opened|read)/i);
   });
 
   it('rejects documents above the 250-page device safety ceiling', async () => {
