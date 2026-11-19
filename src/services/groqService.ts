@@ -240,6 +240,7 @@ export function mergeGroqResumeProfile(parsed: unknown, localProfile: MasterResu
     education: parsedEducation.length ? parsedEducation : localProfile.education,
     projects: parsedProjects.length ? parsedProjects : localProfile.projects,
     certifications: parsedCertifications.length ? parsedCertifications : localProfile.certifications,
+    additionalEvidence: localProfile.additionalEvidence || [],
     stats: localProfile.stats
   };
 }
