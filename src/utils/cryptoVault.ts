@@ -506,17 +506,23 @@ export async function decryptVault(
     // compatible and carries its own KDF parameters in the v5 envelope.
     let activeKdf = envelope.kdf;
     if (envelope.kdf.iterations < VAULT_PASSPHRASE_KDF_ITERATIONS) {
-      const rawMvk = await webCrypto.subtle.exportKey('raw', mvk);
-      const upgradedSalt = new Uint8Array(16);
-      webCrypto.getRandomValues(upgradedSalt);
-      const upgradedKek = await deriveVaultKey(passphrase, upgradedSalt, VAULT_PASSPHRASE_KDF_ITERATIONS);
-      passphraseWrappedVaultKey = await wrapRawMasterKey(rawMvk, upgradedKek);
-      activeKdf = {
-        algorithm: 'PBKDF2',
-        iterations: VAULT_PASSPHRASE_KDF_ITERATIONS,
-        salt: bufferToBase64(upgradedSalt),
-        hash: 'SHA-256'
-      };
+      try {
+        const rawMvk = await webCrypto.subtle.exportKey('raw', mvk);
+        const upgradedSalt = new Uint8Array(16);
+        webCrypto.getRandomValues(upgradedSalt);
+        const upgradedKek = await deriveVaultKey(passphrase, upgradedSalt, VAULT_PASSPHRASE_KDF_ITERATIONS);
+        passphraseWrappedVaultKey = await wrapRawMasterKey(rawMvk, upgradedKek);
+        activeKdf = {
+          algorithm: 'PBKDF2',
+          iterations: VAULT_PASSPHRASE_KDF_ITERATIONS,
+          salt: bufferToBase64(upgradedSalt),
+          hash: 'SHA-256'
+        };
+      } catch {
+        // A failed work-factor upgrade must never prevent a valid legacy vault from opening.
+        // The existing KDF remains recorded and the next successful unlock can retry migration.
+        activeKdf = envelope.kdf;
+      }
     }
     const activeRecoveryKdf = envelope.recoveryKdf || {
       algorithm: 'PBKDF2' as const,
