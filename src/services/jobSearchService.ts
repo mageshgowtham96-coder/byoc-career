@@ -679,7 +679,6 @@ export class JobicyJobAdapter implements JobProviderAdapter {
 
     // Jobicy's public feed contains the most recent seven days and supports cursor pagination.
     // Avoid its exact-tag filter: multi-word role phrases often do not match feed tags. Fetch a bounded sample and match locally.
-    const searchTerm = (params.query || params.targetRole || params.profession || params.skills?.[0] || '').trim();
     const baseUrl = new URL('https://jobicy.com/api/jobs');
     baseUrl.searchParams.set('count', '100');
 
@@ -828,6 +827,7 @@ export class LiveJobSearchEngine {
         return {
           jobs: [] as JobPosting[],
           queried: false,
+          error: undefined as string | undefined,
           status: {
             id: provider.id, name: provider.name, status: 'unconfigured' as const, count: 0,
             detail: provider.statusReason || 'Provider not configured.'
@@ -852,6 +852,7 @@ export class LiveJobSearchEngine {
         return {
           jobs,
           queried: true,
+          error: undefined as string | undefined,
           status: {
             id: provider.id, name: provider.name, status: 'queried' as const, count: jobs.length,
             detail: `Returned ${jobs.length} matching listing(s). Source links lead to ${provider.name.replace(' Live', '')}.`
