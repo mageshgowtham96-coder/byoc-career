@@ -225,7 +225,7 @@ export const IntakeTab: React.FC = () => {
     setIsAiStructuring(true);
     setAiStructuringError(null);
     try {
-      const structured = await parseResumeWithGroq(localStagedProfile || stagedParsedResume, groqApiKey);
+      const structured = await parseResumeWithGroq(stagedParsedResume, groqApiKey);
       setStagedParsedResume(structured);
       setEditableStagedSummary(structured.summary);
       setEditableHeadline(structured.headline);
