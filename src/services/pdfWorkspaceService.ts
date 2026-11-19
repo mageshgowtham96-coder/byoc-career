@@ -6,7 +6,7 @@ export const MAX_MERGE_INPUT_BYTES = 20 * 1024 * 1024;
 
 export function parsePdfPageNumbers(value: string): number[] {
   const parts = value.split(',').map((part) => part.trim());
-  if (parts.some((part) => !/^\\d+$/.test(part))) {
+  if (parts.some((part) => !/^\d+$/.test(part))) {
     throw new Error('Enter whole page numbers separated by commas, for example 1, 3, 5.');
   }
   return parts.map(Number);
