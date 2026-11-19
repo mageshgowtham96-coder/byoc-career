@@ -635,7 +635,7 @@ export function parseRawResumeToStructured(
       !line.includes('http') &&
       !line.includes('/') &&
       !/^(resume|curriculum|cv|summary|experience|education|skills|page)/i.test(line) &&
-      !/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance|associate|representative|customer|service|operations|business|data|technical|program|retail|administrative|inc|llc|ltd|pvt|company|university|college)\b/i.test(line) &&
+      !/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance|associate|representative|customer|service|operations|business|data|technical|program|retail|administrative|associate|representative|customer|service|operations|business|data|technical|program|retail|administrative|inc|llc|ltd|pvt|company|university|college)\b/i.test(line) &&
       /^[\p{L}\p{M}'’\-]+(?:\s+[\p{L}\p{M}'’\-]+){1,3}$/u.test(line)
     ) {
       detectedName = line;
