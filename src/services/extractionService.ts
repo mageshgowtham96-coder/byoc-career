@@ -988,7 +988,8 @@ export function validateExtractedSchema(
   // 4. Career evidence: paid employment is not mandatory for students or career changers.
   const hasCareerEvidence = (Array.isArray(experiences) && experiences.length > 0) ||
     (Array.isArray(projects) && projects.length > 0) ||
-    (Array.isArray(education) && education.length > 0);
+    (Array.isArray(education) && education.length > 0) ||
+    (!isTargetSchema && Array.isArray(data.additionalEvidence) && data.additionalEvidence.length > 0);
   if (!hasCareerEvidence) {
     missing.push('Work, project or education evidence');
     warnings.push('No work, project or education evidence was detected. You can add whichever applies to your situation.');
