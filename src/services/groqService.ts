@@ -351,7 +351,7 @@ export async function getAvailableGroqModels(apiKey: string): Promise<string[]> 
     return modelIds;
   } catch (err: unknown) {
     if (err instanceof GroqApiError) throw err;
-    if (err instanceof Error && err.name === 'AbortError') {
+    if (isAbortError(err)) {
       throw new GroqApiError(
         'Model discovery request timed out after 15 seconds.',
         408,
@@ -432,6 +432,10 @@ export async function getPreferredGroqChatModel(apiKey: string): Promise<string>
  */
 
 /** Retry only transient failures, with a strict two-attempt ceiling. */
+export function isAbortError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError';
+}
+
 export function isRetryableGroqStatus(status: number): boolean {
   return status === 408 || status === 425 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
 }
