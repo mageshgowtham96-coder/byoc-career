@@ -33,4 +33,24 @@ describe('application snapshot authenticity', () => {
     useWizardStore.setState({ masterResume: null });
   });
 
+  it('requires a fresh factual review after the master profile changes', async () => {
+    const { useWizardStore } = await import('./useWizardStore');
+    const artifact = {
+      id: 'artifact-1', jobId: 'job-1', jobTitle: 'Analyst', company: 'Example',
+      selectedVariantId: 'variant-1', variants: [], tailoredSummary: 'Analyst profile',
+      highlightedSkills: ['SQL'], optimizedBullets: [], coverLetter: '',
+      interviewPrepQuestions: [], generationTimestamp: new Date().toISOString(),
+      authenticityGuaranteed: false, reviewConfirmed: true
+    };
+    const profile = useWizardStore.getState().masterResume;
+    useWizardStore.setState({ tailoredArtifacts: { 'job-1': artifact } });
+    useWizardStore.getState().setTailoredArtifactReviewConfirmed('job-1', true);
+    expect(useWizardStore.getState().tailoredArtifacts['job-1'].reviewConfirmed).toBe(true);
+    if (profile) {
+      useWizardStore.getState().updateMasterResume((previous) => ({ ...previous, summary: previous.summary + ' Updated.' }));
+      expect(useWizardStore.getState().tailoredArtifacts['job-1'].reviewConfirmed).toBe(false);
+    }
+    useWizardStore.setState({ tailoredArtifacts: {}, masterResume: profile });
+  });
+
 });
