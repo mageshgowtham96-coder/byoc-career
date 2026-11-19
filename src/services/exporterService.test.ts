@@ -122,6 +122,7 @@ describe('Export Service', () => {
     interviewPrepQuestions: [],
     generationTimestamp: new Date().toISOString(),
     authenticityGuaranteed: false,
+    reviewConfirmed: true,
     exportedMaterials: []
   });
 
@@ -191,6 +192,16 @@ describe('Export Service', () => {
       lastParsedDate: new Date().toISOString(),
       sourceFileName: 'resume.pdf'
     }
+  });
+
+  describe('human review export gate', () => {
+    it('refuses PDF, DOCX and TXT exports until factual review is confirmed', async () => {
+      const unreviewed = { ...createMockArtifact(), reviewConfirmed: false };
+      const resume = createMockResume();
+      expect(() => generatePlainTextResume(unreviewed, resume)).toThrow(/review/i);
+      await expect(generatePdfResume(unreviewed, resume)).rejects.toThrow(/review/i);
+      await expect(generateDocxResume(unreviewed, resume)).rejects.toThrow(/review/i);
+    });
   });
 
   describe('generatePlainTextResume', () => {
