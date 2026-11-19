@@ -554,7 +554,7 @@ export function parseRawResumeToStructured(
       !line.includes('http') &&
       !line.includes('/') &&
       !/^(resume|curriculum|cv|summary|experience|education|skills|page)/i.test(line) &&
-      /^[A-Za-zÀ-ÿ'’\-]+(?:\s+[A-Za-zÀ-ÿ'’\-]+){1,3}$/.test(line)
+      /^[\p{L}\p{M}'’\-]+(?:\s+[\p{L}\p{M}'’\-]+){1,3}$/u.test(line)
     ) {
       detectedName = line;
       break;
