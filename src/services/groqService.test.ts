@@ -103,3 +103,29 @@ describe('browser error normalization', () => {
     expect(isAbortError(new Error('ordinary error'))).toBe(false);
   });
 });
+
+describe('evidence-bounded job vetting', () => {
+  it('does not invent a culture score when the model omits an evidence-backed profile alignment estimate', async () => {
+    const { validateJobVetting } = await import('./groqService');
+    const result = validateJobVetting({
+      cultureFit: 97,
+      recommendation: 'Strong Match',
+      salaryCompetitiveness: 'Above market',
+      growthTrajectory: 'Excellent growth',
+      redFlags: [],
+      greenFlags: [],
+      pros: [],
+      cons: [],
+      gapAnalysis: {}
+    });
+    expect(result.profileAlignmentEstimate).toBeNull();
+    expect(result.salaryCompetitiveness).toContain('not assessed');
+    expect(result.growthTrajectory).toContain('AI interpretation');
+  });
+
+  it('accepts only an explicitly named profile alignment estimate and clamps its range', async () => {
+    const { validateJobVetting } = await import('./groqService');
+    const result = validateJobVetting({ profileAlignmentEstimate: 150, recommendation: 'Selective Apply' });
+    expect(result.profileAlignmentEstimate).toBe(100);
+  });
+});
