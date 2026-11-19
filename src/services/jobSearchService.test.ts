@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ArbeitnowJobAdapter, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, mergeDiscoveredJobs } from './jobSearchService';
+import { ArbeitnowJobAdapter, calculateHonestMatch, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, mergeDiscoveredJobs } from './jobSearchService';
 
 const fetchMock = vi.fn();
 
@@ -271,5 +271,45 @@ describe('deduplicateJobs location identity', () => {
     const bangalore = { ...base, id: 'job-in', title: 'Fraud Analyst', location: 'Bengaluru, India' };
     const london = { ...base, id: 'job-uk', title: 'Fraud Analyst', location: 'London, UK' };
     expect(mergeDiscoveredJobs([], [bangalore, london])).toHaveLength(2);
+  });
+});
+
+
+describe('honest keyword-overlap scoring', () => {
+  const job = {
+    id: 'job-1', title: 'Developer', company: 'Example', location: 'Remote',
+    workplaceType: 'Remote' as const, salary: 'Unspecified', postedDate: 'Today',
+    source: 'User Import', url: 'https://example.com/jobs/1',
+    skillsRequired: ['Go', 'R', 'C'], fitScore: null, matchedKeywords: [], missingKeywords: [],
+    experienceLevel: 'Unspecified', jobDescriptionRaw: 'Requires Go, R and C.'
+  };
+
+  it('does not match short skills inside unrelated words', () => {
+    const profile = {
+      rawText: 'Candidate has ongoing project experience and worked with customer support.',
+      contactInfo: { name: 'Asha Rao', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+      headline: '', summary: '', skills: { technical: [], soft: [], tools: [], domains: [] },
+      experiences: [], education: [], projects: [], certifications: [],
+      stats: { wordCount: 10, pageCount: 1, charCount: 50, lastParsedDate: '', sourceFileName: 'resume.txt' }
+    };
+    const result = calculateHonestMatch(job, profile as any);
+    expect(result.matchedKeywords).toEqual([]);
+    expect(result.missingKeywords).toEqual(['Go', 'R', 'C']);
+    expect(result.score).toBe(0);
+    expect(result.statusText).toContain('keyword overlap');
+    expect(result.statusText).toContain('experience and eligibility not assessed');
+  });
+
+  it('matches short skills only when present as standalone tokens', () => {
+    const profile = {
+      rawText: 'Used Go for services, R for statistical analysis, and C for systems coursework.',
+      contactInfo: { name: 'Asha Rao', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+      headline: '', summary: '', skills: { technical: [], soft: [], tools: [], domains: [] },
+      experiences: [], education: [], projects: [], certifications: [],
+      stats: { wordCount: 14, pageCount: 1, charCount: 80, lastParsedDate: '', sourceFileName: 'resume.txt' }
+    };
+    const result = calculateHonestMatch(job, profile as any);
+    expect(result.matchedKeywords).toEqual(['Go', 'R', 'C']);
+    expect(result.score).toBe(100);
   });
 });
