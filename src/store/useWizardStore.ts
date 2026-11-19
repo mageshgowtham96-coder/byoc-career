@@ -195,6 +195,7 @@ interface WizardState {
   // Tailored Artifacts & Sibling Variants
   tailoredArtifacts: Record<string, TailoredArtifact>;
   saveTailoredArtifact: (jobId: string, artifact: TailoredArtifact) => void;
+  setTailoredArtifactReviewConfirmed: (jobId: string, confirmed: boolean) => void;
   selectTailoredVariant: (jobId: string, variantId: string) => void;
   recordExportedMaterial: (jobId: string, record: Omit<ExportedMaterialRecord, 'id'>) => void;
 
@@ -437,7 +438,8 @@ export const useWizardStore = create<WizardState>()(
         if (staged) {
           set({
             masterResume: staged,
-            stagedParsedResume: null
+            stagedParsedResume: null,
+            tailoredArtifacts: Object.fromEntries(Object.entries(get().tailoredArtifacts).map(([id, artifact]) => [id, { ...artifact, reviewConfirmed: false }]))
           });
           get().addToast({
             type: 'success',
@@ -450,7 +452,10 @@ export const useWizardStore = create<WizardState>()(
         const current = get().masterResume;
         if (current) {
           const updated = updater(current);
-          set({ masterResume: updated });
+          set({
+            masterResume: updated,
+            tailoredArtifacts: Object.fromEntries(Object.entries(get().tailoredArtifacts).map(([id, artifact]) => [id, { ...artifact, reviewConfirmed: false }]))
+          });
         }
       },
       addExperienceMilestone: (expData) => {
@@ -477,7 +482,10 @@ export const useWizardStore = create<WizardState>()(
             wordCount: current.stats.wordCount + addedWords
           }
         };
-        set({ masterResume: updatedResume });
+        set({
+          masterResume: updatedResume,
+          tailoredArtifacts: Object.fromEntries(Object.entries(get().tailoredArtifacts).map(([id, artifact]) => [id, { ...artifact, reviewConfirmed: false }]))
+        });
         get().addToast({
           type: 'success',
           title: 'Milestone Added',
@@ -629,7 +637,7 @@ export const useWizardStore = create<WizardState>()(
         set((state) => ({
           tailoredArtifacts: {
             ...state.tailoredArtifacts,
-            [jobId]: artifact
+            [jobId]: { ...artifact, reviewConfirmed: false }
           }
         }));
         get().addToast({
@@ -637,6 +645,16 @@ export const useWizardStore = create<WizardState>()(
           title: 'Application Kit Saved',
           message: `Ready for ${artifact.jobTitle} at ${artifact.company} in Customization.`
         });
+      },
+      setTailoredArtifactReviewConfirmed: (jobId, confirmed) => {
+        const current = get().tailoredArtifacts[jobId];
+        if (!current) return;
+        set((state) => ({
+          tailoredArtifacts: {
+            ...state.tailoredArtifacts,
+            [jobId]: { ...current, reviewConfirmed: confirmed }
+          }
+        }));
       },
       selectTailoredVariant: (jobId, variantId) => {
         const current = get().tailoredArtifacts[jobId];
@@ -647,6 +665,7 @@ export const useWizardStore = create<WizardState>()(
         const updated: TailoredArtifact = {
           ...current,
           selectedVariantId: variantId,
+          reviewConfirmed: false,
           tailoredSummary: chosen.tailoredSummary,
           highlightedSkills: chosen.highlightedSkills,
           optimizedBullets: chosen.optimizedBullets,
