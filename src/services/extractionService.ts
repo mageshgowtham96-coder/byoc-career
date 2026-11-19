@@ -643,7 +643,7 @@ export function parseRawResumeToStructured(
       if (/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance)\b/i.test(part)) return false;
       return part.split(',').filter((item) => item.trim().length > 1).length >= 2;
     });
-  const detectedLocation = (explicitLocationMatch?.[1] || headerLocationLine || '').trim();
+  const detectedLocation = (explicitLocationMatch?.[1] || headerLocationLine || '').split(/[|•]/)[0].trim();
 
   // 2. Headline & Professional Summary
   let detectedHeadline = '';
