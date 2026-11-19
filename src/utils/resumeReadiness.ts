@@ -23,6 +23,27 @@ export function hasCareerEvidence(resume: MasterResume | null | undefined): bool
 }
 
 /**
+ * Returns true only when evidence is present in fields actually supplied to
+ * candidate-specific AI workflows. Unparsed rawText and contact/headline alone
+ * must not be treated as enough evidence for generated claims.
+ */
+export function hasStructuredCareerEvidence(resume: MasterResume | null | undefined): boolean {
+  if (!resume) return false;
+  const hasSkills = Object.values(resume.skills || {}).some((items) =>
+    Array.isArray(items) && items.some((item) => item.trim())
+  );
+  return Boolean(
+    resume.summary?.trim() ||
+    hasSkills ||
+    resume.experiences?.length ||
+    resume.education?.length ||
+    resume.projects?.length ||
+    resume.certifications?.length ||
+    resume.additionalEvidence?.length
+  );
+}
+
+/**
  * Readiness measures whether the profile has enough useful evidence to create
  * a resume. It does not measure employability and does not require paid work
  * history: education, projects and other user-provided evidence can establish
