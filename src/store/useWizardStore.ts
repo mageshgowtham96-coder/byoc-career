@@ -499,7 +499,10 @@ export const useWizardStore = create<WizardState>()(
           ...current,
           experiences: current.experiences.filter((e) => e.id !== id)
         };
-        set({ masterResume: updatedResume });
+        set({
+          masterResume: updatedResume,
+          tailoredArtifacts: Object.fromEntries(Object.entries(get().tailoredArtifacts).map(([jobId, artifact]) => [jobId, { ...artifact, reviewConfirmed: false }]))
+        });
       },
       clearMasterResume: () => {
         set({
