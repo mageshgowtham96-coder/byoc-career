@@ -301,6 +301,7 @@ export class OpenRouterProvider {
       clearTimeout(timeoutId);
     }
   }
+}
 
 /**
  * Gemini provider implementation using @google/genai SDK
@@ -337,7 +338,7 @@ export class GeminiProvider {
       this.genaiClientKey = apiKey.trim();
       
       // Test with a minimal request
-      const result = await this.genaiClient.models.generateContent({
+      await this.genaiClient.models.generateContent({
         model: this.config.models[0],
         contents: 'test'
       });
@@ -345,7 +346,7 @@ export class GeminiProvider {
       this.state.metadata = {
         id: 'gemini',
         name: 'Gemini',
-        contextLength: 1048576, // 1M tokens for 1.5 Pro
+        contextLength: 1048576, // Current Gemini Flash context window; verify before enabling this adapter
         costPer1kTokens: null
       };
       this.state.status = 'available';
