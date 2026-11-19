@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractResumeFile } from './extractionService';
+import { extractResumeFile, parseRawResumeToStructured } from './extractionService';
 
 function makeOversizedDocxArchive(): Uint8Array {
   const entryName = new TextEncoder().encode('word/document.xml');
@@ -142,4 +142,27 @@ describe('DOCX document structure extraction', () => {
     expect(result.wordCount).toBe(4);
   });
 
+});
+
+describe('explicit skill extraction', () => {
+  it('does not promote ordinary prose mentions into structured skills', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+Professional Summary
+I go to market; R is a course grade; C is a campus code. SQL was mentioned in a job description.
+Education
+Bachelor of Commerce - City University - 2025`);
+    expect(parsed.skills.technical).not.toContain('Go');
+    expect(parsed.skills.technical).not.toContain('R');
+    expect(parsed.skills.technical).not.toContain('C');
+    expect(parsed.skills.technical).not.toContain('SQL');
+  });
+
+  it('classifies short skill tokens when the user explicitly lists them under Skills', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+Skills
+Go, R, C, SQL
+Education
+Bachelor of Commerce - City University - 2025`);
+    expect(parsed.skills.technical).toEqual(expect.arrayContaining(['Go', 'R', 'C', 'SQL']));
+  });
 });
