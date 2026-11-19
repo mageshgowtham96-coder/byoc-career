@@ -35,6 +35,8 @@ export function buildDomainPracticeQuestions(
     evidencePrompt = `Use your recorded education: "${[firstEducation.degree, firstEducation.field, firstEducation.institution, firstEducation.gradYear].filter(Boolean).join(' — ')}". Connect it only to knowledge or work you can genuinely explain.`;
   } else if (masterResume?.summary?.trim()) {
     evidencePrompt = `Use your own recorded professional summary as a starting point: "${masterResume.summary}". Add detail only when you can support it.`;
+  } else if (primarySkill) {
+    evidencePrompt = `Your Master Resume lists "${primarySkill}". Explain whether you learned or used it through work, a project, study or self-learning.`;
   }
 
   const hasProfileEvidence = Boolean(evidencePrompt);
