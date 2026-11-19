@@ -737,8 +737,59 @@ ${hasResume ? JSON.stringify({
   }
 }
 
+export interface TailoringStrategy {
+  id: string;
+  name: string;
+  badge: string;
+  description: string;
+}
+
 /**
- * Validates and sanitizes 3 distinct sibling variants from LLM output
+ * Selects resume presentation strategies from evidence actually present in the
+ * candidate profile. No leadership or technical-architecture angle is invented.
+ */
+export function getTailoringStrategies(job: JobPosting, masterResume: MasterResume): TailoringStrategy[] {
+  const strategies: TailoringStrategy[] = [];
+  if (masterResume.experiences?.length) {
+    strategies.push({
+      id: 'variant-experience',
+      name: 'Experience-led resume',
+      badge: 'Relevant Experience',
+      description: 'Prioritize the candidate\'s documented work roles and original contribution bullets that relate to the target role.'
+    });
+  }
+  if (masterResume.projects?.length || masterResume.education?.length) {
+    strategies.push({
+      id: 'variant-projects',
+      name: 'Projects and learning evidence',
+      badge: 'Projects & Learning',
+      description: 'Prioritize documented projects, education and demonstrated transferable skills; do not imply paid employment where none exists.'
+    });
+  }
+  const hasAnyProfileEvidence = Boolean(
+    masterResume.rawText?.trim() ||
+    masterResume.summary?.trim() ||
+    Object.values(masterResume.skills || {}).some((items) => items?.length)
+  );
+  if (!strategies.length && hasAnyProfileEvidence) {
+    strategies.push({
+      id: 'variant-skills',
+      name: 'Skills and transferable evidence',
+      badge: 'Skills & Evidence',
+      description: 'Organize the candidate\'s explicitly recorded skills and profile evidence for the target role without inventing experience.'
+    });
+  }
+  strategies.push({
+    id: 'variant-ats',
+    name: 'Job requirement alignment',
+    badge: 'ATS Alignment',
+    description: 'Use exact, relevant terms from the job description only where the candidate profile provides supporting evidence; leave unsupported requirements unclaimed.'
+  });
+  return strategies.slice(0, 3);
+}
+
+/**
+ * Validates the evidence-relevant strategies returned by the model.
  */
 export function validateTailoredOutput(parsed: any, job: JobPosting, masterResume: MasterResume): TailoredArtifact {
   if (!parsed || typeof parsed !== 'object') {
@@ -746,27 +797,22 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
   }
 
   const rawVariants = Array.isArray(parsed.variants) ? parsed.variants : [];
-  if (rawVariants.length < 3) {
+  const strategies = getTailoringStrategies(job, masterResume);
+  if (rawVariants.length < strategies.length) {
     throw new GroqApiError(
-      `Model returned only ${rawVariants.length} variants instead of the required 3 distinct sibling variants.`,
+      `Model returned ${rawVariants.length} variants; ${strategies.length} evidence-relevant variants were requested.`,
       502,
       'INSUFFICIENT_VARIANTS',
-      'Please retry tailoring to generate all 3 sibling variations.'
+      'Retry tailoring. The requested strategies are derived from the career evidence available in your profile.'
     );
   }
-
-  const defaultBadges = [
-    { id: 'variant-a', name: 'Variant A: Leadership & Metric Outcomes', badge: 'Leadership & Scale' },
-    { id: 'variant-b', name: 'Variant B: Technical Depth & Systems Architecture', badge: 'Systems & Reliability' },
-    { id: 'variant-c', name: 'Variant C: Direct ATS Keyword Alignment', badge: 'ATS Match & Delivery' }
-  ];
   const verifiedSkillMap = new Map(
     [...masterResume.skills.technical, ...masterResume.skills.soft, ...masterResume.skills.tools, ...masterResume.skills.domains]
       .map((skill) => [skill.trim().toLocaleLowerCase(), skill.trim()] as const)
       .filter(([key, value]) => Boolean(key && value))
   );
 
-  const validatedVariants: TailoredVariant[] = defaultBadges.map((def, idx) => {
+  const validatedVariants: TailoredVariant[] = strategies.map((def, idx) => {
     const rv = rawVariants[idx] || {};
 
     const { allValidated: optimizedBullets } = partitionTailoredBullets(
@@ -805,7 +851,7 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
       badge: String(rv.badge || def.badge),
       description: String(rv.description || `Specialized tailoring focusing on ${def.badge}.`),
       tailoredSummary: String(rv.tailoredSummary || masterResume.summary || ''),
-      highlightedSkills: highlightedSkills.length > 0 ? highlightedSkills : masterResume.skills.technical.slice(0, 8),
+      highlightedSkills: highlightedSkills.length > 0 ? highlightedSkills : [...masterResume.skills.technical, ...masterResume.skills.soft, ...masterResume.skills.tools, ...masterResume.skills.domains].slice(0, 8),
       optimizedBullets,
       coverLetter: String(rv.coverLetter || ''),
       interviewPrepQuestions
@@ -840,67 +886,40 @@ export async function tailorResumeWithGroq(
   masterResume: MasterResume,
   apiKey?: string
 ): Promise<TailoredArtifact> {
-  const systemPrompt = `You are an ATS optimization specialist and executive career strategist.
-${SYSTEMIC_AUTHENTICITY_FILTER}
-Synthesize exactly THREE distinct sibling variations of the application kit grounded purely in the candidate's verified history:
-- Variant A (Leadership & Scale): Emphasizes measurable business outcomes, scale, and team delivery from actual milestones.
-- Variant B (Systems & Reliability): Emphasizes technical craftsmanship, distributed architectures, code quality, and low-latency systems.
-- Variant C (ATS Match & Delivery): Emphasizes direct semantic alignment with the job requirements and velocity with zero fluff.
+  const strategies = getTailoringStrategies(job, masterResume);
+  const strategySchema = JSON.stringify({
+    variants: strategies.map((strategy) => ({
+      id: strategy.id,
+      name: strategy.name,
+      badge: strategy.badge,
+      description: 'string',
+      tailoredSummary: 'string',
+      highlightedSkills: ['string'],
+      optimizedBullets: [{
+        experienceId: 'string',
+        company: 'string',
+        role: 'string',
+        originalBullet: 'string',
+        tailoredBullet: 'string',
+        matchRationale: 'string'
+      }],
+      coverLetter: 'string',
+      interviewPrepQuestions: [{
+        question: 'string',
+        category: 'Technical | Behavioral | Architecture | Leadership',
+        suggestedTalkingPoints: ['string'],
+        authenticEvidenceRef: 'string'
+      }]
+    }))
+  }, null, 2);
 
-Respond ONLY with valid JSON strictly matching this schema:
-{
-  "variants": [
-    {
-      "id": "variant-a",
-      "name": "Variant A: High-Impact Metric & Leadership",
-      "badge": "Leadership & Scale",
-      "description": string,
-      "tailoredSummary": string,
-      "highlightedSkills": string[],
-      "optimizedBullets": [
-        {
-          "experienceId": string,
-          "company": string,
-          "role": string,
-          "originalBullet": string,
-          "tailoredBullet": string,
-          "matchRationale": string
-        }
-      ],
-      "coverLetter": string,
-      "interviewPrepQuestions": [
-        {
-          "question": string,
-          "category": "Technical" | "Behavioral" | "Architecture" | "Leadership",
-          "suggestedTalkingPoints": string[],
-          "authenticEvidenceRef": string
-        }
-      ]
-    },
-    {
-      "id": "variant-b",
-      "name": "Variant B: Deep Technical & Architecture",
-      "badge": "Systems & Reliability",
-      "description": string,
-      "tailoredSummary": string,
-      "highlightedSkills": string[],
-      "optimizedBullets": [ ... ],
-      "coverLetter": string,
-      "interviewPrepQuestions": [ ... ]
-    },
-    {
-      "id": "variant-c",
-      "name": "Variant C: Direct ATS Keyword Velocity",
-      "badge": "ATS Match & Delivery",
-      "description": string,
-      "tailoredSummary": string,
-      "highlightedSkills": string[],
-      "optimizedBullets": [ ... ],
-      "coverLetter": string,
-      "interviewPrepQuestions": [ ... ]
-    }
-  ]
-}`;
+  const systemPrompt = \`You are a careful resume editor and ATS alignment assistant.
+\${SYSTEMIC_AUTHENTICITY_FILTER}
+Generate exactly \${strategies.length} distinct resume presentation versions, one for each strategy in the supplied schema. These strategies are selected from the candidate's actual evidence; do not add leadership, architecture, metrics or specialist claims unless supported by that evidence.
+Every factual claim must be directly supported by the supplied candidate profile. Rewrite for clarity and relevance, but never create new duties, achievements, numbers, employers, qualifications, dates or skills.
+Only rewrite existing experience bullets when the source bullet and experienceId are supplied. If a statement cannot be mapped to source evidence, omit it. highlightedSkills must be exact skills from the candidate profile. Tailored summaries and cover letters must not assert unsupported facts.
+Return JSON matching this schema exactly:
+\${strategySchema}\`;
 
   const userPrompt = `Target Job:
 Title: ${job.title}
@@ -917,7 +936,10 @@ ${JSON.stringify({
   headline: masterResume.headline,
   summary: masterResume.summary,
   skills: masterResume.skills,
-  experiences: masterResume.experiences
+  experiences: masterResume.experiences,
+  projects: masterResume.projects,
+  education: masterResume.education,
+  certifications: masterResume.certifications
 })}`;
 
   const rawJson = await callGroqChat(systemPrompt, userPrompt, apiKey);
