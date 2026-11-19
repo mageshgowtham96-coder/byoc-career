@@ -65,6 +65,7 @@ export const SourcingTab: React.FC = () => {
   const [activeRoleSuggestion, setActiveRoleSuggestion] = useState(-1);
   const roleSuggestions = React.useMemo(() => getRoleSuggestions(searchQuery), [searchQuery]);
   const showRoleSuggestions = isRoleSuggestionsOpen && roleSuggestions.length > 0;
+  const liveSearchInFlight = React.useRef(false);
   const [workplaceFilter, setWorkplaceFilter] = useState<'All' | 'Remote' | 'Hybrid' | 'On-site'>('All');
   const [portalFilter, setPortalFilter] = useState<JobSourcePortal>('All');
   const [postedWithinDays, setPostedWithinDays] = useState<number>(30);
@@ -105,6 +106,7 @@ export const SourcingTab: React.FC = () => {
   const isWorldwide = isWorldwideCountryCode(candidatePreferences?.country || 'IN');
 
   const handleRunLiveSearch = async () => {
+    if (liveSearchInFlight.current) return;
     const hasSearchTerms = Boolean(
       searchQuery.trim() ||
         candidatePreferences?.targetRole?.trim() ||
@@ -120,6 +122,8 @@ export const SourcingTab: React.FC = () => {
       return;
     }
 
+    liveSearchInFlight.current = true;
+    setIsRoleSuggestionsOpen(false);
     setIsSearchingLive(true);
     try {
       const res = await jobSearchEngine.executeLiveSearch(
@@ -167,6 +171,7 @@ export const SourcingTab: React.FC = () => {
         message: err instanceof Error ? err.message : 'Live search failed.'
       });
     } finally {
+      liveSearchInFlight.current = false;
       setIsSearchingLive(false);
     }
   };
@@ -654,6 +659,7 @@ export const SourcingTab: React.FC = () => {
           <input
             type="text"
             value={searchQuery}
+            disabled={isSearchingLive}
             role="combobox"
             aria-label="Search job roles, skills, locations and descriptions"
             aria-autocomplete="list"
