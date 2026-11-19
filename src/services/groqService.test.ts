@@ -192,7 +192,7 @@ describe('role-aware tailoring strategies', () => {
 
   it('offers an additional-evidence strategy when the profile has volunteering or awards but no work history', () => {
     const profile = {
-      rawText: '',
+      rawText: 'Asha Rao asha@example.com +91 90000 00000',
       headline: '',
       summary: '',
       skills: { technical: [], soft: [], tools: [], domains: [] },
