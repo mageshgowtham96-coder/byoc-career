@@ -748,18 +748,32 @@ export function parseRawResumeToStructured(
   const projIndex = lines.findIndex((l) => /^(projects|personal projects|key projects)/i.test(l));
   if (projIndex !== -1) {
     const projSlice = lines.slice(projIndex + 1);
-    for (let i = 0; i < Math.min(projSlice.length, 15); i++) {
-      const line = projSlice[i];
-      if (/^(education|experience|certifications|skills)/i.test(line)) break;
-      if (line.length > 10 && line.length < 80) {
-        projects.push({
-          id: 'proj-' + projects.length,
-          title: line,
-          description: '',
-          technologies: []
-        });
+    let currentProject: ProjectItem | null = null;
+    const saveProject = () => {
+      if (currentProject && currentProject.title.trim()) projects.push(currentProject);
+      currentProject = null;
+    };
+    for (const rawLine of projSlice.slice(0, 40)) {
+      const line = rawLine.trim();
+      if (/^(education|experience|work experience|certifications|skills|awards|publications|languages)/i.test(line)) break;
+      if (!line || line.length > 500) continue;
+      const isBullet = /^[•*\-–]\s*/.test(line) || /^\d+[.)]\s*/.test(line);
+      const cleanLine = line.replace(/^[•*\-–]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+      if (!currentProject) {
+        currentProject = { id: 'proj-' + projects.length, title: cleanLine, description: '', technologies: [] };
+        continue;
+      }
+      // Long or explicitly bulleted lines are contribution details, not new project titles.
+      if (isBullet || cleanLine.length > 55) {
+        currentProject.description = [currentProject.description, cleanLine].filter(Boolean).join(' ');
+      } else if (!currentProject.description) {
+        currentProject.description = cleanLine;
+      } else {
+        saveProject();
+        currentProject = { id: 'proj-' + projects.length, title: cleanLine, description: '', technologies: [] };
       }
     }
+    saveProject();
   }
 
   const certifications: CertificationItem[] = [];
