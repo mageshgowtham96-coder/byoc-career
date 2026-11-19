@@ -6,7 +6,8 @@ import {
   extractPdfPages,
   rotatePdfPage,
   reorderPdfPages,
-  createPdfBlob
+  createPdfBlob,
+  parsePdfPageNumbers
 } from './pdfWorkspaceService';
 
 beforeAll(() => {
@@ -34,6 +35,10 @@ async function makePdf(pageCount = 2): Promise<File> {
 }
 
 describe('PDF workspace validation', () => {
+  it('parses complete page-number input and rejects partial invalid tokens', () => {
+    expect(parsePdfPageNumbers('1, 3, 5')).toEqual([1, 3, 5]);
+    expect(() => parsePdfPageNumbers('1, abc, 3')).toThrow(/whole page numbers/i);
+  });
   it('inspects page count and metadata locally', async () => {
     const result = await inspectPdf(await makePdf(3));
     expect(result.pageCount).toBe(3);
@@ -94,6 +99,12 @@ describe('PDF page operations', () => {
 
   it('rejects merged output above the 250-page device safety ceiling', async () => {
     await expect(mergePdfs([await makePdf(125), await makePdf(126)])).rejects.toThrow(/cannot exceed 250 pages/i);
+  });
+
+  it('rejects merge input above the aggregate memory limit', async () => {
+    const tooLarge = { name: 'a.pdf', size: 11 * 1024 * 1024 } as File;
+    const anotherLarge = { name: 'b.pdf', size: 10 * 1024 * 1024 } as File;
+    await expect(mergePdfs([tooLarge, anotherLarge])).rejects.toThrow(/combined PDF files must be 20 MB or smaller/i);
   });
 
   it('rejects merging fewer than two documents', async () => {
