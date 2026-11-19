@@ -181,20 +181,20 @@ export const PrepZone: React.FC = () => {
                     Generic Practice Mode
                   </span>
                   <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2 flex-wrap">
-                    <span>No Master Resume Loaded</span>
+                    <span>No Structured Career Evidence Yet</span>
                     <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-mono">
                       Generic Practice Only
                     </span>
                   </h3>
                   <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
-                    Master Resume details are missing. The prompts below are generic practice exercises—never your background. Upload and confirm your master resume in Intake to anchor talking points to real experience.
+                    A profile may be present, but it does not yet contain structured career evidence for personalized prompts. These questions remain generic and do not describe your background. Add or review your profile in Intake to enable evidence-anchored preparation.
                   </p>
                   <button
                     type="button"
                     onClick={() => setActiveTab('intake')}
                     className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition cursor-pointer"
                   >
-                    <span>Go to Intake to Add Resume</span>
+                    <span>Review Profile in Intake</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </>
