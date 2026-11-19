@@ -1,4 +1,15 @@
 import { create } from 'zustand';
+const invalidateTailoredArtifacts = (
+  artifacts: Record<string, TailoredArtifact>
+): Record<string, TailoredArtifact> => Object.fromEntries(
+  Object.entries(artifacts).map(([id, artifact]) => [id, {
+    ...artifact,
+    reviewConfirmed: false,
+    interviewPrepQuestions: [],
+    variants: (artifact.variants || []).map((variant) => ({ ...variant, interviewPrepQuestions: [] }))
+  }])
+);
+
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   MasterResume,
@@ -441,7 +452,7 @@ export const useWizardStore = create<WizardState>()(
           set({
             masterResume: staged,
             stagedParsedResume: null,
-            tailoredArtifacts: Object.fromEntries(Object.entries(get().tailoredArtifacts).map(([id, artifact]) => [id, { ...artifact, reviewConfirmed: false }]))
+            tailoredArtifacts: invalidateTailoredArtifacts(get().tailoredArtifacts)
           });
           get().addToast({
             type: 'success',
@@ -456,7 +467,7 @@ export const useWizardStore = create<WizardState>()(
           const updated = updater(current);
           set({
             masterResume: updated,
-            tailoredArtifacts: Object.fromEntries(Object.entries(get().tailoredArtifacts).map(([id, artifact]) => [id, { ...artifact, reviewConfirmed: false }]))
+            tailoredArtifacts: invalidateTailoredArtifacts(get().tailoredArtifacts)
           });
         }
       },
@@ -486,7 +497,7 @@ export const useWizardStore = create<WizardState>()(
         };
         set({
           masterResume: updatedResume,
-          tailoredArtifacts: Object.fromEntries(Object.entries(get().tailoredArtifacts).map(([id, artifact]) => [id, { ...artifact, reviewConfirmed: false }]))
+          tailoredArtifacts: invalidateTailoredArtifacts(get().tailoredArtifacts)
         });
         get().addToast({
           type: 'success',
@@ -503,7 +514,7 @@ export const useWizardStore = create<WizardState>()(
         };
         set({
           masterResume: updatedResume,
-          tailoredArtifacts: Object.fromEntries(Object.entries(get().tailoredArtifacts).map(([jobId, artifact]) => [jobId, { ...artifact, reviewConfirmed: false }]))
+          tailoredArtifacts: invalidateTailoredArtifacts(get().tailoredArtifacts)
         });
       },
       clearMasterResume: () => {
