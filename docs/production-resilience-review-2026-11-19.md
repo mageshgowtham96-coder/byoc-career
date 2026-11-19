@@ -8,7 +8,7 @@ Review the current PR #8 head and its local-first architecture for failure modes
 
 | Finding | Risk | Remediation |
 |---|---|---|
-| Groq model defaults referenced Llama 3.3 70B and Llama 3.1 models after their announced 16 Aug 2026 shutdown for non-enterprise access | AI actions can fail with model-not-found errors | Prefer current Groq production chat models: `openai/gpt-oss-120b`, then `openai/gpt-oss-20b`, then `qwen/qwen3.8-27b`. Do not select speech, guard, or arbitrary catalog entries |
+| Groq model defaults referenced Llama 3.3 70B and Llama 3.1 models after their announced 16 Aug 2026 shutdown for non-enterprise access | AI actions can fail with model-not-found errors | Prefer current Groq production chat models: `openai/gpt-oss-120b`, then `openai/gpt-oss-20b`, then `openai/gpt-oss-20b`. Do not select speech, guard, or arbitrary catalog entries |
 | Model cache was global and not tied to the active BYOK credential | A second workspace/key could inherit a model decision made with another key | Cache model selection against the key used for resolution; invalidate on model-not-found |
 | Error handling returned immediately on transient failures and treated 429 as a generic wait-and-retry message | Temporary 5xx/network faults were brittle; quota retry could become wasteful | Two-attempt ceiling; bounded exponential backoff with jitter for transient failures; honor only short Retry-After values for 429; do not retry permanent 4xx errors or long quota waits |
 | Provider abstraction advertised Gemini 1.5 model IDs and claimed all providers were client usable | Stale models and misleading capability claims | Update Gemini adapter model IDs but keep Gemini unavailable in this browser-only product; only Groq is enabled in the current user-facing workflow |
@@ -25,7 +25,7 @@ Review the current PR #8 head and its local-first architecture for failure modes
 
 ### Current choice: Groq GPT-OSS, not a provider migration
 
-Groq's current model catalogue lists GPT-OSS 120B and 20B as production models and identifies the older Llama models as deprecated for standard use. GPT-OSS 120B is the preferred model, with GPT-OSS 20B as a fallback when the account exposes it. Model availability must still be checked against the user's own key.
+Groq's current model catalogue lists GPT-OSS 120B and 20B as production models and identifies the older Llama models as deprecated for standard use. GPT-OSS 120B is the preferred model, with GPT-OSS 20B as the fallback when the account exposes it. Preview models are not selected for this production-oriented path. Model availability must still be checked against the user's own key.
 
 Groq documents request/token rate limits and HTTP 429 behavior. A free tier is not an unlimited production SLA. BYOC therefore handles transient failures but does not promise uninterrupted AI availability.
 
