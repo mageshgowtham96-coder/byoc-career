@@ -136,7 +136,7 @@ export const IntakeTab: React.FC = () => {
     try {
       const result = await extractResumeFile(file);
 
-      if (!result.success || result.isScannedImage || result.wordCount < 10) {
+      if (!result.success || result.isScannedImage) {
         setScannedFallbackActive(true);
         addToast({
           type: 'warning',
