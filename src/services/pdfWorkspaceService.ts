@@ -2,6 +2,15 @@ import { degrees, PDFDocument } from 'pdf-lib';
 
 export const MAX_PDF_BYTES = 10 * 1024 * 1024;
 export const MAX_PDF_PAGES = 250;
+export const MAX_MERGE_INPUT_BYTES = 20 * 1024 * 1024;
+
+export function parsePdfPageNumbers(value: string): number[] {
+  const parts = value.split(',').map((part) => part.trim());
+  if (parts.some((part) => !/^\\d+$/.test(part))) {
+    throw new Error('Enter whole page numbers separated by commas, for example 1, 3, 5.');
+  }
+  return parts.map(Number);
+}
 
 export interface PdfInspection {
   fileName: string;
@@ -45,7 +54,7 @@ function validatePageNumbers(pageNumbers: number[], pageCount: number, requireAl
     throw new Error(`Page numbers must be between 1 and ${pageCount}.`);
   }
   if (new Set(pageNumbers).size !== pageNumbers.length) throw new Error('Select each page once; duplicate page numbers are not allowed.');
-  if (requireAll && (pageNumbers.length !== pageCount || pageNumbers.some((page) => !pageNumbers.includes(page)))) {
+  if (requireAll && pageNumbers.length !== pageCount) {
     throw new Error('Reordering must include every page exactly once.');
   }
 }
@@ -65,6 +74,10 @@ export async function inspectPdf(file: File): Promise<PdfInspection> {
 
 export async function mergePdfs(files: File[]): Promise<Uint8Array> {
   if (!Array.isArray(files) || files.length < 2) throw new Error('Choose at least two PDFs to merge.');
+  const totalInputBytes = files.reduce((total, file) => total + (Number.isFinite(file?.size) ? file.size : 0), 0);
+  if (totalInputBytes > MAX_MERGE_INPUT_BYTES) {
+    throw new Error('The combined PDF files must be 20 MB or smaller to protect device memory.');
+  }
   const output = await PDFDocument.create();
   for (const file of files) {
     const source = await loadValidatedPdf(file);
