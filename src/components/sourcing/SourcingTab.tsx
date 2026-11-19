@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
+import { getRoleSuggestions } from '../../utils/roleSuggestions';
 import {
   jobSearchEngine,
   calculateHonestMatch,
@@ -12,6 +13,7 @@ import {
   mergePortalShortcuts,
   buildPortalShortcutUrl,
   matchesJobSearchTerms,
+  mergeDiscoveredJobs,
   type JobSearchResult
 } from '../../services/jobSearchService';
 import type { JobPosting, ApplicationRecord, JobSourcePortal } from '../../types';
@@ -59,6 +61,10 @@ export const SourcingTab: React.FC = () => {
   } = useWizardStore();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRoleSuggestionsOpen, setIsRoleSuggestionsOpen] = useState(false);
+  const [activeRoleSuggestion, setActiveRoleSuggestion] = useState(-1);
+  const roleSuggestions = React.useMemo(() => getRoleSuggestions(searchQuery), [searchQuery]);
+  const showRoleSuggestions = isRoleSuggestionsOpen && roleSuggestions.length > 0;
   const [workplaceFilter, setWorkplaceFilter] = useState<'All' | 'Remote' | 'Hybrid' | 'On-site'>('All');
   const [portalFilter, setPortalFilter] = useState<JobSourcePortal>('All');
   const [postedWithinDays, setPostedWithinDays] = useState<number>(30);
@@ -132,9 +138,9 @@ export const SourcingTab: React.FC = () => {
         jobs
       );
       setLiveSearchReport(res);
-      if (res.jobs.length > 0) {
-        setJobs(res.jobs);
-      }
+      // Preserve every previously saved job. The live result is query-filtered and must
+      // never replace the user's full local collection with only the current matches.
+      setJobs(mergeDiscoveredJobs(jobs, res.jobs));
 
       if (res.error) {
         addToast({
@@ -644,14 +650,40 @@ export const SourcingTab: React.FC = () => {
       {/* Search & Workplace Filter Toolbar */}
       <div className="flex flex-col lg:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by title, location, skill, or description..."
+            role="combobox"
+            aria-label="Search job roles, skills, locations and descriptions"
+            aria-autocomplete="list"
+            aria-expanded={showRoleSuggestions}
+            aria-controls="byoc-role-suggestions"
+            aria-activedescendant={activeRoleSuggestion >= 0 && showRoleSuggestions ? "byoc-role-option-" + activeRoleSuggestion : undefined}
+            onFocus={() => setIsRoleSuggestionsOpen(true)}
+            onChange={(e) => { setSearchQuery(e.target.value); setIsRoleSuggestionsOpen(true); setActiveRoleSuggestion(-1); }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown' && showRoleSuggestions) { e.preventDefault(); setActiveRoleSuggestion((current) => Math.min(current + 1, roleSuggestions.length - 1)); }
+              else if (e.key === 'ArrowUp' && showRoleSuggestions) { e.preventDefault(); setActiveRoleSuggestion((current) => Math.max(current - 1, 0)); }
+              else if (e.key === 'Escape') { setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); }
+              else if (e.key === 'Enter') { if (showRoleSuggestions && activeRoleSuggestion >= 0) { e.preventDefault(); setSearchQuery(roleSuggestions[activeRoleSuggestion]); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); } else { setIsRoleSuggestionsOpen(false); } }
+            }}
+            placeholder="Search a role (e.g. fraud) or any keyword..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
           />
+          {showRoleSuggestions && (
+            <div id="byoc-role-suggestions" role="listbox" aria-label="Suggested job roles" className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-sky-500/30 bg-slate-950/95 shadow-2xl shadow-black/40 backdrop-blur-xl">
+              <div className="px-3 py-2 border-b border-slate-800 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Suggested roles · custom searches also supported</div>
+              {roleSuggestions.map((role, index) => (
+                <button key={role} id={"byoc-role-option-" + index} type="button" role="option" aria-selected={activeRoleSuggestion === index}
+                  onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setActiveRoleSuggestion(index)}
+                  onClick={() => { setSearchQuery(role); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); }}
+                  className={"block w-full px-3 py-2.5 text-left text-xs transition " + (activeRoleSuggestion === index ? "bg-sky-500/15 text-sky-200" : "text-slate-300 hover:bg-slate-800")}>
+                  {role}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
