@@ -1231,28 +1231,35 @@ Only rewrite existing experience bullets when the source bullet and experienceId
 Return JSON matching this schema exactly:
 ${strategySchema}`;
 
-  const userPrompt = `Target Job:
-Title: ${job.title}
-Company: ${job.company}
-Workplace: ${job.workplaceType}
-Location: ${job.location}
-Skills Required: ${(job.skillsRequired || []).join(', ')}
-Raw Job Description:
-${job.jobDescriptionRaw}
+  const userPrompt = JSON.stringify({
+    job: {
+      title: job.title,
+      company: job.company,
+      workplaceType: job.workplaceType,
+      location: job.location,
+      requiredSkills: job.skillsRequired || [],
+      description: (job.jobDescriptionRaw || '').slice(0, 12000)
+    },
+    candidateProfile: {
+      headline: masterResume.headline,
+      summary: masterResume.summary,
+      skills: masterResume.skills,
+      experiences: masterResume.experiences,
+      projects: masterResume.projects,
+      education: masterResume.education,
+      certifications: masterResume.certifications,
+      additionalEvidence: masterResume.additionalEvidence
+    },
+    candidateEvidenceReferences: Object.entries(interviewEvidenceMap).map(([id, text]) => ({ id, text }))
+  });
 
-Candidate Master Profile Evidence:
-${JSON.stringify({
-  headline: masterResume.headline,
-  summary: masterResume.summary,
-  skills: masterResume.skills,
-  experiences: masterResume.experiences,
-  projects: masterResume.projects,
-  education: masterResume.education,
-  certifications: masterResume.certifications,
-  additionalEvidence: masterResume.additionalEvidence
-}),
-  candidateEvidenceReferences: Object.entries(interviewEvidenceMap).map(([id, text]) => ({ id, text }))
-})}`;
+  if (userPrompt.length > 24000) {
+    throw new GroqApiError(
+      'The structured profile and job description are too large for one tailoring request. Your saved profile is unchanged.',
+      413,
+      'TAILORING_INPUT_TOO_LARGE'
+    );
+  }
 
   const rawJson = await callGroqChat(systemPrompt, userPrompt, apiKey);
 
