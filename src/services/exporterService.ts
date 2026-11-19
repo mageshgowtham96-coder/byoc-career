@@ -27,7 +27,7 @@ export async function dispatchExportFile(blob: Blob, filename: string, mimeType:
           });
           return true;
         } catch (err: unknown) {
-          if (err instanceof Error && err.name === 'AbortError') {
+          if (typeof err === 'object' && err !== null && 'name' in err && err.name === 'AbortError') {
             // User cancelled the share sheet; do not report a successful export.
             return false;
           }
