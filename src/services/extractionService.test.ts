@@ -32,14 +32,14 @@ describe('resume extraction resource limits', () => {
   it('rejects a DOCX whose declared uncompressed document exceeds the safety limit', async () => {
     const archive = makeOversizedDocxArchive();
     const archiveBuffer = archive.buffer.slice(archive.byteOffset, archive.byteOffset + archive.byteLength) as ArrayBuffer;
-    const file = new File([archiveBuffer], 'oversized.docx');
+    const file = { name: 'oversized.docx', size: archiveBuffer.byteLength, arrayBuffer: async () => archiveBuffer } as unknown as File;
     const result = await extractResumeFile(file);
     expect(result.success).toBe(false);
     expect(result.error).toContain('20MB extraction safety limit');
   });
 
   it('rejects an upload above the 10MB file-size limit before parsing', async () => {
-    const file = new File([new ArrayBuffer(10 * 1024 * 1024 + 1)], 'large.txt');
+    const file = { name: 'large.txt', size: 10 * 1024 * 1024 + 1 } as File;
     const result = await extractResumeFile(file);
     expect(result.success).toBe(false);
     expect(result.error).toContain('10MB limit');
