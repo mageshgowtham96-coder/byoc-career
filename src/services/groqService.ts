@@ -376,8 +376,7 @@ export async function getAvailableGroqModels(apiKey: string): Promise<string[]> 
 
 const PREFERRED_GROQ_CHAT_MODELS = [
   'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b',
-  'qwen/qwen3.8-27b'
+  'openai/gpt-oss-20b'
 ] as const;
 
 /** Select only currently supported chat models; never pick speech/guard/retired IDs. */
