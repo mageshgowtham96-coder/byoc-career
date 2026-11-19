@@ -190,6 +190,8 @@ export const IntakeTab: React.FC = () => {
     }
 
     setIsProcessing(true);
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
     setProcessingFileName('Manual_Text_Paste.txt');
 
     setTimeout(() => {
@@ -231,6 +233,8 @@ export const IntakeTab: React.FC = () => {
   const handleAiStructureResume = async () => {
     if (!stagedParsedResume || !groqApiKey || isAiStructuring) return;
     setIsAiStructuring(true);
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
     setAiStructuringError(null);
     setOptimizedMasterPreview(null);
     try {
@@ -667,9 +671,21 @@ export const IntakeTab: React.FC = () => {
               <div className="space-y-3 rounded-xl border border-violet-400/25 bg-slate-950/60 p-3">
                 <p className="text-[11px] font-bold text-violet-200">Compare the proposed wording with your current draft</p>
                 <div className="grid gap-3 sm:grid-cols-2">
+                  <div><p className="text-[10px] font-bold uppercase text-slate-500">Current headline</p><p className="mt-1 whitespace-pre-wrap text-xs text-slate-300">{stagedParsedResume.headline || 'Not provided'}</p></div>
+                  <div><p className="text-[10px] font-bold uppercase text-violet-300">Suggested headline</p><p className="mt-1 whitespace-pre-wrap text-xs text-white">{optimizedMasterPreview.headline || 'Not provided'}</p></div>
                   <div><p className="text-[10px] font-bold uppercase text-slate-500">Current summary</p><p className="mt-1 whitespace-pre-wrap text-xs text-slate-300">{stagedParsedResume.summary || 'Not provided'}</p></div>
                   <div><p className="text-[10px] font-bold uppercase text-violet-300">Suggested summary</p><p className="mt-1 whitespace-pre-wrap text-xs text-white">{optimizedMasterPreview.summary || 'Not provided'}</p></div>
                 </div>
+                {optimizedMasterPreview.projects.map((project) => {
+                  const original = stagedParsedResume.projects.find((item) => item.id === project.id);
+                  if (!original || original.description === project.description) return null;
+                  return (
+                    <div key={project.id} className="grid gap-2 border-t border-slate-800 pt-2 sm:grid-cols-2">
+                      <div><p className="text-[10px] font-bold uppercase text-slate-500">{original.title} — Current description</p><p className="mt-1 text-[11px] text-slate-400">{original.description || 'Not provided'}</p></div>
+                      <div><p className="text-[10px] font-bold uppercase text-violet-300">{project.title} — Suggested description</p><p className="mt-1 text-[11px] text-white">{project.description || 'Not provided'}</p></div>
+                    </div>
+                  );
+                })}
                 {optimizedMasterPreview.experiences.map((experience) => {
                   const original = stagedParsedResume.experiences.find((item) => item.id === experience.id);
                   if (!original) return null;
