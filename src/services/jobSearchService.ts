@@ -299,6 +299,15 @@ export function mergeDiscoveredJobs(existingJobs: JobPosting[], discoveredJobs: 
 }
 
 /**
+ * Keyword overlap is a discovery aid, not proof of qualification or eligibility.
+ * Matching uses token boundaries so short skills such as Go, R and C do not
+ * match inside unrelated words. Experience depth and eligibility are assessed
+ * separately by the user; this function does not claim to verify them.
+ */
+function containsSkillToken(text: string, skill: string): boolean {
+  const normalizedSkill = skill.trim().toLowerCase().replace(/\\s+/g, ' ');
+  if (!normalizedSkill) return false;
+  const escaped = normalizedSkill.replace(/[.*+?^${}()|[\\]\\]/g, '\\/**
  * Calculates authentic match score strictly from verifiable profile facts vs job criteria.
  * Returns null if master resume is missing or profile data is insufficient.
  */
@@ -361,6 +370,71 @@ export function calculateHonestMatch(
   return {
     score: calculatedScore,
     statusText: `${calculatedScore}% Verified Match`,
+    matchedKeywords,
+    missingKeywords
+  };
+}').replace(/\\s+/g, '\\\\s+');
+  const matcher = new RegExp(`(^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`, 'i');
+  return matcher.test(text);
+}
+
+export function calculateHonestMatch(
+  job: JobPosting,
+  masterResume: MasterResume | null
+): {
+  score: number | null;
+  statusText: string;
+  matchedKeywords: string[];
+  missingKeywords: string[];
+} {
+  if (!masterResume || (!(masterResume.rawText || '').trim() && (masterResume.experiences?.length || 0) === 0 &&
+    Object.values(masterResume.skills || {}).every((items) => !items?.length))) {
+    return {
+      score: null,
+      statusText: 'Insufficient profile data',
+      matchedKeywords: [],
+      missingKeywords: job.skillsRequired || []
+    };
+  }
+
+  const candidateSkills = [
+    ...(masterResume.skills?.technical || []),
+    ...(masterResume.skills?.tools || []),
+    ...(masterResume.skills?.soft || []),
+    ...(masterResume.skills?.domains || [])
+  ];
+  const evidenceText = [
+    masterResume.rawText || '',
+    masterResume.summary || '',
+    ...candidateSkills,
+    ...(masterResume.experiences || []).flatMap((experience) => [
+      experience.role, experience.company, ...(experience.bullets || [])
+    ]),
+    ...(masterResume.projects || []).flatMap((project) => [project.title, project.description, ...(project.technologies || [])])
+  ].join(' ');
+
+  const matchedKeywords: string[] = [];
+  const missingKeywords: string[] = [];
+  const requiredSkills = (job.skillsRequired || []).filter((skill) => skill.trim());
+
+  if (requiredSkills.length === 0) {
+    return {
+      score: null,
+      statusText: 'No job skill criteria specified',
+      matchedKeywords: [],
+      missingKeywords: []
+    };
+  }
+
+  for (const skill of requiredSkills) {
+    if (containsSkillToken(evidenceText, skill)) matchedKeywords.push(skill);
+    else missingKeywords.push(skill);
+  }
+
+  const calculatedScore = Math.round((matchedKeywords.length / requiredSkills.length) * 100);
+  return {
+    score: calculatedScore,
+    statusText: `${calculatedScore}% keyword overlap — not a verified qualification match`,
     matchedKeywords,
     missingKeywords
   };
