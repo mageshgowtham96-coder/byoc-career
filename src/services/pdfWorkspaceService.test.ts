@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { PDFDocument } from 'pdf-lib';
 import {
   inspectPdf,
@@ -8,6 +8,22 @@ import {
   reorderPdfPages,
   createPdfBlob
 } from './pdfWorkspaceService';
+
+beforeAll(() => {
+  if (typeof File !== 'undefined' && !('arrayBuffer' in File.prototype)) {
+    Object.defineProperty(File.prototype, 'arrayBuffer', {
+      configurable: true,
+      value: function arrayBuffer(this: File): Promise<ArrayBuffer> {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as ArrayBuffer);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsArrayBuffer(this);
+        });
+      }
+    });
+  }
+});
 
 async function makePdf(pageCount = 2): Promise<File> {
   const pdf = await PDFDocument.create();
