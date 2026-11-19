@@ -286,7 +286,7 @@ export function buildApplicationSnapshotRecord(params: {
         coverLetter: '',
         interviewPrepQuestions: [],
         generationTimestamp: nowIso,
-        authenticityGuaranteed: true,
+        authenticityGuaranteed: false,
         exportedMaterials: []
       };
 
