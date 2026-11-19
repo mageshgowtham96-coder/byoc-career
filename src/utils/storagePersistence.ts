@@ -274,7 +274,8 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
     translatedToEnglish: false,
     originalLanguageSnapshot: '',
     projects: [],
-    certifications: []
+    certifications: [],
+    additionalEvidence: []
   };
 
   if (!raw || typeof raw !== 'object') {
@@ -298,6 +299,9 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
     : [];
   const certifications = Array.isArray(r.certifications)
     ? r.certifications.filter((certification) => certification && typeof certification === 'object')
+    : [];
+  const additionalEvidence = Array.isArray(r.additionalEvidence)
+    ? r.additionalEvidence.map((item) => String(item ?? '').trim()).filter(Boolean).slice(0, 100)
     : [];
   const skills = Array.isArray(r.skills)
     ? r.skills.map((s) => String(s ?? '').trim()).filter(Boolean)
@@ -368,6 +372,7 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
         ...(typeof p.link === 'string' && p.link.trim() ? { link: p.link.trim() } : {})
       };
     }),
+    additionalEvidence,
     certifications: certifications.map((certification: unknown, idx: number) => {
       const c = certification as Record<string, unknown>;
       return {
