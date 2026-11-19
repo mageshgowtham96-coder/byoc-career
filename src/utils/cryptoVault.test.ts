@@ -376,3 +376,10 @@ describe('Email Vault Configuration', () => {
     expect(emailVault).toBeDefined();
   });
 });
+describe('vault key extractability', () => {
+  it('keeps PBKDF2-derived wrapping keys non-exportable', async () => {
+    const key = await deriveVaultKey('test passphrase', new Uint8Array(16));
+    expect(key.extractable).toBe(false);
+    expect(key.usages).toEqual(['encrypt', 'decrypt']);
+  });
+});
