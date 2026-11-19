@@ -393,13 +393,19 @@ describe('Export Service', () => {
 describe('dispatchExportFile cancellation', () => {
   it('does not report success when the user cancels the native share sheet', async () => {
     const share = vi.fn().mockRejectedValue(new DOMException('Share cancelled', 'AbortError'));
-    vi.stubGlobal('navigator', {
-      canShare: vi.fn().mockReturnValue(true),
-      share
-    });
-    const result = await dispatchExportFile(new Blob(['resume']), 'resume.txt', 'text/plain');
-    expect(result).toBe(false);
-    expect(share).toHaveBeenCalledOnce();
-    vi.unstubAllGlobals();
+    const originalCanShare = Object.getOwnPropertyDescriptor(navigator, 'canShare');
+    const originalShare = Object.getOwnPropertyDescriptor(navigator, 'share');
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: vi.fn().mockReturnValue(true) });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+    try {
+      const result = await dispatchExportFile(new Blob(['resume']), 'resume.txt', 'text/plain');
+      expect(result).toBe(false);
+      expect(share).toHaveBeenCalledOnce();
+    } finally {
+      if (originalCanShare) Object.defineProperty(navigator, 'canShare', originalCanShare);
+      else delete (navigator as Navigator & { canShare?: unknown }).canShare;
+      if (originalShare) Object.defineProperty(navigator, 'share', originalShare);
+      else delete (navigator as Navigator & { share?: unknown }).share;
+    }
   });
 });
