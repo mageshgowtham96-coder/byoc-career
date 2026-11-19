@@ -69,7 +69,7 @@ export const VettingTab: React.FC = () => {
       addToast({
         type: 'success',
         title: 'Vetting Report Generated',
-        message: `Recommendation: ${vetting.recommendation}`
+        message: `AI Suggestion (Not a Hiring Prediction): ${vetting.recommendation}`
       });
     } catch (err: unknown) {
       const msg = formatGroqError(err, 'Vetting evaluation failed.');
@@ -87,7 +87,7 @@ export const VettingTab: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-sky-400" />
-            <span>Opportunity Vetting & Risk Audit</span>
+            <span>Job Description & Career Evidence Review</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
             Evidence-bounded job description and profile comparison. Employer culture and salary-market competitiveness are not independently verified.
@@ -127,7 +127,7 @@ export const VettingTab: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-sky-400" />
-            <span>Opportunity Vetting Audit</span>
+            <span>Job Description & Career Evidence Review</span>
           </h2>
           <div className="flex items-center gap-2 mt-1 flex-wrap text-xs">
             <span className="font-bold text-white">{selectedJob.title}</span>
@@ -305,7 +305,7 @@ export const VettingTab: React.FC = () => {
             </div>
           </section>
 
-          {/* Red Flags & Green Flags Columns */}
+          {/* Potential Concerns in Job Description & Positive Signals in Job Description Columns */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <section className="p-5 rounded-2xl bg-[#0F172A] border border-slate-800">
               <div className="flex items-center gap-2 mb-3 text-rose-400 font-bold text-xs uppercase tracking-wider tabular-nums">
@@ -409,7 +409,7 @@ export const VettingTab: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="p-4 rounded-2xl bg-[#0F172A] border border-slate-800">
               <span className="text-[10px] font-mono uppercase text-slate-400 block mb-1">
-                Growth Trajectory
+                Potential Progression Signals (AI Interpretation)
               </span>
               <p className="text-xs text-slate-300 leading-relaxed">
                 {vetting.growthTrajectory}
