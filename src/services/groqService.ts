@@ -1176,7 +1176,7 @@ Create 5 useful interview questions for the supplied job. Questions must be role
 Return JSON only: {"questions":[{"question":"...","category":"Technical|Behavioral|Situational|Role-Specific","suggestedTalkingPoints":["..."],"evidenceId":"exact supplied evidence ID"}]}. Return 3 to 8 questions. Each evidenceId must be copied exactly from the supplied evidence list.`;
   const raw = await callGroqChat(systemPrompt, userPrompt, apiKey);
   try {
-    const parsed = JSON.parse(raw.replace(/\`\`\`json\s*|\s*\`\`\`/g, '').trim());
+    const parsed = JSON.parse(raw.replace(/^```json\s*|```$/g, '').trim());
     return validateInterviewPrepQuestions(parsed, evidenceMap);
   } catch (err: unknown) {
     if (err instanceof GroqApiError) throw err;
