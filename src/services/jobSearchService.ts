@@ -662,11 +662,6 @@ export function buildLocationScopeNotice(country?: string, location?: string, in
 /**
  * Central Multi-Provider Live Job Search Coordinator
  */
-/**
- * Groq-hosted browser discovery. Only role/skill and coarse location filters are sent;
- * candidate resumes, contact details, and application history are never included.
- * Returned listings are discovery candidates, not independently verified vacancies.
- */
 /** Identifies the actual job-board host so discovery results can be filtered by portal. */
 export function identifyJobPortalSource(rawUrl: string): string {
   try {
@@ -687,6 +682,11 @@ export function identifyJobPortalSource(rawUrl: string): string {
   }
 }
 
+/**
+ * Groq-hosted browser discovery. Only role/skill and coarse location filters are sent;
+ * candidate resumes, contact details, and application history are never included.
+ * Returned listings are discovery candidates, not independently verified vacancies.
+ */
 export class GroqBrowserSearchJobAdapter implements JobProviderAdapter {
   id = 'groq_browser_search';
   name = 'Groq Browser Search';
