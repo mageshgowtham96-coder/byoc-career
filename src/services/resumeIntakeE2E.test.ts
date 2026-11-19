@@ -2,6 +2,62 @@ import { describe, expect, it } from 'vitest';
 import { extractResumeFile, parseRawResumeToStructured, validateExtractedSchema } from './extractionService';
 import { assessResumeReadiness } from '../utils/resumeReadiness';
 
+
+function crc32(bytes: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function makeDocxUploadFixture(xml: string): Uint8Array {
+  const encoder = new TextEncoder();
+  const name = encoder.encode('word/document.xml');
+  const data = encoder.encode(xml);
+  const crc = crc32(data);
+  const local = new Uint8Array(30 + name.length + data.length);
+  const lv = new DataView(local.buffer);
+  lv.setUint32(0, 0x04034b50, true);
+  lv.setUint16(4, 20, true);
+  lv.setUint16(6, 0x0800, true);
+  lv.setUint16(8, 0, true);
+  lv.setUint32(14, crc, true);
+  lv.setUint32(18, data.length, true);
+  lv.setUint32(22, data.length, true);
+  lv.setUint16(26, name.length, true);
+  local.set(name, 30);
+  local.set(data, 30 + name.length);
+
+  const central = new Uint8Array(46 + name.length);
+  const cv = new DataView(central.buffer);
+  cv.setUint32(0, 0x02014b50, true);
+  cv.setUint16(4, 20, true);
+  cv.setUint16(6, 20, true);
+  cv.setUint16(8, 0x0800, true);
+  cv.setUint16(10, 0, true);
+  cv.setUint32(16, crc, true);
+  cv.setUint32(20, data.length, true);
+  cv.setUint32(24, data.length, true);
+  cv.setUint16(28, name.length, true);
+  cv.setUint32(42, 0, true);
+  central.set(name, 46);
+
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(8, 1, true);
+  ev.setUint16(10, 1, true);
+  ev.setUint32(12, central.length, true);
+  ev.setUint32(16, local.length, true);
+  const archive = new Uint8Array(local.length + central.length + eocd.length);
+  archive.set(local, 0);
+  archive.set(central, local.length);
+  archive.set(eocd, local.length + central.length);
+  return archive;
+}
+
 const DUMMY_FRAUD_ANALYST_RESUME = `Priya Sharma
 priya.sharma@example.com
 +91 98765 43210
@@ -183,5 +239,45 @@ University merit scholarship, 2024.`);
       expect.stringContaining('Languages: Tamil'),
       expect.stringContaining('Awards: University merit scholarship')
     ]));
+  });
+});
+
+
+describe('real DOCX intake lifecycle', () => {
+  it('extracts a DOCX archive, structures its contents, and stages the confirmed profile in vault data', async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+      <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>
+      <w:p><w:r><w:t>Asha Rao</w:t></w:r></w:p>
+      <w:p><w:r><w:t>asha@example.com</w:t></w:r></w:p>
+      <w:p><w:r><w:t>Professional Summary</w:t></w:r></w:p>
+      <w:p><w:r><w:t>Commerce graduate with project experience in data analysis.</w:t></w:r></w:p>
+      <w:p><w:r><w:t>Skills</w:t></w:r></w:p>
+      <w:p><w:r><w:t>Excel, SQL, Data Analysis</w:t></w:r></w:p>
+      <w:tbl><w:tr><w:tc><w:p><w:r><w:t>Project: Retail Sales Analysis</w:t></w:r></w:p></w:tc>
+      <w:tc><w:p><w:r><w:t>Used Excel to review monthly sales trends.</w:t></w:r></w:p></w:tc></w:tr></w:tbl>
+      <w:p><w:r><w:t>Education</w:t></w:r></w:p>
+      <w:p><w:r><w:t>Bachelor of Commerce - City University - 2025</w:t></w:r></w:p>
+      </w:body></w:document>`;
+    const bytes = makeDocxUploadFixture(xml);
+    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    const file = { name: 'asha-resume.docx', size: buffer.byteLength, arrayBuffer: async () => buffer } as unknown as File;
+
+    const extracted = await extractResumeFile(file);
+    expect(extracted.success).toBe(true);
+    expect(extracted.rawText).toContain('Project: Retail Sales Analysis');
+    expect(extracted.rawText).toContain('Used Excel to review monthly sales trends.');
+
+    const parsed = parseRawResumeToStructured(extracted.rawText, extracted.fileName, extracted.wordCount, extracted.pageCount, extracted.charCount);
+    expect(parsed.contactInfo.name).toBe('Asha Rao');
+    expect(parsed.contactInfo.email).toBe('asha@example.com');
+    expect(parsed.rawText).toBe(extracted.rawText);
+
+    useWizardStore.setState({ masterResume: null, stagedParsedResume: parsed, tailoredArtifacts: {} });
+    useWizardStore.getState().confirmStagedResume();
+    const state = useWizardStore.getState();
+    expect(state.stagedParsedResume).toBeNull();
+    expect(state.masterResume?.rawText).toBe(extracted.rawText);
+    expect(buildVaultDataFromState(state).masterResume?.rawText).toBe(extracted.rawText);
+    useWizardStore.setState({ masterResume: null, stagedParsedResume: null, tailoredArtifacts: {}, toasts: [] });
   });
 });
