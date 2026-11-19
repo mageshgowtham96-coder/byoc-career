@@ -392,6 +392,13 @@ export async function optimizeMasterResumeWithGroq(
     certifications: source.certifications,
     additionalEvidence: source.additionalEvidence || []
   });
+  if (userPrompt.length > 24000) {
+    throw new GroqApiError(
+      'This structured Master Resume is too large for one optional optimization request. Your local profile is unchanged; edit or split the content and try again.',
+      413,
+      'OPTIMIZATION_INPUT_TOO_LARGE'
+    );
+  }
   const raw = await callGroqChat(systemPrompt, userPrompt, apiKey);
   try {
     const parsed = JSON.parse(raw.replace(/```json\s*|\s*```/g, '').trim());
