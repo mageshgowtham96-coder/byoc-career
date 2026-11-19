@@ -49,10 +49,11 @@ export function assessResumeReadiness(resume: MasterResume | null | undefined): 
   const experiences = Array.isArray(resume.experiences) ? resume.experiences : [];
   const projects = Array.isArray(resume.projects) ? resume.projects : [];
   const education = Array.isArray(resume.education) ? resume.education : [];
+  // Count structured, reviewable evidence here; raw text alone is retained for recovery
+  // but must not make a profile look complete when the parser has not identified its contents.
   const hasCareerEvidence = experiences.length > 0 || projects.length > 0 || education.length > 0 ||
     (Array.isArray(resume.certifications) && resume.certifications.length > 0) ||
-    (Array.isArray(resume.additionalEvidence) && resume.additionalEvidence.length > 0) ||
-    Boolean(resume.rawText?.trim() || resume.headline?.trim() || resume.summary?.trim());
+    (Array.isArray(resume.additionalEvidence) && resume.additionalEvidence.length > 0);
   if (hasCareerEvidence) score += 25;
   else missingSections.push('career history, projects, education, certifications or other profile evidence');
 
