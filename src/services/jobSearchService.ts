@@ -366,7 +366,14 @@ export function calculateHonestMatch(
   }
 
   for (const skill of requiredSkills) {
-    if (containsSkillToken(evidenceText, skill)) matchedKeywords.push(skill);
+    const normalizedSkill = skill.trim().toLowerCase();
+    // One- and two-character skills are too ambiguous in ordinary prose (Go, R, C).
+    // Count them only when the user explicitly listed the exact skill in a structured
+    // skills field. Longer phrases can be reported as keyword overlap from source text.
+    const matched = normalizedSkill.length <= 2
+      ? candidateSkills.some((candidateSkill) => candidateSkill.trim().toLowerCase() === normalizedSkill)
+      : containsSkillToken(evidenceText, skill);
+    if (matched) matchedKeywords.push(skill);
     else missingKeywords.push(skill);
   }
 
