@@ -291,7 +291,7 @@ export async function deriveVaultKey(
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
-    true,
+    false,
     ['encrypt', 'decrypt']
   );
 }
