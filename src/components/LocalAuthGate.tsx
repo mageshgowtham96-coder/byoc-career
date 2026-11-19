@@ -673,6 +673,8 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <div
       key={envelopeVersion}
+      lang={locale}
+      dir={locale === "ur" ? "rtl" : "ltr"}
       className="byoc-auth-screen min-h-screen flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden select-none"
     >
       <div className="auth-ambient auth-ambient-one" /><div className="auth-ambient auth-ambient-two" /><div className="auth-scanline" />
