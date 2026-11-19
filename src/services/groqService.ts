@@ -860,6 +860,14 @@ ${hasResume ? JSON.stringify({
   additionalEvidence: masterResume?.additionalEvidence
 }) : 'No candidate career profile supplied. Do not make candidate-fit claims.'}`;
 
+  if (userPrompt.length > 24000) {
+    throw new GroqApiError(
+      'The structured profile and job description are too large for one tailoring request. Your saved profile is unchanged.',
+      413,
+      'TAILORING_INPUT_TOO_LARGE'
+    );
+  }
+
   const rawJson = await callGroqChat(systemPrompt, userPrompt, apiKey);
 
   try {
@@ -950,6 +958,10 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
 
   const rawVariants = Array.isArray(parsed.variants) ? parsed.variants : [];
   const strategies = getTailoringStrategies(job, masterResume);
+  const interviewEvidenceMap = buildInterviewEvidenceMap(masterResume);
+  if (Object.keys(interviewEvidenceMap).length === 0) {
+    throw new GroqApiError('No structured source evidence is available for interview preparation.', 422, 'INSUFFICIENT_CANDIDATE_EVIDENCE');
+  }
   if (rawVariants.length < strategies.length) {
     throw new GroqApiError(
       `Model returned ${rawVariants.length} variants; ${strategies.length} evidence-relevant variants were requested.`,
@@ -973,18 +985,10 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
       `Aligned with ${job.company} requirements.`
     );
 
-    const interviewPrepQuestions: InterviewQuestion[] = Array.isArray(rv.interviewPrepQuestions)
-      ? rv.interviewPrepQuestions.map((q: any) => ({
-          question: String(q.question || 'Describe your relevant technical contributions.'),
-          category: (['Technical', 'Behavioral', 'Situational', 'Role-Specific'].includes(q.category)
-            ? q.category
-            : 'Technical') as InterviewQuestion['category'],
-          suggestedTalkingPoints: Array.isArray(q.suggestedTalkingPoints)
-            ? q.suggestedTalkingPoints.map((tp: any) => String(tp))
-            : ['Cite documented milestones from master profile'],
-          authenticEvidenceRef: String(q.authenticEvidenceRef || 'Master Resume Record')
-        }))
-      : [];
+    const interviewPrepQuestions = validateInterviewPrepQuestions(
+      { questions: Array.isArray(rv.interviewPrepQuestions) ? rv.interviewPrepQuestions : [] },
+      interviewEvidenceMap
+    );
 
     const highlightedSkills: string[] = [];
     if (Array.isArray(rv.highlightedSkills)) {
@@ -1214,7 +1218,7 @@ export async function tailorResumeWithGroq(
         question: 'string',
         category: 'Technical | Behavioral | Situational | Role-Specific',
         suggestedTalkingPoints: ['string'],
-        authenticEvidenceRef: 'string'
+        evidenceId: 'exact supplied candidate evidence ID'
       }]
     }))
   }, null, 2);
@@ -1223,7 +1227,7 @@ export async function tailorResumeWithGroq(
 ${SYSTEMIC_AUTHENTICITY_FILTER}
 Generate exactly ${strategies.length} distinct resume presentation versions, one for each strategy in the supplied schema. These strategies are selected from the candidate's actual evidence; do not add leadership, architecture, metrics or specialist claims unless supported by that evidence.
 Every factual claim must be directly supported by the supplied candidate profile. Rewrite for clarity and relevance, but never create new duties, achievements, numbers, employers, qualifications, dates or skills.
-Only rewrite existing experience bullets when the source bullet and experienceId are supplied. If a statement cannot be mapped to source evidence, omit it. highlightedSkills must be exact skills from the candidate profile. Tailored summaries and cover letters must not assert unsupported facts.
+Only rewrite existing experience bullets when the source bullet and experienceId are supplied. If a statement cannot be mapped to source evidence, omit it. highlightedSkills must be exact skills from the candidate profile. Tailored summaries and cover letters must not assert unsupported facts. Each variant must include 3 to 8 interview questions; every question must cite exactly one evidenceId from the supplied candidate evidence references, and its talking points must be prompts rather than claims.
 Return JSON matching this schema exactly:
 ${strategySchema}`;
 
@@ -1238,7 +1242,6 @@ ${job.jobDescriptionRaw}
 
 Candidate Master Profile Evidence:
 ${JSON.stringify({
-  contactName: masterResume.contactInfo?.name,
   headline: masterResume.headline,
   summary: masterResume.summary,
   skills: masterResume.skills,
@@ -1247,6 +1250,8 @@ ${JSON.stringify({
   education: masterResume.education,
   certifications: masterResume.certifications,
   additionalEvidence: masterResume.additionalEvidence
+}),
+  candidateEvidenceReferences: Object.entries(interviewEvidenceMap).map(([id, text]) => ({ id, text }))
 })}`;
 
   const rawJson = await callGroqChat(systemPrompt, userPrompt, apiKey);
