@@ -62,6 +62,22 @@ describe('resume upload parsing and readiness end-to-end fixture', () => {
     });
   });
 
+  it('extracts inline competency headings used by compact resume layouts', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+asha.rao@example.com
+Professional Summary
+Risk analyst experienced in reviewing payment alerts and supporting fraud operations.
+Skills: Fraud Detection, AML, KYC, SQL, Chargeback Analysis
+Experience
+Risk Analyst - Sample Bank - 2023 - Present
+- Reviewed payment alerts and documented investigations.
+- Escalated suspicious activity to the compliance team.`);
+    expect(parsed.skills.domains).toEqual(expect.arrayContaining([
+      'Fraud Detection', 'AML', 'KYC', 'Chargeback Analysis'
+    ]));
+    expect(assessResumeReadiness(parsed).completenessPercent).toBe(100);
+  });
+
   it('reports the actual missing section for a sparse profile instead of claiming multiple experience milestones', () => {
     const parsed = parseRawResumeToStructured(`Priya Sharma
 priya.sharma@example.com
