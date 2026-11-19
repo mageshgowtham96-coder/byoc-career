@@ -117,7 +117,14 @@ export async function dispatchExportFile(blob: Blob, filename: string, mimeType:
 /**
  * Clean Text (.txt) Generator
  */
+function assertHumanReviewConfirmed(artifact: TailoredArtifact): void {
+  if (!artifact.reviewConfirmed) {
+    throw new Error('Review the generated content against your Master Resume and the supplied job description before exporting.');
+  }
+}
+
 export function generatePlainTextResume(artifact: TailoredArtifact, resume: MasterResume): string {
+  assertHumanReviewConfirmed(artifact);
   const resolved = resolveTailoredResumeForExportAndPreview(artifact, resume);
   const lines: string[] = [];
 
@@ -248,6 +255,7 @@ function toPdfSafeText(text: string): string {
  * Standard PDF Generator using pdf-lib with clean margins & layout
  */
 export async function generatePdfResume(artifact: TailoredArtifact, resume: MasterResume): Promise<Blob> {
+  assertHumanReviewConfirmed(artifact);
   const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
   const resolved = resolveTailoredResumeForExportAndPreview(artifact, resume);
   const isMasterResume = artifact.jobId === 'master-resume';
@@ -622,6 +630,7 @@ export async function generatePdfResume(artifact: TailoredArtifact, resume: Mast
  * Real DOCX Generator using the official 'docx' package
  */
 export async function generateDocxResume(artifact: TailoredArtifact, resume: MasterResume): Promise<Blob> {
+  assertHumanReviewConfirmed(artifact);
   const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx');
   const resolved = resolveTailoredResumeForExportAndPreview(artifact, resume);
   const children: Paragraph[] = [];
