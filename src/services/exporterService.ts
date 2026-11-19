@@ -1,4 +1,4 @@
-import type { MasterResume, TailoredArtifact, JobPosting } from '../types';
+import type { MasterResume, TailoredArtifact, TailoredVariant, JobPosting } from '../types';
 import type { Paragraph } from 'docx';
 import { resolveTailoredResumeForExportAndPreview } from '../utils/tailoredBulletResolver';
 
@@ -7,6 +7,57 @@ export interface ExportOptions {
   artifact: TailoredArtifact;
   masterResume: MasterResume;
   targetJob?: JobPosting | null;
+}
+
+
+/**
+ * Adapts an approved Master Resume into the existing structured document exporter.
+ * This is not a job-specific artifact: every source section remains the user's profile.
+ */
+export function createMasterResumeExportArtifact(resume: MasterResume): TailoredArtifact {
+  const highlightedSkills = [
+    ...resume.skills.technical,
+    ...resume.skills.soft,
+    ...resume.skills.tools,
+    ...resume.skills.domains
+  ].filter((skill, index, all) => Boolean(skill.trim()) && all.indexOf(skill) === index);
+  const optimizedBullets = resume.experiences.flatMap((experience) =>
+    experience.bullets.map((bullet) => ({
+      experienceId: experience.id,
+      company: experience.company,
+      role: experience.role,
+      originalBullet: bullet,
+      tailoredBullet: bullet,
+      matchRationale: 'Original user-approved Master Resume evidence.'
+    }))
+  );
+  const variant: TailoredVariant = {
+    id: 'master-resume',
+    name: 'Master Resume',
+    badge: 'Master Resume',
+    description: 'User-approved career profile, not tailored to a specific vacancy.',
+    tailoredSummary: resume.summary,
+    highlightedSkills,
+    optimizedBullets,
+    coverLetter: '',
+    interviewPrepQuestions: []
+  };
+  return {
+    id: 'master-' + resume.stats.lastParsedDate,
+    jobId: 'master-resume',
+    jobTitle: resume.headline || resume.currentRole || 'Master Resume',
+    company: '',
+    selectedVariantId: variant.id,
+    variants: [variant],
+    tailoredSummary: resume.summary,
+    highlightedSkills,
+    optimizedBullets,
+    coverLetter: '',
+    interviewPrepQuestions: [],
+    generationTimestamp: new Date().toISOString(),
+    authenticityGuaranteed: false,
+    reviewConfirmed: true
+  };
 }
 
 /**
