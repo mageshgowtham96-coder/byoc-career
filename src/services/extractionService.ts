@@ -786,7 +786,7 @@ export function parseRawResumeToStructured(
 
   const additionalEvidence: string[] = [];
   const additionalSectionPattern = /^(awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)\s*(?::|[-–])?\s*(.*)$/i;
-  const standardSectionPattern = /^(summary|profile|professional summary|experience|work experience|employment history|work history|education|academic background|projects|personal projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|awards|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)\s*(?::|[-–])?\s*(.*)$/i;
+  const standardSectionPattern = /^(summary|profile|professional summary|experience|work experience|employment history|work history|education|academic background|projects|personal projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)\s*(?::|[-–])?\s*(.*)$/i;
   for (let index = 0; index < lines.length; index++) {
     const heading = lines[index].match(additionalSectionPattern);
     if (!heading) continue;
