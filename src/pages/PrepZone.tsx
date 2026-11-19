@@ -15,7 +15,7 @@ import {
   Target,
   DollarSign
 } from 'lucide-react';
-import { tailorResumeWithGroq, formatGroqError } from '../services/groqService';
+import { generateInterviewPrepQuestionsWithGroq, tailorResumeWithGroq, formatGroqError } from '../services/groqService';
 import { buildDomainPracticeQuestions } from '../utils/domainPracticeQuestions';
 import { hasStructuredCareerEvidence } from '../utils/resumeReadiness';
 
@@ -26,6 +26,7 @@ export const PrepZone: React.FC = () => {
     jobs,
     tailoredArtifacts,
     saveTailoredArtifact,
+    saveInterviewPrepQuestions,
     groqApiKey,
     candidatePreferences,
     setActiveTab,
