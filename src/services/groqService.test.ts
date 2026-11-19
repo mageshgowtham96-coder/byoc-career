@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { callGroqChat, getGroqRetryDelayMs, isAbortError, isRetryableGroqStatus, selectGroqChatModel, validateOptimizedMasterResume } from './groqService';
+import { callGroqChat, getGroqRetryDelayMs, getTailoringStrategies, isAbortError, isRetryableGroqStatus, selectGroqChatModel, validateOptimizedMasterResume } from './groqService';
 
 const fetchMock = vi.fn();
 beforeEach(() => { vi.stubGlobal('fetch', fetchMock); fetchMock.mockReset(); });
@@ -183,5 +183,27 @@ describe('optional Master Resume optimization validation', () => {
         { source: 'Invented source statement.', proposed: 'Increased revenue by 40%.' }
       ] }]
     }, source)).toThrowError(/source bullet/i);
+  });
+});
+
+
+describe('role-aware tailoring strategies', () => {
+  const job = { title: 'Customer Support Associate' } as any;
+
+  it('offers an additional-evidence strategy when the profile has volunteering or awards but no work history', () => {
+    const profile = {
+      rawText: '',
+      headline: '',
+      summary: '',
+      skills: { technical: [], soft: [], tools: [], domains: [] },
+      experiences: [],
+      projects: [],
+      education: [],
+      certifications: [],
+      additionalEvidence: ['Volunteering: Supported a local learning centre.']
+    } as any;
+    const strategies = getTailoringStrategies(job, profile);
+    expect(strategies.map((strategy) => strategy.id)).toContain('variant-evidence');
+    expect(strategies.some((strategy) => /ATS/i.test(strategy.name))).toBe(true);
   });
 });
