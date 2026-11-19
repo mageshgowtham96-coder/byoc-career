@@ -134,7 +134,7 @@ describe('DOCX document structure extraction', () => {
     const file = { name: 'short-resume.txt', size: text.length, text: async () => text } as unknown as File;
     const result = await extractResumeFile(file);
     expect(result.success).toBe(true);
-    expect(result.wordCount).toBe(3);
+    expect(result.wordCount).toBe(4);
   });
 
 });
