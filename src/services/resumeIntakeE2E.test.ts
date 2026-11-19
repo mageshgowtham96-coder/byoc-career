@@ -158,3 +158,30 @@ Tamil — Native; English — Professional working proficiency.`);
   });
 
 });
+
+describe('resume section boundary regression', () => {
+  it('stops skills extraction at every supported non-standard career section', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+asha@example.com
+Professional Summary
+Commerce graduate with data analysis project experience.
+Skills
+SQL, Excel
+Volunteering
+Volunteer coordinator at a local learning centre.
+Languages
+Tamil — Native; English — Professional working proficiency.
+Awards
+University merit scholarship, 2024.`);
+
+    expect(parsed.skills.domains).toEqual(expect.arrayContaining(['SQL', 'Excel']));
+    expect(parsed.skills.domains).not.toContain('Volunteering');
+    expect(parsed.skills.domains).not.toContain('Volunteer coordinator at a local learning centre.');
+    expect(parsed.skills.domains).not.toContain('Tamil — Native');
+    expect(parsed.additionalEvidence).toEqual(expect.arrayContaining([
+      expect.stringContaining('Volunteering: Volunteer coordinator'),
+      expect.stringContaining('Languages: Tamil'),
+      expect.stringContaining('Awards: University merit scholarship')
+    ]));
+  });
+});
