@@ -507,7 +507,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-          <strong className="text-slate-200">Live Query Status:</strong> Remotive, Remote OK, and Jobicy public remote feeds are queried on demand; listings retain source links and provider failures appear in search status. This is not a complete worldwide index. Adzuna is unavailable in client-only builds (requires server-side App ID &amp; Key). External portals (including Glassdoor, LinkedIn, Indeed, Naukri, Foundit, and Instahyre) remain shortcuts only—open a shortcut below, then paste the listing text &amp; link via <span className="text-sky-300 font-semibold">Add Custom Job Description</span>.
+          <strong className="text-slate-200">Live Query Status:</strong> Remotive, Remote OK, and Jobicy public remote feeds are queried on demand. When your Groq key is configured, Browser Search prioritizes individual listings from LinkedIn, Indeed, Naukri, Foundit, Glassdoor, and Instahyre, then may use official employer career pages. Results are labelled by their actual URL host but remain unverified and depend on what the search provider can discover. Direct portal shortcuts remain available when a portal blocks discovery. This is not a complete worldwide index. Adzuna is unavailable in client-only builds (requires server-side App ID &amp; Key). To add a listing that search cannot access, open a shortcut below, then paste the listing text &amp; link via <span className="text-sky-300 font-semibold">Add Custom Job Description</span>.
         </div>
 
         {/* External Portal Shortcuts (Shortcut Only — No Live API) */}
