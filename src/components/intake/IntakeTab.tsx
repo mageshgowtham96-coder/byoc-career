@@ -277,7 +277,7 @@ export const IntakeTab: React.FC = () => {
 
   const handleGuidedBuilderComplete = (profile: MasterResume) => {
     setStagedParsedResume(profile);
-    setLocalStagedProfile(profile);
+    if (!localStagedProfile) setLocalStagedProfile(profile);
     setEditableStagedSummary(profile.summary);
     setEditableHeadline(profile.headline);
     setEditableName(profile.contactInfo.name || '');
@@ -439,7 +439,7 @@ export const IntakeTab: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setCareerFormDraft(createCareerDraftFromMasterResume(localStagedProfile || stagedParsedResume));
+              setCareerFormDraft(createCareerDraftFromMasterResume(stagedParsedResume));
               setShowGuidedBuilder(true);
             }}
             className="mb-5 inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-200 hover:bg-sky-500/20"
@@ -1090,7 +1090,7 @@ export const IntakeTab: React.FC = () => {
 
       {showGuidedBuilder && (
         <GuidedMasterResumeBuilder
-          initialDraft={careerFormDraft || (stagedParsedResume ? createCareerDraftFromMasterResume(localStagedProfile || stagedParsedResume) : masterResume ? createCareerDraftFromMasterResume(masterResume) : null)}
+          initialDraft={careerFormDraft || (stagedParsedResume ? createCareerDraftFromMasterResume(stagedParsedResume) : masterResume ? createCareerDraftFromMasterResume(masterResume) : null)}
           groqApiKey={groqApiKey}
           isEditingExisting={Boolean(masterResume || stagedParsedResume)}
           onDraftChange={setCareerFormDraft}
