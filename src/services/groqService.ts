@@ -934,8 +934,8 @@ export function getTailoringStrategies(job: JobPosting, masterResume: MasterResu
   strategies.push({
     id: 'variant-ats',
     name: 'Job requirement alignment',
-    badge: 'ATS Alignment',
-    description: `Use exact, relevant terms from the ${targetRole} job description only where the candidate profile provides supporting evidence; leave unsupported requirements unclaimed.`
+    badge: 'ATS-readable format',
+    description: `Use clear section headings and exact job-description terms only where the candidate profile provides supporting evidence. This is formatting and keyword alignment, not an ATS score or guaranteed ranking.`
   });
   return strategies.slice(0, 3);
 }
