@@ -305,76 +305,10 @@ export function mergeDiscoveredJobs(existingJobs: JobPosting[], discoveredJobs: 
  * separately by the user; this function does not claim to verify them.
  */
 function containsSkillToken(text: string, skill: string): boolean {
-  const normalizedSkill = skill.trim().toLowerCase().replace(/\\s+/g, ' ');
+  const normalizedSkill = skill.trim().toLowerCase().replace(/\s+/g, ' ');
   if (!normalizedSkill) return false;
-  const escaped = normalizedSkill.replace(/[.*+?^${}()|[\\]\\]/g, '\\/**
- * Calculates authentic match score strictly from verifiable profile facts vs job criteria.
- * Returns null if master resume is missing or profile data is insufficient.
- */
-export function calculateHonestMatch(
-  job: JobPosting,
-  masterResume: MasterResume | null
-): {
-  score: number | null;
-  statusText: string;
-  matchedKeywords: string[];
-  missingKeywords: string[];
-} {
-  if (!masterResume || (!masterResume.rawText && masterResume.experiences.length === 0)) {
-    return {
-      score: null,
-      statusText: 'Insufficient profile data',
-      matchedKeywords: [],
-      missingKeywords: job.skillsRequired || []
-    };
-  }
-
-  const candidateSkills = [
-    ...(masterResume.skills?.technical || []),
-    ...(masterResume.skills?.tools || []),
-    ...(masterResume.skills?.soft || []),
-    ...(masterResume.skills?.domains || [])
-  ].map((s) => s.toLowerCase());
-
-  const rawResumeText = (masterResume.rawText || '').toLowerCase();
-
-  const matchedKeywords: string[] = [];
-  const missingKeywords: string[] = [];
-
-  const requiredSkills = job.skillsRequired || [];
-  if (requiredSkills.length === 0) {
-    return {
-      score: null,
-      statusText: 'No job skill criteria specified',
-      matchedKeywords: [],
-      missingKeywords: []
-    };
-  }
-
-  for (const skill of requiredSkills) {
-    const sLower = skill.toLowerCase();
-    const isMatched =
-      candidateSkills.some((cs) => cs.includes(sLower) || sLower.includes(cs)) ||
-      rawResumeText.includes(sLower);
-
-    if (isMatched) {
-      matchedKeywords.push(skill);
-    } else {
-      missingKeywords.push(skill);
-    }
-  }
-
-  const rawRatio = matchedKeywords.length / requiredSkills.length;
-  const calculatedScore = Math.min(100, Math.max(0, Math.round(rawRatio * 100)));
-
-  return {
-    score: calculatedScore,
-    statusText: `${calculatedScore}% Verified Match`,
-    matchedKeywords,
-    missingKeywords
-  };
-}').replace(/\\s+/g, '\\\\s+');
-  const matcher = new RegExp(`(^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`, 'i');
+  const escaped = normalizedSkill.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  const matcher = new RegExp('(^|[^a-z0-9])' + escaped + '(?=$|[^a-z0-9])', 'i');
   return matcher.test(text);
 }
 
@@ -387,8 +321,10 @@ export function calculateHonestMatch(
   matchedKeywords: string[];
   missingKeywords: string[];
 } {
-  if (!masterResume || (!(masterResume.rawText || '').trim() && (masterResume.experiences?.length || 0) === 0 &&
-    Object.values(masterResume.skills || {}).every((items) => !items?.length))) {
+  const hasSkills = masterResume ? Object.values(masterResume.skills || {}).some((items) => Array.isArray(items) && items.length > 0) : false;
+  const hasExperience = Boolean(masterResume?.experiences?.length);
+  const hasText = Boolean(masterResume?.rawText?.trim() || masterResume?.summary?.trim());
+  if (!masterResume || (!hasText && !hasSkills && !hasExperience)) {
     return {
       score: null,
       statusText: 'Insufficient profile data',
@@ -410,7 +346,9 @@ export function calculateHonestMatch(
     ...(masterResume.experiences || []).flatMap((experience) => [
       experience.role, experience.company, ...(experience.bullets || [])
     ]),
-    ...(masterResume.projects || []).flatMap((project) => [project.title, project.description, ...(project.technologies || [])])
+    ...(masterResume.projects || []).flatMap((project) => [
+      project.title, project.description, ...(project.technologies || [])
+    ])
   ].join(' ');
 
   const matchedKeywords: string[] = [];
@@ -434,7 +372,7 @@ export function calculateHonestMatch(
   const calculatedScore = Math.round((matchedKeywords.length / requiredSkills.length) * 100);
   return {
     score: calculatedScore,
-    statusText: `${calculatedScore}% keyword overlap — not a verified qualification match`,
+    statusText: calculatedScore + '% keyword overlap — not a verified qualification match',
     matchedKeywords,
     missingKeywords
   };
