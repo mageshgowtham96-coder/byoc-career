@@ -91,4 +91,24 @@ Fraud Analyst - Example Bank - 2022 - Present
     expect(readiness.missingSections).toContain('three or more core competencies');
     expect(readiness.missingSections).toContain('at least two specific contribution bullets for one role');
   });
+  it('recognizes a student profile with education and projects as meaningful resume evidence without employment history', () => {
+    const student = parseRawResumeToStructured(`Asha Rao
+asha.rao@example.com
+Professional Summary
+Final-year commerce student interested in financial operations and data analysis.
+Education
+Bachelor of Commerce - City University - 2026
+Projects
+Retail Sales Analysis
+Analysed a sample retail dataset using Excel and SQL to identify monthly sales trends.
+Skills
+Excel, SQL, Data Analysis`);
+    expect(student.experiences).toHaveLength(0);
+    expect(student.education.length).toBeGreaterThan(0);
+    expect(student.projects.length).toBeGreaterThan(0);
+    const readiness = assessResumeReadiness(student);
+    expect(readiness.completenessPercent).toBe(100);
+    expect(readiness.missingSections).toEqual([]);
+  });
+
 });
