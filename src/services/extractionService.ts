@@ -488,6 +488,9 @@ async function extractDocxText(file: File): Promise<string> {
       );
     }
 
+    if (xmlBytes.byteLength !== entry.uncompressedSize) {
+      throw new Error('DOCX document.xml did not match its declared uncompressed size. The archive may be damaged.');
+    }
     const xml = new TextDecoder('utf-8', { fatal: false }).decode(xmlBytes);
     return extractParagraphsFromDocumentXml(xml);
   }
