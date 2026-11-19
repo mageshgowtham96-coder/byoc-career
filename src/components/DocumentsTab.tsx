@@ -68,7 +68,7 @@ export const DocumentsTab: React.FC = () => {
       if (extracted.isScanned) {
         setError('This looks like a scanned/image-only PDF. Text chat is unavailable because OCR is not enabled yet. Your file has not been uploaded.');
       } else {
-        addToast('PDF opened locally. Its contents remain on this device unless you explicitly choose AI chat.', 'success');
+        addToast({ type: 'success', message: 'PDF opened locally. Its contents remain on this device unless you explicitly choose AI chat.' });
       }
     } catch (err: unknown) {
       setFile(null);
