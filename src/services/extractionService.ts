@@ -667,7 +667,7 @@ export function parseRawResumeToStructured(
 
   if (summaryHeaderIdx !== -1) {
     const summaryHeaderMatch = lines[summaryHeaderIdx].match(
-      /^(?:summary|profile|professional summary|about me|overview|executive summary)(?:\\s*(?::|[-–—])\\s*(.*))?$/i
+      /^(?:summary|profile|professional summary|about me|overview|executive summary)(?:\s*(?::|[-–—])\s*(.*))?$/i
     );
     const inlineSummary = summaryHeaderMatch?.[1]?.trim();
     const summaryLines: string[] = inlineSummary ? [inlineSummary] : [];
