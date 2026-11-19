@@ -640,8 +640,14 @@ export function validateJobVetting(parsed: any): JobVetting {
     : [];
 
   let recommendation: JobVetting['recommendation'] = 'Selective Apply';
-  if (parsed.recommendation === 'Strong Match') recommendation = 'Strong Match';
-  else if (parsed.recommendation === 'Proceed With Caution') recommendation = 'Proceed With Caution';
+  if (parsed.recommendation === 'Proceed With Caution') recommendation = 'Proceed With Caution';
+  else if (
+    parsed.recommendation === 'Strong Match' &&
+    profileAlignmentEstimate !== null &&
+    profileAlignmentEstimate >= 85 &&
+    strongAlignments.length > 0 &&
+    criticalMissing.length === 0
+  ) recommendation = 'Strong Match';
 
   return {
     profileAlignmentEstimate,
@@ -649,15 +655,15 @@ export function validateJobVetting(parsed: any): JobVetting {
     greenFlags: greenFlags.length > 0 ? greenFlags : ['No positive signals were identified in this AI review.'],
     growthTrajectory: 'AI interpretation — ' + String(parsed.growthTrajectory || 'No clear progression signals were identified in the supplied job description.'),
     salaryCompetitiveness: 'Not assessed: BYOC has no independent salary-market dataset. Employer-listed compensation, if provided, is not proof of market competitiveness.',
-    pros: pros.length > 0 ? pros : ['Clear technological focus'],
-    cons: cons.length > 0 ? cons : ['Competitive applicant pool'],
+    pros: pros.length > 0 ? pros : ['No positive points could be substantiated from the supplied job description.'],
+    cons: cons.length > 0 ? cons : ['No additional cons could be substantiated from the supplied job description.'],
     gapAnalysis: {
       strongAlignments,
       addressableGaps,
       criticalMissing
     },
     recommendation,
-    summaryVerdict: String(parsed.summaryVerdict || 'Evaluated against candidate qualifications.')
+    summaryVerdict: String(parsed.summaryVerdict || 'AI review used only the supplied job description and career profile; no independent verification was performed.')
   };
 }
 
@@ -692,7 +698,7 @@ Separate explicit evidence from interpretation. Do not invent missing facts. Res
     "addressableGaps": string[],
     "criticalMissing": string[]
   },
-  "recommendation": "Strong Match" | "Selective Apply" | "Proceed With Caution",
+  "recommendation": "Strong Match" | "Selective Apply" | "Proceed With Caution" (use Strong Match only with estimate >=85, at least one evidence-backed alignment, and no critical missing requirement),
   "summaryVerdict": string
 }`;
 
