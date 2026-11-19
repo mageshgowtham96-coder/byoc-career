@@ -451,7 +451,7 @@ export const PrepZone: React.FC = () => {
                       <span>
                         {isGeneratingPrep
                           ? 'Generating...'
-                          : currentTailored && currentTailored.interviewPrepQuestions.length > 0
+                          : currentTailored && (currentTailored.interviewPrepQuestions?.length || 0) > 0
                           ? 'Refresh AI Questions'
                           : 'Generate Interview Questions & Tailored Kit'}
                       </span>
@@ -472,9 +472,9 @@ export const PrepZone: React.FC = () => {
                   </div>
                 )}
 
-                {currentTailored && currentTailored.interviewPrepQuestions.length > 0 ? (
+                {currentTailored && (currentTailored.interviewPrepQuestions?.length || 0) > 0 ? (
                   <div className="space-y-3 pt-1">
-                    {currentTailored.interviewPrepQuestions.map((iq, idx) => {
+                    {(currentTailored.interviewPrepQuestions || []).map((iq, idx) => {
                       const copyPayload = `${iq.question}\n\nTalking Points:\n${iq.suggestedTalkingPoints
                         .map((tp) => `- ${tp}`)
                         .join('\n')}\nEvidence: ${iq.authenticEvidenceRef}`;
