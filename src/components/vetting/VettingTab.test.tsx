@@ -4,9 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VettingTab } from './VettingTab';
 import { useWizardStore } from '../../store/useWizardStore';
 import { vetJobWithGroq } from '../../services/groqService';
-import type { JobPosting } from '../../types';
+import { verifyJobPosting } from '../../services/jobVerificationService';
+import type { JobPosting, JobVerificationEvidence } from '../../types';
 
 vi.mock('../../store/useWizardStore', () => ({ useWizardStore: vi.fn() }));
+vi.mock('../../services/jobVerificationService', () => ({ verifyJobPosting: vi.fn() }));
 vi.mock('../../services/groqService', () => ({
   vetJobWithGroq: vi.fn(),
   formatGroqError: vi.fn(() => 'Vetting failed')
@@ -33,18 +35,21 @@ const job = {
 describe('VettingTab privacy gate', () => {
   let container: HTMLDivElement;
   let root: Root;
+  let updateJobVerification: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+    updateJobVerification = vi.fn();
     vi.mocked(useWizardStore).mockReturnValue({
       activeTab: 'vetting',
       selectedJobId: job.id,
       jobs: [job],
       masterResume: null,
       updateJobVetting: vi.fn(),
+      updateJobVerification,
       groqApiKey: 'test-groq-key',
       setActiveTab: vi.fn(),
       addToast: vi.fn()
@@ -57,6 +62,35 @@ describe('VettingTab privacy gate', () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+  });
+
+  it('does not check public ATS records until the user explicitly asks', async () => {
+    const evidence: JobVerificationEvidence = {
+      status: 'manual_review',
+      provider: 'unsupported',
+      checkedAt: '2026-11-19T00:00:00.000Z',
+      explanation: 'Manual review required.',
+      riskFlags: [],
+      employerIdentityVerified: false
+    };
+    vi.mocked(verifyJobPosting).mockResolvedValue(evidence);
+
+    await act(async () => {
+      root.render(<VettingTab />);
+    });
+
+    expect(verifyJobPosting).not.toHaveBeenCalled();
+    const checkButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Check public posting')
+    );
+    expect(checkButton).toBeTruthy();
+
+    await act(async () => {
+      checkButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(verifyJobPosting).toHaveBeenCalledOnce();
+    expect(updateJobVerification).toHaveBeenCalledWith(job.id, evidence);
   });
 
   it('does not send job or candidate data to Groq until the user explicitly starts the audit', async () => {

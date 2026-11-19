@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   MasterResume,
   JobPosting,
+  JobVerificationEvidence,
   TailoredArtifact,
   ApplicationRecord,
   UserWorkspace,
@@ -179,6 +180,7 @@ interface WizardState {
   addJob: (job: JobPosting) => void;
   setSelectedJobId: (id: string | null) => void;
   updateJobVetting: (jobId: string, vetting: JobPosting['vetting']) => void;
+  updateJobVerification: (jobId: string, evidence: JobVerificationEvidence) => void;
   updateJobUrl: (jobId: string, url: string, source?: string) => boolean;
   isJobPreviouslyTracked: (company: string, role: string) => boolean;
 
@@ -502,7 +504,14 @@ export const useWizardStore = create<WizardState>()(
       // Sourcing
       jobs: [],
       selectedJobId: null,
-      setJobs: (jobs) => set({ jobs }),
+      setJobs: (jobs) => set((state) => ({
+        jobs: jobs.map((job) => {
+          const existing = state.jobs.find((item) => item.url && job.url && item.url === job.url);
+          return existing
+            ? { ...job, vetting: job.vetting || existing.vetting, verification: job.verification || existing.verification }
+            : job;
+        })
+      })),
       addJob: (job) => {
         const exists = get().jobs.some((j) => j.id === job.id);
         if (!exists) {
@@ -515,6 +524,11 @@ export const useWizardStore = create<WizardState>()(
       updateJobVetting: (jobId, vetting) => {
         set((state) => ({
           jobs: state.jobs.map((j) => (j.id === jobId ? { ...j, vetting } : j))
+        }));
+      },
+      updateJobVerification: (jobId, evidence) => {
+        set((state) => ({
+          jobs: state.jobs.map((j) => (j.id === jobId ? { ...j, verification: evidence } : j))
         }));
       },
       updateJobUrl: (jobId, url, source) => {

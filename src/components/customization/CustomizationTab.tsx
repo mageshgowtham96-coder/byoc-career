@@ -522,7 +522,7 @@ export const CustomizationTab: React.FC = () => {
 
                   <div className="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-500">
                     <span>
-                      {variantPartition.verified.length} Verified Tailored Bullet
+                      {variantPartition.verified.length} Evidence-backed Tailored Bullet
                       {variantPartition.verified.length === 1 ? '' : 's'}
                       {variantPartition.unmapped.length > 0
                         ? ` · ${variantPartition.unmapped.length} Unmapped`
@@ -614,10 +614,10 @@ export const CustomizationTab: React.FC = () => {
                 </div>
               </div>
 
-              {/* Verified Experience Bullet Replacements */}
+              {/* Evidence-backed Experience Bullet Replacements */}
               <div className="p-5 rounded-3xl bg-slate-800/80 border border-slate-700">
                 <span className="text-[10px] uppercase font-mono text-emerald-400 block mb-3">
-                  Verified Bullet Replacements ({resolvedPreview ? resolvedPreview.verifiedReplacements.length : 0})
+                  Evidence-backed Bullet Replacements ({resolvedPreview ? resolvedPreview.verifiedReplacements.length : 0})
                 </span>
 
                 {resolvedPreview && resolvedPreview.verifiedReplacements.length > 0 ? (
@@ -626,7 +626,7 @@ export const CustomizationTab: React.FC = () => {
                       <div key={i} className="p-3.5 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-2">
                         <div className="flex items-center justify-between text-[11px] text-slate-400">
                           <span className="font-bold text-white">{bullet.role} — {bullet.company}</span>
-                          <span className="text-[10px] font-mono text-emerald-400">Verified Match</span>
+                          <span className="text-[10px] font-mono text-emerald-400">Source-backed</span>
                         </div>
 
                         <div className="text-xs text-emerald-300 font-medium pl-3 border-l-2 border-emerald-500 leading-relaxed">
@@ -648,7 +648,7 @@ export const CustomizationTab: React.FC = () => {
                   </div>
                 ) : (
                   <p className="text-xs text-slate-400">
-                    No verified bullet replacements active; all original master resume bullets are retained unchanged in preview and exports.
+                    No evidence-backed bullet replacements active; all original master resume bullets are retained unchanged in preview and exports.
                   </p>
                 )}
               </div>
@@ -948,7 +948,7 @@ export const CustomizationTab: React.FC = () => {
                     <span>Step 2 &amp; 3 — Assisted-Apply Review &amp; Manual Portal Submission</span>
                   </h4>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Open the verified job link yourself, copy your authentic answers, review screening fields, and submit directly on the employer site. BYOC never runs automated logins or submits on your behalf.
+                    Open the original job link yourself, copy your authentic answers, review screening fields, and submit directly on the employer site. BYOC never runs automated logins or submits on your behalf.
                   </p>
                 </div>
 
@@ -962,13 +962,13 @@ export const CustomizationTab: React.FC = () => {
                 </button>
               </div>
 
-              {/* Verified Candidate Answer Chips */}
+              {/* Profile-backed Candidate Answer Chips */}
               {showQuestionnaireDrawer && (
                 <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-indigo-500/30 space-y-3 animate-in fade-in slide-in-from-top-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
                       <Copy className="w-3.5 h-3.5 text-sky-400" />
-                      <span>Questionnaire Draft &amp; Verified Answer Chips</span>
+                      <span>Questionnaire Draft &amp; Profile-backed Answer Chips</span>
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
                       One-Click Copy for Portal Forms
@@ -1128,7 +1128,7 @@ export const CustomizationTab: React.FC = () => {
                         <>
                           <div className="p-2.5 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center justify-between gap-2">
                             <div className="min-w-0">
-                              <span className="text-[10px] text-slate-400 block uppercase font-mono">Verified Contact Email</span>
+                              <span className="text-[10px] text-slate-400 block uppercase font-mono">Email on Master Resume</span>
                               <span className="text-xs font-bold text-white truncate block">
                                 {verifiedEmail || 'Not configured in Master Resume'}
                               </span>
@@ -1146,7 +1146,7 @@ export const CustomizationTab: React.FC = () => {
 
                           <div className="p-2.5 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center justify-between gap-2">
                             <div className="min-w-0">
-                              <span className="text-[10px] text-slate-400 block uppercase font-mono">Verified Phone</span>
+                              <span className="text-[10px] text-slate-400 block uppercase font-mono">Phone on Master Resume</span>
                               <span className="text-xs font-bold text-white truncate block">
                                 {verifiedPhone || 'Not configured in Master Resume'}
                               </span>
@@ -1169,7 +1169,7 @@ export const CustomizationTab: React.FC = () => {
                     {(masterResume?.contactInfo.linkedin || masterResume?.contactInfo.github || masterResume?.contactInfo.portfolio) && (
                       <div className="p-2.5 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center justify-between gap-2 sm:col-span-2">
                         <div className="min-w-0">
-                          <span className="text-[10px] text-slate-400 block uppercase font-mono">Verified Profile Link</span>
+                          <span className="text-[10px] text-slate-400 block uppercase font-mono">Profile Link on Master Resume</span>
                           <span className="text-xs font-bold text-sky-300 truncate block">
                             {masterResume.contactInfo.linkedin || masterResume.contactInfo.github || masterResume.contactInfo.portfolio}
                           </span>
@@ -1196,9 +1196,9 @@ export const CustomizationTab: React.FC = () => {
                       return (
                         <div className="p-2.5 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center justify-between gap-2 sm:col-span-2">
                           <div className="min-w-0">
-                            <span className="text-[10px] text-slate-400 block uppercase font-mono">Verified Highlighted Skills</span>
+                            <span className="text-[10px] text-slate-400 block uppercase font-mono">Highlighted Skills in Master Resume</span>
                             <span className="text-xs font-bold text-sky-300 truncate block">
-                              {verifiedSkills || 'No verified skills found in Master Resume'}
+                              {verifiedSkills || 'No skills listed in Master Resume'}
                             </span>
                           </div>
                           <button

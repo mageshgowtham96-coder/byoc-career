@@ -32,6 +32,13 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - **Adzuna:** Not active in this client-only build because protected server-side credentials would be required.
 - **Matching:** Candidate/job overlap is calculated locally. Insufficient profile data is shown as such rather than replaced with a fabricated score.
 
+### Public vacancy evidence
+- BYOC can check direct Greenhouse job-board URLs against Greenhouse's public Job Board API. It requires the exact posting ID plus matching title and company before reporting a matching public record.
+- The evidence panel records the public ATS title, company, publication/update/deadline fields when supplied, evidence endpoint, and check time.
+- A matching public ATS record is **not** proof of legal employer identity, a safe recruiter, or a guaranteed open application window. The app always keeps `employerIdentityVerified: false`.
+- Lever, Ashby, Workday, SmartRecruiters, and other unsupported sources are labelled for manual review rather than sent to guessed endpoints.
+- Local description checks flag certain fee/deposit, financial-detail, messaging-app, and consumer-email phrases. These are caution signals, not fraud determinations.
+
 ### Vetting and tailoring
 - AI vetting is explicitly user-triggered. The selected job details and relevant Master Resume evidence are sent to Groq only after the user chooses **Run AI Vetting**.
 - Vetting is career-fit guidance. It does **not** independently verify employer identity, company legitimacy, vacancy status, or salary claims.
@@ -59,7 +66,7 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - No scanned-document OCR.
 - No Gmail/Workspace inbox integration.
 - No automatic applications or authenticated job-portal scraping.
-- No independent guarantee of employer legitimacy or vacancy freshness.
+- Public ATS evidence checks currently support Greenhouse only. A matching record does not independently guarantee employer legitimacy or that applications remain open.
 - No BYOC cloud account, cloud sync, or server-side data recovery. Keep an encrypted backup and protect the recovery phrase.
 - The Android debug APK is suitable for installation/testing, not a signed production release. A release signing key has not been configured in this repository.
 
