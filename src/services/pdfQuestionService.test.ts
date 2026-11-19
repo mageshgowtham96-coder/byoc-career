@@ -36,6 +36,7 @@ describe('PDF question privacy and bounds', () => {
     expect(mockCallGroqChat).toHaveBeenCalledOnce();
     expect(mockCallGroqChat.mock.calls[0][1]).toContain('Skills: SQL');
     expect(mockCallGroqChat.mock.calls[0][1]).toContain('Which skills are listed?');
+    expect(mockCallGroqChat.mock.calls[0][0]).toContain('untrusted source material');
   });
 
   it('rejects malformed or empty model output', async () => {
