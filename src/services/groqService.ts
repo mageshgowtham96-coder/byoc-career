@@ -364,7 +364,6 @@ export async function getAvailableGroqModels(apiKey: string): Promise<string[]> 
       undefined,
       'NETWORK_ERROR'
     );
-  }
   } finally {
     clearTimeout(timeoutId);
   }
