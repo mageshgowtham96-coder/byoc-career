@@ -28,7 +28,7 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - Optional English translation uses the existing Groq key only after an explicit click. Dedicated contact, employer, institution, date, skill, technology, issuer, and link fields are omitted; free-text summaries, role titles, bullets, and project descriptions may still contain personal or organization details. Users preview the translation and can restore the original-language draft.
 
 ### Job discovery
-- **Public live feeds:** Remotive, Remote OK, and Jobicy are queried on demand. They are not a complete global index.
+- **Public live feeds:** Remotive, Remote OK, and Jobicy are queried on demand. Jobicy uses its public seven-day feed with keyword filtering and bounded cursor pagination (up to three pages per search); feed coverage is not a complete global index.
 - **Groq Browser Search:** Optional discovery through Groq's hosted browser-search capability. It searches established portals first (LinkedIn Jobs, Indeed, Naukri, Foundit, Glassdoor, and Instahyre), then official employer careers/ATS pages where appropriate. Results are labelled from the returned URL's actual host and remain unverified candidates until the vacancy and employer are independently checked. It does not search code repositories or scrape authenticated portal pages.
 - **Manual portals:** LinkedIn, Glassdoor, Indeed, Naukri, Foundit, Instahyre, and custom shortcuts open external sites. Users select and import listings themselves; BYOC does not scrape those portals.
 - **Adzuna:** Not active in this client-only build because protected server-side credentials would be required.
