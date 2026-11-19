@@ -26,8 +26,8 @@ describe('honest job match semantics', () => {
     expect(result.missingKeywords).toEqual(['Go']);
   });
 
-  it('matches a short skill as a complete token in raw profile evidence', () => {
-    const result = calculateHonestMatch(job(['Go']), profile('Built services using Go and PostgreSQL.'));
+  it('matches short skills only when explicitly listed in structured skills', () => {
+    const result = calculateHonestMatch(job(['Go']), profile('Built services using Go and PostgreSQL.', ['Go']));
     expect(result.matchedKeywords).toEqual(['Go']);
   });
 
