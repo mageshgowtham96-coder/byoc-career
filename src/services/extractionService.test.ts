@@ -115,7 +115,8 @@ describe('DOCX document structure extraction', () => {
   it('includes content from the main document, tables, headers and footers', async () => {
     const xml = (text: string) => `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:body></w:document>`;
     const archive = makeStoredDocxArchive([
-      { name: 'word/document.xml', xml: `<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Asha Rao Bachelor of Commerce with strong analytical project experience and practical skills</w:t></w:r></w:p><w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>List item from course work</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Table skill</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Advanced Excel</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>Role</w:t><w:br/><w:t>Company</w:t><w:tab/><w:t>2024</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Table role: Risk Analyst</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Table employer: Sample Bank</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>மொழி: தமிழ்</w:t></w:r></w:p></w:body></w:document>` },
+      { name: 'word/document.xml', xml: `<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Asha Rao Bachelor of Commerce with strong analytical project experience and practical skills</w:t></w:r></w:p><w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>List item from course work</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Table skill</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Advanced Excel</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>Role</w:t><w:br/><w:t>Company</w:t><w:tab/><w:t>2024</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Table role: Risk Analyst</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Table employer: Sample Bank</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>மொழி: தமிழ்</w:t></w:r></w:p><w:p><w:hyperlink r:id="rId1"><w:r><w:t>LinkedIn Profile</w:t></w:r></w:hyperlink></w:p></w:body></w:document>` },
+      { name: 'word/_rels/document.xml.rels', xml: `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://www.linkedin.com/in/asha-rao" TargetMode="External"/></Relationships>` },
       { name: 'word/header1.xml', xml: xml('asha@example.com') },
       { name: 'word/footer1.xml', xml: xml('Portfolio: asha.example') }
     ]);
@@ -133,6 +134,7 @@ describe('DOCX document structure extraction', () => {
     expect(result.rawText).toContain('Table role: Risk Analyst');
     expect(result.rawText).toContain('Table employer: Sample Bank');
     expect(result.rawText).toContain('மொழி: தமிழ்');
+    expect(result.rawText).toContain('LinkedIn Profile: https://www.linkedin.com/in/asha-rao');
   });
   it('accepts a short but readable resume instead of imposing an arbitrary ten-word minimum', async () => {
     const text = `Asha Rao\nasha@example.com\nSQL`;
