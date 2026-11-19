@@ -313,8 +313,6 @@ export async function getAvailableGroqModels(apiKey: string): Promise<string[]> 
       signal: controller.signal
     });
 
-    clearTimeout(timeoutId);
-
     if (!res.ok) {
       if (res.status === 401) {
         throw new GroqApiError(
@@ -352,7 +350,6 @@ export async function getAvailableGroqModels(apiKey: string): Promise<string[]> 
     const modelIds = (data.data || []).map((m) => m.id);
     return modelIds;
   } catch (err: unknown) {
-    clearTimeout(timeoutId);
     if (err instanceof GroqApiError) throw err;
     if (err instanceof Error && err.name === 'AbortError') {
       throw new GroqApiError(
@@ -368,7 +365,9 @@ export async function getAvailableGroqModels(apiKey: string): Promise<string[]> 
       'NETWORK_ERROR'
     );
   }
-}
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
 /**
  * Resolves the optimal available Groq chat model
