@@ -1201,7 +1201,7 @@ export function restoreVaultDataToStore(
           portalShortcuts: mergePortalShortcuts(data.candidatePreferences.portalShortcuts)
         }
       : { ...DEFAULT_CANDIDATE_PREFERENCES },
-    isLiveApiMode: true
+    isLiveApiMode: Boolean(data.groqApiKey)
   });
 }
 

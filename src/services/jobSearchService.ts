@@ -280,7 +280,7 @@ export function deduplicateJobs(jobs: JobPosting[]): JobPosting[] {
   const uniqueList: JobPosting[] = [];
 
   for (const job of jobs) {
-    const signature = `${(job.company || '').trim().toLowerCase()}::${(job.title || '').trim().toLowerCase()}`;
+    const signature = `${(job.company || '').trim().toLowerCase()}::${(job.title || '').trim().toLowerCase()}::${(job.location || '').trim().toLowerCase()}`;
     if (!seenSignatures.has(signature)) {
       seenSignatures.add(signature);
       uniqueList.push(job);
@@ -288,6 +288,14 @@ export function deduplicateJobs(jobs: JobPosting[]): JobPosting[] {
   }
 
   return uniqueList;
+}
+
+/**
+ * Merge newly discovered matches into the saved local collection without deleting
+ * older saved jobs merely because they do not match the current search query.
+ */
+export function mergeDiscoveredJobs(existingJobs: JobPosting[], discoveredJobs: JobPosting[]): JobPosting[] {
+  return deduplicateJobs([...existingJobs, ...discoveredJobs]);
 }
 
 /**

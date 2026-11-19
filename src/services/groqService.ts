@@ -271,9 +271,8 @@ export async function parseResumeWithGroq(
 
 interface GroqChatResponse {
   choices: Array<{
-    message: {
-      content: string;
-    };
+    message: { content?: string | null };
+    finish_reason?: string | null;
   }>;
 }
 
@@ -287,6 +286,7 @@ interface GroqModelsResponse {
 
 // Cached preferred model for the active session
 let resolvedGroqModel: string | null = null;
+let resolvedGroqModelForKey: string | null = null;
 
 /**
  * Discovers and validates active models from the live Groq model catalog
@@ -312,8 +312,6 @@ export async function getAvailableGroqModels(apiKey: string): Promise<string[]> 
       },
       signal: controller.signal
     });
-
-    clearTimeout(timeoutId);
 
     if (!res.ok) {
       if (res.status === 401) {
@@ -352,9 +350,8 @@ export async function getAvailableGroqModels(apiKey: string): Promise<string[]> 
     const modelIds = (data.data || []).map((m) => m.id);
     return modelIds;
   } catch (err: unknown) {
-    clearTimeout(timeoutId);
     if (err instanceof GroqApiError) throw err;
-    if (err instanceof Error && err.name === 'AbortError') {
+    if (isAbortError(err)) {
       throw new GroqApiError(
         'Model discovery request timed out after 15 seconds.',
         408,
@@ -367,48 +364,104 @@ export async function getAvailableGroqModels(apiKey: string): Promise<string[]> 
       undefined,
       'NETWORK_ERROR'
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
 /**
  * Resolves the optimal available Groq chat model
  */
-async function resolveOptimalModel(apiKey: string): Promise<string> {
-  if (resolvedGroqModel) {
-    return resolvedGroqModel;
-  }
 
-  const preferredHierarchy = [
-    'llama-3.3-70b-versatile',
-    'llama-3.1-70b-versatile',
-    'llama-3.1-8b-instant',
-    'mixtral-8x7b-32768'
-  ];
+const PREFERRED_GROQ_CHAT_MODELS = [
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b'
+] as const;
+
+/** Select only currently supported chat models; never pick speech/guard/retired IDs. */
+export function selectGroqChatModel(availableModels: string[]): string | null {
+  return PREFERRED_GROQ_CHAT_MODELS.find((model) => availableModels.includes(model)) || null;
+}
+
+async function fingerprintGroqApiKey(apiKey: string): Promise<string> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    throw new GroqApiError('Secure model-cache fingerprinting is unavailable in this browser.', 503, 'SECURE_CRYPTO_UNAVAILABLE');
+  }
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(apiKey));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function resolveOptimalModel(apiKey: string): Promise<string> {
+  const keyFingerprint = await fingerprintGroqApiKey(apiKey);
+  if (resolvedGroqModel && resolvedGroqModelForKey === keyFingerprint) return resolvedGroqModel;
+  resolvedGroqModel = null;
+  resolvedGroqModelForKey = null;
 
   try {
     const available = await getAvailableGroqModels(apiKey);
-    for (const preferred of preferredHierarchy) {
-      if (available.includes(preferred)) {
-        resolvedGroqModel = preferred;
-        return preferred;
-      }
+    const selected = selectGroqChatModel(available);
+    if (!selected) {
+      throw new GroqApiError(
+        'No supported Groq chat model is available for this API key.',
+        503,
+        'MODEL_NOT_AVAILABLE',
+        'Check the model access and rate-limit page for this Groq account. BYOC will not select a speech or deprecated model as a fallback.'
+      );
     }
-    // Fallback to first available chat model or default
-    if (available.length > 0) {
-      resolvedGroqModel = available[0];
-      return available[0];
-    }
-  } catch (e) {
-    // If discovery fails, default to primary recommended model
-    console.warn('Dynamic model resolution fallback:', e);
+    resolvedGroqModel = selected;
+    resolvedGroqModelForKey = keyFingerprint;
+    return selected;
+  } catch (error) {
+    if (error instanceof GroqApiError && error.code === 'MODEL_NOT_AVAILABLE') throw error;
+    // The catalog can be temporarily unavailable. Fall back only to a currently documented
+    // production chat model; if the account cannot access it, the chat call reports that clearly.
+    console.warn('Groq model discovery fallback:', error);
+    resolvedGroqModel = 'openai/gpt-oss-120b';
+    resolvedGroqModelForKey = keyFingerprint;
+    return resolvedGroqModel;
   }
+}
 
-  resolvedGroqModel = 'llama-3.3-70b-versatile';
-  return resolvedGroqModel;
+/** Resolve the same account-accessible model used by the direct BYOK workflow. */
+export async function getPreferredGroqChatModel(apiKey: string): Promise<string> {
+  return resolveOptimalModel(apiKey);
 }
 
 /**
  * Core reliable Groq chat execution with 30s timeout and typed HTTP error handling
+ */
+
+/** Retry only transient failures, with a strict two-attempt ceiling. */
+export function isAbortError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError';
+}
+
+export function isRetryableGroqStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+/** Parse Retry-After seconds/date and apply a hard cap to avoid long UI hangs. */
+export function getGroqRetryDelayMs(status: number, retryAfter: string | null, attempt: number, random = Math.random()): number | null {
+  if (!isRetryableGroqStatus(status)) return null;
+  if (status === 429) {
+    if (!retryAfter) return null; // daily/token quota errors must not be retried blindly
+    const seconds = Number(retryAfter);
+    const parsed = Number.isFinite(seconds)
+      ? seconds * 1000
+      : Math.max(0, Date.parse(retryAfter) - Date.now());
+    return Number.isFinite(parsed) && parsed > 0 && parsed <= 8000 ? parsed : null;
+  }
+  const base = Math.min(400 * Math.pow(2, Math.max(0, attempt - 1)), 1600);
+  return Math.round(base + Math.max(0, Math.min(1, random)) * base * 0.5);
+}
+
+function waitForGroqRetry(delayMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+/**
+ * Core Groq chat execution. Retries are bounded and honor Retry-After for 429s.
+ * Permanent failures (bad key, malformed request, retired model) are never retried.
  */
 export async function callGroqChat(
   systemPrompt: string,
@@ -426,124 +479,127 @@ export async function callGroqChat(
   }
 
   const model = overrideModel || (await resolveOptimalModel(apiKey));
+  const maxAttempts = 2;
+  let lastError: unknown;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey.trim()}`
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.15,
+          max_tokens: 3800,
+          response_format: { type: 'json_object' }
+        }),
+        signal: controller.signal
+      });
 
-  try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey.trim()}`
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.15, // Low temperature for high factual fidelity
-        max_tokens: 3800,
-        response_format: { type: 'json_object' }
-      }),
-      signal: controller.signal
-    });
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => '');
+        let parsedMessage = errorBody;
+        try {
+          const parsed = JSON.parse(errorBody);
+          parsedMessage = parsed.error?.message || errorBody;
+        } catch {
+          // Keep the provider's plain-text error message.
+        }
 
-    clearTimeout(timeoutId);
+        if (response.status === 404) {
+          resolvedGroqModel = null;
+          resolvedGroqModelForKey = null;
+        }
+        const retryDelay = getGroqRetryDelayMs(response.status, response.headers.get('retry-after'), attempt);
+        if (retryDelay !== null && attempt < maxAttempts) {
+          await waitForGroqRetry(retryDelay);
+          continue;
+        }
 
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => '');
-      let parsedMessage = errorBody;
-      try {
-        const parsed = JSON.parse(errorBody);
-        parsedMessage = parsed.error?.message || errorBody;
-      } catch {
-        // Keep raw text
+        const code = response.status === 401 ? 'UNAUTHORIZED'
+          : response.status === 403 ? 'FORBIDDEN'
+          : response.status === 404 ? 'MODEL_NOT_FOUND'
+          : response.status === 429 ? 'RATE_LIMITED'
+          : response.status >= 500 ? 'PROVIDER_SERVER_ERROR'
+          : 'API_ERROR';
+        const message = response.status === 401
+          ? 'Invalid Groq API key (HTTP 401 Unauthorized).'
+          : response.status === 429
+            ? 'Groq rate limit or quota reached (HTTP 429).'
+            : response.status === 404
+              ? `Groq model ${model} is unavailable (HTTP 404).`
+              : `Groq API request failed (HTTP ${response.status}): ${parsedMessage}`;
+        const hint = response.status === 429
+          ? 'Check the Groq usage/rate-limit dashboard. BYOC will not repeatedly retry daily quota exhaustion.'
+          : response.status === 401
+            ? 'Verify the key in Settings or create a replacement at console.groq.com.'
+            : response.status === 404
+              ? 'The configured model may have been retired. Re-test the key to refresh model availability.'
+              : response.status >= 500
+                ? 'The provider is temporarily unavailable. Retry later; local BYOC features remain usable.'
+                : 'Check the request and model configuration before trying again.';
+        throw new GroqApiError(message, response.status, code, hint);
       }
 
-      switch (response.status) {
-        case 400:
-          throw new GroqApiError(
-            `Groq 400 Bad Request: ${parsedMessage}`,
-            400,
-            'BAD_REQUEST',
-            'Verify that the job description and resume content are valid text.'
-          );
-        case 401:
-          throw new GroqApiError(
-            'Invalid Groq API Key (HTTP 401 Unauthorized).',
-            401,
-            'UNAUTHORIZED',
-            'Check your API key in Settings or generate a new one at console.groq.com.'
-          );
-        case 403:
-          throw new GroqApiError(
-            `Groq Access Forbidden (HTTP 403): ${parsedMessage}`,
-            403,
-            'FORBIDDEN'
-          );
-        case 404:
-          resolvedGroqModel = null; // Invalidate cached model
-          throw new GroqApiError(
-            `Model ${model} not found or decommissioned (HTTP 404).`,
-            404,
-            'MODEL_NOT_FOUND',
-            'The selected model is unavailable. Try again to rediscover current models.'
-          );
-        case 429:
-          throw new GroqApiError(
-            'Groq API rate limit or quota exceeded (HTTP 429).',
-            429,
-            'RATE_LIMITED',
-            'Wait 30 to 60 seconds before retrying, or check your Groq account tier.'
-          );
-        default:
-          if (response.status >= 500) {
-            throw new GroqApiError(
-              `Groq provider server error (HTTP ${response.status}).`,
-              response.status,
-              'PROVIDER_SERVER_ERROR',
-              'Groq is experiencing high traffic. Retry in a few moments.'
-            );
-          }
-          throw new GroqApiError(
-            `Groq API error (${response.status}): ${parsedMessage}`,
-            response.status,
-            'API_ERROR'
-          );
+      const data: GroqChatResponse = await response.json();
+      const choice = data.choices?.[0];
+      const content = choice?.message?.content;
+      if (choice?.finish_reason === 'length') {
+        throw new GroqApiError(
+          'The AI response reached its output limit and may be incomplete.',
+          502,
+          'OUTPUT_TRUNCATED',
+          'Reduce the job-description/profile length or retry with a shorter request. No partial draft was saved.'
+        );
       }
+      if (typeof content !== 'string' || content.trim().length === 0) {
+        throw new GroqApiError(
+          'Groq returned an empty response.',
+          502,
+          'EMPTY_RESPONSE',
+          'Please retry the request.'
+        );
+      }
+      return content;
+    } catch (err: unknown) {
+      lastError = err;
+      if (err instanceof GroqApiError) {
+        if (!isRetryableGroqStatus(err.status || 0) || attempt >= maxAttempts) throw err;
+        const delay = getGroqRetryDelayMs(err.status || 0, null, attempt);
+        if (delay === null) throw err;
+        await waitForGroqRetry(delay);
+      } else if (attempt < maxAttempts) {
+        await waitForGroqRetry(getGroqRetryDelayMs(503, null, attempt) || 500);
+      } else if (isAbortError(err)) {
+        throw new GroqApiError(
+          'Groq API call timed out after 45 seconds.',
+          408,
+          'TIMEOUT',
+          'The model took too long to complete. Check your network and retry.'
+        );
+      } else {
+        throw new GroqApiError(
+          err instanceof Error ? err.message : 'Unknown communication failure with Groq API.',
+          undefined,
+          'NETWORK_FAILURE',
+          'Verify your network connection and try again.'
+        );
+      }
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    const data: GroqChatResponse = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content || content.trim().length === 0) {
-      throw new GroqApiError(
-        'Groq returned an empty response.',
-        502,
-        'EMPTY_RESPONSE',
-        'Please retry the request.'
-      );
-    }
-    return content;
-  } catch (err: unknown) {
-    clearTimeout(timeoutId);
-    if (err instanceof GroqApiError) throw err;
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new GroqApiError(
-        'Groq API call timed out after 30 seconds.',
-        408,
-        'TIMEOUT',
-        'The model took too long to complete. Please check your network and retry.'
-      );
-    }
-    throw new GroqApiError(
-      err instanceof Error ? err.message : 'Unknown communication failure with Groq API.',
-      undefined,
-      'NETWORK_FAILURE',
-      'Verify your network connection and test your API key in Settings.'
-    );
   }
+
+  throw lastError instanceof Error ? lastError : new GroqApiError('Groq request failed.', undefined, 'UNKNOWN_ERROR');
 }
 
 /**

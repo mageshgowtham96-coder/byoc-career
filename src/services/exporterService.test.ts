@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ExportedMaterialRecord, TailoredArtifact, MasterResume } from '../types';
-import { generatePlainTextResume, generatePdfResume, generateDocxResume } from '../services/exporterService';
+import { dispatchExportFile, generatePlainTextResume, generatePdfResume, generateDocxResume } from '../services/exporterService';
 
 // Mock the docx and pdf-lib modules
 vi.mock('docx', () => ({
@@ -387,5 +387,31 @@ describe('Export Service', () => {
       expect(bullet.tailoredBullet).toBeDefined();
       expect(bullet.matchRationale).toBeDefined();
     });
+  });
+});
+
+describe('dispatchExportFile cancellation', () => {
+  it('does not report success when the user cancels the native share sheet', async () => {
+    const share = vi.fn().mockRejectedValue(new DOMException('Share cancelled', 'AbortError'));
+    class TestFile extends Blob {
+      name: string;
+      constructor(parts: BlobPart[], name: string, options?: FilePropertyBag) { super(parts, options); this.name = name; }
+    }
+    vi.stubGlobal('File', TestFile);
+    const originalCanShare = Object.getOwnPropertyDescriptor(navigator, 'canShare');
+    const originalShare = Object.getOwnPropertyDescriptor(navigator, 'share');
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: vi.fn().mockReturnValue(true) });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+    try {
+      const result = await dispatchExportFile(new Blob(['resume']), 'resume.txt', 'text/plain');
+      expect(result).toBe(false);
+      expect(share).toHaveBeenCalledOnce();
+    } finally {
+      if (originalCanShare) Object.defineProperty(navigator, 'canShare', originalCanShare);
+      else Reflect.deleteProperty(navigator, 'canShare');
+      if (originalShare) Object.defineProperty(navigator, 'share', originalShare);
+      else Reflect.deleteProperty(navigator, 'share');
+      vi.unstubAllGlobals();
+    }
   });
 });

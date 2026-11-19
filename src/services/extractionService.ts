@@ -286,9 +286,12 @@ function cleanPdfHexString(raw: string): string {
   }
 }
 
+const MAX_DECOMPRESSED_DOCUMENT_BYTES = 20 * 1024 * 1024;
+
 async function decompressBytes(
   compressed: Uint8Array,
-  format: 'deflate' | 'deflate-raw'
+  format: 'deflate' | 'deflate-raw',
+  maxOutputBytes = MAX_DECOMPRESSED_DOCUMENT_BYTES
 ): Promise<Uint8Array> {
   if (typeof DecompressionStream === 'undefined') {
     throw new Error('Compressed stream decompression is unavailable in this browser runtime.');
@@ -302,11 +305,18 @@ async function decompressBytes(
   const chunks: Uint8Array[] = [];
   const reader = ds.readable.getReader();
   let readFailed = false;
+  let totalLen = 0;
   try {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-      if (value) chunks.push(value);
+      if (value) {
+        totalLen += value.byteLength;
+        if (totalLen > maxOutputBytes) {
+          throw new Error('Document expands beyond the 20MB extraction safety limit. The file may be malformed or compressed unexpectedly.');
+        }
+        chunks.push(value);
+      }
     }
   } catch (err) {
     readFailed = true;
@@ -321,7 +331,6 @@ async function decompressBytes(
     await writePromise;
   }
 
-  const totalLen = chunks.reduce((sum, c) => sum + c.length, 0);
   const out = new Uint8Array(totalLen);
   let offset = 0;
   for (const chunk of chunks) {
@@ -386,7 +395,7 @@ function extractParagraphsFromDocumentXml(xml: string): string {
 function extractZipEntryViaCentralDirectory(
   bytes: Uint8Array,
   targetEntryPath: string
-): { compressionMethod: number; compressedBytes: Uint8Array } | null {
+): { compressionMethod: number; compressedBytes: Uint8Array; uncompressedSize: number } | null {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const minEocdSearch = Math.max(0, bytes.length - 65557);
 
@@ -418,6 +427,7 @@ function extractZipEntryViaCentralDirectory(
 
     const compressionMethod = view.getUint16(cursor + 10, true);
     const compressedSize = view.getUint32(cursor + 20, true);
+    const uncompressedSize = view.getUint32(cursor + 24, true);
     const nameLen = view.getUint16(cursor + 28, true);
     const extraLen = view.getUint16(cursor + 30, true);
     const commentLen = view.getUint16(cursor + 32, true);
@@ -425,6 +435,9 @@ function extractZipEntryViaCentralDirectory(
 
     const entryName = decoder.decode(bytes.subarray(cursor + 46, cursor + 46 + nameLen));
     if (entryName === targetEntryPath) {
+      if (uncompressedSize > MAX_DECOMPRESSED_DOCUMENT_BYTES || uncompressedSize === 0xffffffff) {
+        throw new Error('DOCX document.xml exceeds the 20MB extraction safety limit.');
+      }
       if (localHeaderOffset + 30 > bytes.length) return null;
       if (view.getUint32(localHeaderOffset, true) !== 0x04034b50) return null;
 
@@ -436,7 +449,8 @@ function extractZipEntryViaCentralDirectory(
 
       return {
         compressionMethod,
-        compressedBytes: bytes.subarray(dataStart, dataEnd)
+        compressedBytes: bytes.subarray(dataStart, dataEnd),
+        uncompressedSize
       };
     }
 
@@ -474,6 +488,9 @@ async function extractDocxText(file: File): Promise<string> {
       );
     }
 
+    if (xmlBytes.byteLength !== entry.uncompressedSize) {
+      throw new Error('DOCX document.xml did not match its declared uncompressed size. The archive may be damaged.');
+    }
     const xml = new TextDecoder('utf-8', { fatal: false }).decode(xmlBytes);
     return extractParagraphsFromDocumentXml(xml);
   }

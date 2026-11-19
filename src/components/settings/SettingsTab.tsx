@@ -8,7 +8,7 @@ import {
 import { WORKSPACE_STORE_KEY } from '../../utils/vaultMigration';
 import { emailVault } from '../../services/emailSyncService';
 import { safeRemoveItem } from '../../utils/storagePersistence';
-import { getAvailableGroqModels, formatGroqError } from '../../services/groqService';
+import { getAvailableGroqModels, selectGroqChatModel, formatGroqError } from '../../services/groqService';
 import {
   Settings,
   Zap,
@@ -78,7 +78,7 @@ export const SettingsTab: React.FC = () => {
   const handleSaveKey = async () => {
     const trimmed = inputKey.trim();
     setGroqApiKey(trimmed);
-    setIsLiveApiMode(true);
+    setIsLiveApiMode(Boolean(trimmed));
     const synced = await syncVaultFromStoreNow();
 
     if (trimmed) {
@@ -109,12 +109,16 @@ export const SettingsTab: React.FC = () => {
 
     try {
       const models = await getAvailableGroqModels(trimmed);
+      const selectedModel = selectGroqChatModel(models);
+      if (!selectedModel) {
+        throw new Error('The key is valid, but no supported BYOC chat model is available to it. Check your Groq model access and plan.');
+      }
       setGroqApiKey(trimmed);
       setIsLiveApiMode(true);
       await syncVaultFromStoreNow();
       setTestResult({
         success: true,
-        msg: `Connection verified (${models.length} model${models.length === 1 ? '' : 's'} reachable). Key saved cleanly into your encrypted vault.`
+        msg: `Connection verified. BYOC can use ${selectedModel}; ${models.length} model IDs are visible to this key. Key saved cleanly into your encrypted vault.`
       });
     } catch (err: unknown) {
       setTestResult({
@@ -247,7 +251,7 @@ export const SettingsTab: React.FC = () => {
             <div>
               <h3 className="text-sm font-bold text-white">Groq API &amp; Model Orchestration</h3>
               <p className="text-xs text-slate-400">
-                Direct browser-to-Groq inference (Llama 3.3 70B &amp; sibling variants)
+                Direct browser-to-Groq inference (GPT-OSS 120B / 20B)
               </p>
             </div>
           </div>
@@ -329,7 +333,7 @@ export const SettingsTab: React.FC = () => {
 
         <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-400">
           <span>
-            Groq BYOK handles vetting, tailoring, and evidence-anchored prep with strict zero-fabrication prompts. Gemini is not enabled in this pure client bundle because <span className="font-mono text-slate-300">@google/genai</span> requires a server-side proxy route.
+            Groq BYOK handles vetting, tailoring, and evidence-anchored prep with strict zero-fabrication prompts. Gemini remains disabled in this browser-only build; adding another provider requires explicit consent and a reviewed secure integration.
           </span>
           <span className="text-emerald-400 font-mono text-[11px] shrink-0">Live BYOK Architecture</span>
         </div>
@@ -596,7 +600,7 @@ export const SettingsTab: React.FC = () => {
               <ul className="space-y-1.5 text-slate-400">
                 <li>• <strong className="text-slate-200">Supported Local Extraction:</strong> Processes <span className="font-mono text-slate-200">.txt</span>, <span className="font-mono text-slate-200">.md</span>, standard compressed XML <span className="font-mono text-slate-200">.docx</span>, and basic selectable-text <span className="font-mono text-slate-200">.pdf</span> files up to 10MB 100% locally on-device.</li>
                 <li>• <strong className="text-slate-200">Unsupported Formats (No OCR):</strong> Raster image OCR (PNG/JPG/scanned PDFs), encrypted PDFs, and complex CID/custom-font PDF glyph maps remain unsupported. When readable text cannot be extracted, BYOC directs you to the Manual Paste Fallback box.</li>
-                <li>• <strong className="text-slate-200">Groq BYOK (Active AI Provider):</strong> Create a free or paid key at <span className="font-mono text-sky-400">console.groq.com</span> and paste it above. Gemini is not active in client-only mode because official Gemini SDK calls require a backend <span className="font-mono text-slate-200">/api/*</span> proxy. Without a Groq key (or if Groq is unreachable/rate-limited), all local vault, sourcing, offline baseline export, Assisted-Apply, and tracking workflows remain functional offline.</li>
+                <li>• <strong className="text-slate-200">Groq BYOK (Active AI Provider):</strong> Create a free or paid key at <span className="font-mono text-sky-400">console.groq.com</span> and paste it above. Gemini is not active in this client-only build; its free tier has separate quotas and data-use terms. Without a Groq key (or if Groq is unreachable/rate-limited), all local vault, sourcing, offline baseline export, Assisted-Apply, and tracking workflows remain functional offline.</li>
               </ul>
             </>
           )}

@@ -4,12 +4,12 @@
  * Purpose: Clean provider-agnostic architecture for AI model integration.
  * Strategy:
  *   - Primary provider: Groq (user-configured API key)
- *   - Secondary free providers: OpenRouter, Gemini (via @google/genai)
+ *   - Experimental adapters: OpenRouter and Gemini (not enabled in BYOC's user-facing browser workflow)
  *   - Provider switching requires explicit user approval — never silent
  *   - All providers share the same chat completion interface contract
  *   - API keys stored exclusively in AES-256-GCM encrypted vault
  *   - Provider diagnostics: connection test, model list, rate-limit status
- *   - Graceful degradation: if primary provider fails, fall back to secondary
+ *   - No silent cross-provider failover: candidate data is not forwarded to a second company without consent
  *   - No provider is assumed operational without verification
  *
  * Contract:
@@ -76,15 +76,17 @@ export interface ProviderState {
 /**
  * Default provider configs (read-only; keys come from vault)
  */
+function isAbortErrorLike(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError';
+}
+
 export const PROVIDER_CONFIGS = {
   groq: {
     name: 'Groq',
     baseURL: 'https://api.groq.com/openai/v1/chat/completions',
     models: [
-      'llama-3.3-70b-versatile',
-      'llama-3.1-70b-versatile',
-      'llama-3.1-8b-instant',
-      'mixtral-8x7b-32768'
+      'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b'
     ],
     timeoutMs: 30000
   },
@@ -101,7 +103,7 @@ export const PROVIDER_CONFIGS = {
   },
   gemini: {
     name: 'Gemini',
-    models: ['gemini-1.5-pro', 'gemini-1.5-flash'],
+    models: ['gemini-3.6-flash'],
     timeoutMs: 30000
   }
 } as const;
@@ -119,7 +121,9 @@ export function getProviderConfig<K extends keyof typeof PROVIDER_CONFIGS>(name:
 export function isProviderClientUsable(name: keyof typeof PROVIDER_CONFIGS): boolean {
   const cfg = PROVIDER_CONFIGS[name];
   if (!cfg) return false;
-  return true; // All three are client-usable with proper SDKs
+  // Gemini is intentionally disabled in BYOC's browser-only release until a
+  // server-side proxy or explicit browser-key risk acceptance is implemented.
+  return name === 'groq';
 }
 
 /**
@@ -149,8 +153,9 @@ export class GroqProvider {
     }
 
     try {
-      const { getAvailableGroqModels } = await import('../services/groqService');
+      const { getAvailableGroqModels, selectGroqChatModel } = await import('../services/groqService');
       const models = await getAvailableGroqModels(apiKey.trim());
+      const selectedModel = selectGroqChatModel(models);
       
       this.state.metadata = {
         id: 'groq',
@@ -158,9 +163,9 @@ export class GroqProvider {
         contextLength: 8192,
         costPer1kTokens: null
       };
-      this.state.status = models.length > 0 ? 'available' : 'unavailable';
-      this.state.modelInUse = models[0] || undefined;
-      this.state.errorMessage = models.length === 0 ? 'No Groq models available. Check API key and quota.' : undefined;
+      this.state.status = selectedModel ? 'available' : 'unavailable';
+      this.state.modelInUse = selectedModel || undefined;
+      this.state.errorMessage = !selectedModel ? 'No supported Groq chat model is available for this key.' : undefined;
       return this.state;
     } catch (err: unknown) {
       this.state.status = 'error';
@@ -174,8 +179,8 @@ export class GroqProvider {
       throw new Error('Groq API key is required.');
     }
 
-    const { callGroqChat } = await import('../services/groqService');
-    const model = this.config.models[0];
+    const { callGroqChat, getPreferredGroqChatModel } = await import('../services/groqService');
+    const model = await getPreferredGroqChatModel(apiKey.trim());
     const content = await callGroqChat(systemPrompt, userPrompt, apiKey.trim(), model);
     
     return {
@@ -213,20 +218,14 @@ export class OpenRouterProvider {
       return this.state;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs!);
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs!);
-
       const res = await fetch('https://openrouter.ai/api/v1/models', {
         method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey.trim()}`
-        },
+        headers: { Authorization: `Bearer ${apiKey.trim()}` },
         signal: controller.signal
       });
-
-      clearTimeout(timeoutId);
-
       if (!res.ok) {
         this.state.status = 'error';
         this.state.errorMessage = `OpenRouter returned ${res.status}: ${res.statusText}`;
@@ -234,8 +233,7 @@ export class OpenRouterProvider {
       }
 
       const data = await res.json();
-      const modelIds = (data.data || []).map((m: any) => m.id);
-      
+      const modelIds = Array.isArray(data.data) ? data.data.map((model: any) => model.id).filter(Boolean) : [];
       this.state.metadata = {
         id: 'openrouter',
         name: 'OpenRouter',
@@ -247,8 +245,12 @@ export class OpenRouterProvider {
       return this.state;
     } catch (err: unknown) {
       this.state.status = 'error';
-      this.state.errorMessage = err instanceof Error ? err.message : 'OpenRouter connectivity check failed';
+      this.state.errorMessage = isAbortErrorLike(err)
+        ? 'OpenRouter connectivity check timed out.'
+        : err instanceof Error ? err.message : 'OpenRouter connectivity check failed';
       return this.state;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -259,39 +261,49 @@ export class OpenRouterProvider {
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs!);
+    try {
+      const res = await fetch(this.config.baseURL!, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey.trim()}`
+        },
+        body: JSON.stringify({
+          model: this.config.models[0],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.15,
+          max_tokens: 3800
+        }),
+        signal: controller.signal
+      });
 
-    const res = await fetch(this.config.baseURL!, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey.trim()}`
-      },
-      body: JSON.stringify({
-        model: this.config.models[0],
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.15,
-        max_tokens: 3800
-      }),
-      signal: controller.signal
-    });
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        throw new Error(`OpenRouter ${res.status}: ${errBody}`);
+      }
 
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`OpenRouter ${res.status}: ${errBody}`);
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (typeof content !== 'string' || !content.trim()) {
+        throw new Error('OpenRouter returned an empty completion.');
+      }
+      return {
+        content,
+        model: data.model || this.config.models[0],
+        usage: data.usage,
+        finishReason: data.choices?.[0]?.finish_reason || 'stop'
+      };
+    } catch (err: unknown) {
+      if (isAbortErrorLike(err)) {
+        throw new Error('OpenRouter chat request timed out.');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    const data = await res.json();
-    return {
-      content: data.choices?.[0]?.message?.content || '',
-      model: data.model || this.config.models[0],
-      usage: data.usage,
-      finishReason: data.finish_reason || 'stop'
-    };
   }
 }
 
@@ -308,6 +320,7 @@ export class GeminiProvider {
   };
 
   private genaiClient: any = null;
+  private genaiClientKey: string | null = null;
 
   async checkAvailability(apiKey: string): Promise<ProviderState> {
     this.state = {
@@ -326,9 +339,10 @@ export class GeminiProvider {
     try {
       const { GoogleGenAI } = await import('@google/genai');
       this.genaiClient = new GoogleGenAI({ apiKey: apiKey.trim() });
+      this.genaiClientKey = apiKey.trim();
       
       // Test with a minimal request
-      const result = await this.genaiClient.models.generateContent({
+      await this.genaiClient.models.generateContent({
         model: this.config.models[0],
         contents: 'test'
       });
@@ -336,7 +350,7 @@ export class GeminiProvider {
       this.state.metadata = {
         id: 'gemini',
         name: 'Gemini',
-        contextLength: 1048576, // 1M tokens for 1.5 Pro
+        contextLength: 1048576, // Current Gemini Flash context window; verify before enabling this adapter
         costPer1kTokens: null
       };
       this.state.status = 'available';
@@ -354,9 +368,10 @@ export class GeminiProvider {
       throw new Error('Gemini API key is required.');
     }
 
-    if (!this.genaiClient) {
+    if (!this.genaiClient || this.genaiClientKey !== apiKey.trim()) {
       const { GoogleGenAI } = await import('@google/genai');
       this.genaiClient = new GoogleGenAI({ apiKey: apiKey.trim() });
+      this.genaiClientKey = apiKey.trim();
     }
 
     const result = await this.genaiClient.models.generateContent({
@@ -369,8 +384,13 @@ export class GeminiProvider {
       }
     });
 
+    const content = result.text;
+    if (typeof content !== 'string' || !content.trim()) {
+      throw new Error('Gemini returned an empty completion.');
+    }
+
     return {
-      content: result.text || '',
+      content,
       model: this.config.models[0],
       usage: result.usageMetadata ? {
         promptTokens: result.usageMetadata.promptTokenCount || 0,
@@ -434,46 +454,21 @@ export class ProviderManager {
   }
 
   /**
-   * Attempt chat with the selected provider, falling back if needed
+   * Attempt chat only with the explicitly selected provider
    */
   async attemptChat(
     systemPrompt: string,
     userPrompt: string,
     apiKeys: Record<string, string>
   ): Promise<{ content: string; model: string; provider: keyof typeof PROVIDER_CONFIGS } | null> {
-    // Try selected provider first
-    if (this.selectedProvider) {
-      const provider = this.providers.get(this.selectedProvider);
-      if (provider) {
-        try {
-          const apiKey = apiKeys[this.selectedProvider] || '';
-          const response = await provider.callChat(systemPrompt, userPrompt, apiKey);
-          return { content: response.content, model: response.model, provider: this.selectedProvider };
-        } catch (err: unknown) {
-          console.warn(`Provider ${this.selectedProvider} failed:`, err);
-        }
-      }
-    }
+    // Never silently forward a resume or job history to a different company.
+    // Cross-provider failover requires an explicit user selection/consent in the UI.
+    if (!this.selectedProvider) return null;
+    const provider = this.providers.get(this.selectedProvider);
+    const apiKey = apiKeys[this.selectedProvider] || '';
+    if (!provider || !apiKey.trim()) return null;
 
-    // Fallback: try available providers in preference order
-    const fallbackOrder: (keyof typeof PROVIDER_CONFIGS)[] = ['groq', 'openrouter', 'gemini'];
-    for (const name of fallbackOrder) {
-      if (name === this.selectedProvider) continue;
-      const provider = this.providers.get(name);
-      if (!provider) continue;
-      const apiKey = apiKeys[name] || '';
-      if (!apiKey) continue;
-      
-      try {
-        const response = await provider.callChat(systemPrompt, userPrompt, apiKey);
-        this.setSelectedProvider(name);
-        return { content: response.content, model: response.model, provider: name };
-      } catch (err: unknown) {
-        console.warn(`Provider ${name} fallback failed:`, err);
-        continue;
-      }
-    }
-
-    return null;
+    const response = await provider.callChat(systemPrompt, userPrompt, apiKey);
+    return { content: response.content, model: response.model, provider: this.selectedProvider };
   }
 }
