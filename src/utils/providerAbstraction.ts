@@ -380,8 +380,13 @@ export class GeminiProvider {
       }
     });
 
+    const content = result.text;
+    if (typeof content !== 'string' || !content.trim()) {
+      throw new Error('Gemini returned an empty completion.');
+    }
+
     return {
-      content: result.text || '',
+      content,
       model: this.config.models[0],
       usage: result.usageMetadata ? {
         promptTokens: result.usageMetadata.promptTokenCount || 0,
