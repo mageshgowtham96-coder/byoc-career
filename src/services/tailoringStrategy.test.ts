@@ -44,7 +44,7 @@ describe('role-relevant tailoring strategies', () => {
     }));
     expect(strategies.map((item) => item.badge)).toEqual(['Career Evidence', 'ATS Alignment']);
     expect(strategies[0].description).toMatch(/volunteering.*languages/i);
-    expect(strategies.some((item) => /paid employment/i.test(item.description))).toBe(true);
+    expect(strategies.some((item) => /do not convert these into invented employment/i.test(item.description))).toBe(true);
   });
 
 });
