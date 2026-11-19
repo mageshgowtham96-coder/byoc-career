@@ -8,14 +8,11 @@ import { extractResumeFile } from '../../services/extractionService';
 import { askPdfQuestion } from '../../services/pdfQuestionService';
 import {
   createPdfBlob, extractPdfPages, inspectPdf, mergePdfs, reorderPdfPages, rotatePdfPage,
-  type PdfInspection
+  type PdfInspection,
+  parsePdfPageNumbers
 } from '../../services/pdfWorkspaceService';
 
 interface ChatEntry { question: string; answer: string; }
-
-function parsePageList(value: string): number[] {
-  return value.split(',').map((part) => Number(part.trim())).filter((number) => Number.isInteger(number) && number > 0);
-}
 
 export const DocumentsTab: React.FC = () => {
   const { groqApiKey, addToast } = useWizardStore();
@@ -51,7 +48,7 @@ export const DocumentsTab: React.FC = () => {
   };
 
   const handleUpload = async (selected: FileList | null) => {
-    if (!selected?.length) return;
+    if (!selected?.length || busy) return;
     setBusy(true);
     setError('');
     try {
@@ -99,7 +96,7 @@ export const DocumentsTab: React.FC = () => {
   });
 
   const handleExtract = () => runOperation(async () => {
-    const pages = parsePageList(pageList);
+    const pages = parsePdfPageNumbers(pageList);
     const bytes = await extractPdfPages(file!, pages);
     await applyPdfBytes(bytes, 'BYOC_Extracted_Pages.pdf');
   });
@@ -155,7 +152,7 @@ export const DocumentsTab: React.FC = () => {
         <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-sky-400/40 bg-sky-400/10 px-4 py-2 text-sm font-semibold text-sky-200 hover:bg-sky-400/15">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           <span>{file ? 'Open / merge PDFs' : 'Choose PDF'}</span>
-          <input className="sr-only" type="file" accept=".pdf,application/pdf" multiple onChange={(event) => { void handleUpload(event.target.files); event.currentTarget.value = ''; }} />
+          <input className="sr-only" type="file" accept=".pdf,application/pdf" multiple disabled={busy} onChange={(event) => { void handleUpload(event.target.files); event.currentTarget.value = ''; }} />
         </label>
       </header>
 
@@ -181,7 +178,7 @@ export const DocumentsTab: React.FC = () => {
                 <p className="truncate text-sm font-semibold text-white">{inspection?.fileName}</p>
                 <p className="text-xs text-slate-400">{inspection?.pageCount} pages · {((inspection?.fileSize || 0) / 1024).toFixed(0)} KB</p>
               </div>
-              <button type="button" onClick={handleRemove} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-xs text-slate-300 hover:bg-slate-800"><Trash2 className="h-4 w-4" />Remove</button>
+              <button type="button" onClick={handleRemove} disabled={busy} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-xs text-slate-300 hover:bg-slate-800"><Trash2 className="h-4 w-4" />Remove</button>
             </div>
             <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
               <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2 text-xs text-slate-400">
