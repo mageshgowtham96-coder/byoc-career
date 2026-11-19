@@ -666,12 +666,14 @@ export function parseRawResumeToStructured(
   );
 
   if (summaryHeaderIdx !== -1) {
-    const summaryLines: string[] = [];
-    for (let i = summaryHeaderIdx + 1; i < Math.min(lines.length, summaryHeaderIdx + 6); i++) {
+    const summaryHeaderMatch = lines[summaryHeaderIdx].match(
+      /^(?:summary|profile|professional summary|about me|overview|executive summary)(?:\\s*(?::|[-–—])\\s*(.*))?$/i
+    );
+    const inlineSummary = summaryHeaderMatch?.[1]?.trim();
+    const summaryLines: string[] = inlineSummary ? [inlineSummary] : [];
+    for (let i = summaryHeaderIdx + 1; i < lines.length; i++) {
       const line = lines[i];
-      if (isResumeSectionHeading(line)) {
-        break;
-      }
+      if (isResumeSectionHeading(line)) break;
       summaryLines.push(line);
     }
     summary = summaryLines.join(' ').trim();
