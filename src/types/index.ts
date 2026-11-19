@@ -58,6 +58,13 @@ export interface MasterResume {
   education: EducationItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
+  sourceLanguage?: string;
+  sourceLanguageOther?: string;
+  currentRole?: string;
+  roleFamily?: string;
+  experienceLevel?: string;
+  translatedToEnglish?: boolean;
+  originalLanguageSnapshot?: string;
   stats: {
     wordCount: number;
     pageCount: number;
@@ -390,6 +397,9 @@ export interface PersonalDetailsState {
   email: string;
   phone: string;
   location: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
 }
 
 /**
@@ -401,6 +411,10 @@ export interface WorkExperienceStateItem {
   role: string;
   duration: string;
   keyResponsibilities: string[];
+  startDate?: string;
+  endDate?: string;
+  location?: string;
+  isCurrent?: boolean;
 }
 
 /**
@@ -411,6 +425,8 @@ export interface EducationStateItem {
   degree: string;
   institution: string;
   year: string;
+  field?: string;
+  gpa?: string;
 }
 
 /**
@@ -425,5 +441,15 @@ export interface CareerApplicationFormState {
   isAutoFilled: boolean;
   lastExtractedTimestamp: string | null;
   rawSourceText: string;
+  targetRole?: string;
+  currentRole?: string;
+  roleFamily?: string;
+  experienceLevel?: string;
+  sourceLanguage?: string;
+  sourceLanguageOther?: string;
+  translatedToEnglish?: boolean;
+  originalLanguageSnapshot?: string;
+  projects?: ProjectItem[];
+  certifications?: CertificationItem[];
 }
 

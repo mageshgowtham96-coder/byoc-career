@@ -50,6 +50,7 @@ import {
   scrubAndVerifyStoredWorkspace,
   type LegacyPlaintextCapture
 } from '../utils/vaultMigration';
+import { sanitizeCareerFormState } from '../utils/storagePersistence';
 
 export const DEFAULT_CANDIDATE_PREFERENCES: CandidatePreferences = {
   country: 'IN',
@@ -428,7 +429,7 @@ export const useWizardStore = create<WizardState>()(
       masterResume: null,
       stagedParsedResume: null,
       careerFormDraft: null,
-      setCareerFormDraft: (draft) => set({ careerFormDraft: draft }),
+      setCareerFormDraft: (draft) => set({ careerFormDraft: draft ? sanitizeCareerFormState(draft) : null }),
       setStagedParsedResume: (resume) => set({ stagedParsedResume: resume }),
       confirmStagedResume: () => {
         const staged = get().stagedParsedResume;
@@ -1186,7 +1187,7 @@ export function restoreVaultDataToStore(
     groqApiKey: data.groqApiKey || '',
     geminiApiKey: data.geminiApiKey || '',
     masterResume: data.masterResume || null,
-    careerFormDraft: data.careerFormDraft || null,
+    careerFormDraft: data.careerFormDraft ? sanitizeCareerFormState(data.careerFormDraft) : null,
     emailInteractions: Array.isArray(data.emailInteractions) ? data.emailInteractions : [],
     jobs: Array.isArray(data.jobs) ? data.jobs : [],
     selectedJobId: data.selectedJobId || null,

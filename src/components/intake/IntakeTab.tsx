@@ -9,6 +9,8 @@ import { formatGroqError, parseResumeWithGroq } from '../../services/groqService
 import { safeRemoveItem, wipeCachedFormData } from '../../utils/storagePersistence';
 import { ExtractionLoadingSkeleton } from './ExtractionLoadingSkeleton';
 import { ChakraLogo } from '../ChakraLogo';
+import { GuidedMasterResumeBuilder } from './GuidedMasterResumeBuilder';
+import { createCareerDraftFromMasterResume } from '../../utils/guidedResumeMapper';
 import type { MasterResume, ExperienceItem } from '../../types';
 import {
   UploadCloud,
@@ -30,6 +32,8 @@ import {
 export const IntakeTab: React.FC = () => {
   const {
     masterResume,
+    careerFormDraft,
+    setCareerFormDraft,
     groqApiKey,
     stagedParsedResume,
     setStagedParsedResume,
@@ -63,6 +67,7 @@ export const IntakeTab: React.FC = () => {
 
   // Half-Built Resume Builder State
   const [showBuilderModal, setShowBuilderModal] = useState(false);
+  const [showGuidedBuilder, setShowGuidedBuilder] = useState(false);
   const [newRole, setNewRole] = useState('');
   const [newCompany, setNewCompany] = useState('');
   const [newDates, setNewDates] = useState('');
@@ -74,6 +79,7 @@ export const IntakeTab: React.FC = () => {
   const handleClearMasterResume = () => {
     // 1. Execute deep structural reset in store & force persistent storage sync
     clearMasterResume();
+    setCareerFormDraft(null);
     safeRemoveItem('byoc_career_form_draft');
     wipeCachedFormData({ wipeAllKeys: true });
 
@@ -275,7 +281,24 @@ export const IntakeTab: React.FC = () => {
 
     useWizardStore.setState({ stagedParsedResume: finalStaged });
     confirmStagedResume();
+    setCareerFormDraft(null);
     setShowReplaceMasterConfirm(false);
+  };
+
+  const handleGuidedBuilderComplete = (profile: MasterResume) => {
+    setStagedParsedResume(profile);
+    setLocalStagedProfile(profile);
+    setEditableStagedSummary(profile.summary);
+    setEditableHeadline(profile.headline);
+    setEditableName(profile.contactInfo.name || '');
+    setEditableEmail(profile.contactInfo.email || '');
+    setAiStructuringError(null);
+    setShowGuidedBuilder(false);
+    addToast({
+      type: 'success',
+      title: 'Master Resume Draft Ready',
+      message: 'Review the details below. Your active profile will change only after you confirm.'
+    });
   };
 
   const handleApproveStaged = () => {
@@ -777,7 +800,7 @@ export const IntakeTab: React.FC = () => {
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-bold text-white">{masterResume.contactInfo.name}</h3>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 text-[10px] font-mono font-bold">
-                  Vault Ingested
+                  Saved in Vault
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-mono">
                   {completenessScore}% Complete
@@ -798,6 +821,13 @@ export const IntakeTab: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setShowGuidedBuilder(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-200 text-xs font-semibold transition"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Guided Editor</span>
+              </button>
+                            <button
                 onClick={() => setShowBuilderModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
               >
@@ -828,7 +858,7 @@ export const IntakeTab: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Verified Experience Milestones ({masterResume.experiences.length})
+                Experience History ({masterResume.experiences.length})
               </h4>
               <button
                 onClick={() => setShowBuilderModal(true)}
@@ -860,7 +890,7 @@ export const IntakeTab: React.FC = () => {
           {/* Skills Badges & Quick Skill Adder */}
           <div>
             <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-              Verified Technical Skills ({masterResume.skills.technical.length})
+              Technical Skills ({masterResume.skills.technical.length})
             </h4>
             <div className="flex flex-wrap gap-1.5 mb-3">
               {masterResume.skills.technical.map((s, i) => (
@@ -896,11 +926,19 @@ export const IntakeTab: React.FC = () => {
             <FileText className="w-6 h-6" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-white">Master Resume Baseline Purged / Unassigned</h4>
+            <h4 className="text-sm font-bold text-white">Start your Master Resume</h4>
             <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
-              Your candidate profile is currently cleared. Drop your resume file in the upload zone above, or paste raw text in the manual fallback slab to begin.
+              You do not need an existing resume or a computer. Build your profile step by step, include projects or study if you are new to work, or upload/paste a resume you already have.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowGuidedBuilder(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-950/30 transition hover:bg-indigo-500"
+          >
+            <Sparkles className="h-4 w-4" />
+            Build my Master Resume step by step
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -1047,6 +1085,17 @@ export const IntakeTab: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {showGuidedBuilder && (
+        <GuidedMasterResumeBuilder
+          initialDraft={careerFormDraft || (masterResume ? createCareerDraftFromMasterResume(masterResume) : null)}
+          groqApiKey={groqApiKey}
+          isEditingExisting={Boolean(masterResume)}
+          onDraftChange={setCareerFormDraft}
+          onComplete={handleGuidedBuilderComplete}
+          onCancel={() => setShowGuidedBuilder(false)}
+        />
       )}
     </div>
   );
