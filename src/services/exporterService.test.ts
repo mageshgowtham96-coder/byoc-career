@@ -403,9 +403,9 @@ describe('dispatchExportFile cancellation', () => {
       expect(share).toHaveBeenCalledOnce();
     } finally {
       if (originalCanShare) Object.defineProperty(navigator, 'canShare', originalCanShare);
-      else delete (navigator as Navigator & { canShare?: unknown }).canShare;
+      else Reflect.deleteProperty(navigator, 'canShare');
       if (originalShare) Object.defineProperty(navigator, 'share', originalShare);
-      else delete (navigator as Navigator & { share?: unknown }).share;
+      else Reflect.deleteProperty(navigator, 'share');
     }
   });
 });
