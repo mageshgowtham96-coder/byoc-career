@@ -605,13 +605,15 @@ export async function callGroqChat(
 /**
  * Validates and sanitizes JobVetting schema returned by LLM
  */
-function validateJobVetting(parsed: any): JobVetting {
+export function validateJobVetting(parsed: any): JobVetting {
   if (typeof parsed !== 'object' || parsed === null) {
     throw new GroqApiError('Job vetting output was not a valid JSON object.', 502, 'SCHEMA_ERROR');
   }
 
-  const rawFit = Number(parsed.cultureFit);
-  const cultureFit = isNaN(rawFit) ? 50 : Math.max(0, Math.min(100, Math.round(rawFit)));
+  const rawFit = parsed.profileAlignmentEstimate;
+  const profileAlignmentEstimate = typeof rawFit === 'number' && Number.isFinite(rawFit)
+    ? Math.max(0, Math.min(100, Math.round(rawFit)))
+    : null;
 
   const redFlags = Array.isArray(parsed.redFlags)
     ? parsed.redFlags.map((x: any) => String(x).trim()).filter(Boolean)
@@ -641,11 +643,11 @@ function validateJobVetting(parsed: any): JobVetting {
   else if (parsed.recommendation === 'Proceed With Caution') recommendation = 'Proceed With Caution';
 
   return {
-    cultureFit,
-    redFlags: redFlags.length > 0 ? redFlags : ['No critical red flags identified in JD text.'],
-    greenFlags: greenFlags.length > 0 ? greenFlags : ['Standard job requirements and expectations.'],
-    growthTrajectory: String(parsed.growthTrajectory || 'Direct alignment with professional trajectory.'),
-    salaryCompetitiveness: String(parsed.salaryCompetitiveness || 'Standard market compensation.'),
+    profileAlignmentEstimate,
+    redFlags: redFlags.length > 0 ? redFlags : ['No risk signals were identified in this AI review; this does not prove none exist.'],
+    greenFlags: greenFlags.length > 0 ? greenFlags : ['No positive signals were identified in this AI review.'],
+    growthTrajectory: 'AI interpretation — ' + String(parsed.growthTrajectory || 'No clear progression signals were identified in the supplied job description.'),
+    salaryCompetitiveness: 'Not assessed: BYOC has no independent salary-market dataset. Employer-listed compensation, if provided, is not proof of market competitiveness.',
     pros: pros.length > 0 ? pros : ['Clear technological focus'],
     cons: cons.length > 0 ? cons : ['Competitive applicant pool'],
     gapAnalysis: {
@@ -666,14 +668,25 @@ export async function vetJobWithGroq(
   masterResume: MasterResume | null,
   apiKey?: string
 ): Promise<JobVetting> {
-  const hasResume = Boolean(masterResume && masterResume.experiences.length > 0);
+  const hasResume = Boolean(masterResume && (
+    masterResume.summary?.trim() ||
+    masterResume.rawText?.trim() ||
+    masterResume.experiences?.length ||
+    masterResume.education?.length ||
+    masterResume.projects?.length ||
+    Object.values(masterResume.skills || {}).some((items) => items?.length)
+  ));
 
-  const systemPrompt = `You are an elite executive career strategist and job vetting analyst.
+  const systemPrompt = `You are a careful career-evidence analyst.
 ${SYSTEMIC_AUTHENTICITY_FILTER}
-Analyze the provided job description and candidate profile. Evaluate cultural alignment, compensation transparency, red flags, green flags, and requirement gaps with brutal realism.
-You must respond with valid JSON strictly matching this schema:
+Use only the supplied job description and candidate profile. Do not infer company culture, actual management quality, employer legitimacy, salary-market competitiveness, hiring probability, or future career outcomes.
+A profile alignment estimate is an AI comparison of the supplied profile evidence with the supplied job requirements, not a verified match, hiring prediction, or culture score. Return null if profile evidence or job requirements are insufficient.
+Red flags and positive signals must be phrased as observations or omissions in the supplied job description, not as proven facts about the employer.
+Growth notes must be explicitly labelled as interpretation and grounded only in responsibilities or progression language stated in the job description.
+Do not assess salary-market competitiveness. The application will show that it is not assessed because BYOC has no independent salary-market dataset.
+Separate explicit evidence from interpretation. Do not invent missing facts. Respond with valid JSON strictly matching this schema:
 {
-  "cultureFit": number (0-100),
+  "profileAlignmentEstimate": number | null,
   "redFlags": string[],
   "greenFlags": string[],
   "growthTrajectory": string,
@@ -702,8 +715,10 @@ ${hasResume ? JSON.stringify({
   headline: masterResume?.headline,
   summary: masterResume?.summary,
   skills: masterResume?.skills,
-  experience: masterResume?.experiences.map(e => ({ role: e.role, company: e.company, bullets: e.bullets }))
-}) : 'No candidate resume uploaded yet. Perform objective JD market vetting.'}`;
+  experience: masterResume?.experiences?.map(e => ({ role: e.role, company: e.company, bullets: e.bullets })),
+  education: masterResume?.education,
+  projects: masterResume?.projects
+}) : 'No candidate career profile supplied. Do not make candidate-fit claims.'}`;
 
   const rawJson = await callGroqChat(systemPrompt, userPrompt, apiKey);
 
