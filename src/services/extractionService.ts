@@ -355,40 +355,35 @@ function decodeXmlEntities(xml: string): string {
 function extractParagraphsFromDocumentXml(xml: string): string {
   const paragraphBlocks = xml.split(/<\/w:p>/i);
   const lines: string[] = [];
+  const tokenRegex = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab(?:\s[^>]*)?\/>|<w:br(?:\s[^>]*)?\/>/gi;
 
   for (const block of paragraphBlocks) {
-    // Preserve tabs/line breaks within a paragraph while collecting <w:t> runs
-    const normalizedBlock = block
-      .replace(/<w:tab(?:\s[^>]*)?\/>/gi, ' ')
-      .replace(/<w:br(?:\s[^>]*)?\/>/gi, '\n');
-
-    const wtRegex = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi;
     const pieces: string[] = [];
     let match: RegExpExecArray | null;
-    while ((match = wtRegex.exec(normalizedBlock)) !== null) {
-      if (match[1]) {
+    tokenRegex.lastIndex = 0;
+    while ((match = tokenRegex.exec(block)) !== null) {
+      if (match[1] !== undefined) {
         pieces.push(decodeXmlEntities(match[1]));
+      } else if (/^<w:tab/i.test(match[0])) {
+        pieces.push('\t');
+      } else {
+        pieces.push('\n');
       }
     }
 
-    const line = pieces.join('').replace(/[ \t]+/g, ' ').trim();
-    if (line) {
-      lines.push(line);
-    }
+    let line = pieces.join('').replace(/[ \t]+/g, ' ').trim();
+    if (line && /<w:numPr\b/i.test(block)) line = '• ' + line;
+    if (line) lines.push(line);
   }
 
-  if (lines.length > 0) {
-    return lines.join('\n');
-  }
+  if (lines.length > 0) return lines.join('\n');
 
-  // Fallback for document.xml without standard </w:p> wrappers
-  const wtRegex = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi;
+  // Fallback for non-standard XML fragments without paragraph wrappers.
+  const fallbackRegex = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi;
   const fallbackPieces: string[] = [];
   let fallbackMatch: RegExpExecArray | null;
-  while ((fallbackMatch = wtRegex.exec(xml)) !== null) {
-    if (fallbackMatch[1]) {
-      fallbackPieces.push(decodeXmlEntities(fallbackMatch[1]));
-    }
+  while ((fallbackMatch = fallbackRegex.exec(xml)) !== null) {
+    if (fallbackMatch[1] !== undefined) fallbackPieces.push(decodeXmlEntities(fallbackMatch[1]));
   }
   return fallbackPieces.join(' ').trim();
 }
