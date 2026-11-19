@@ -231,18 +231,21 @@ export const IntakeTab: React.FC = () => {
     setIsAiStructuring(true);
     setAiStructuringError(null);
     try {
-      const reviewedSource = applyResumeIntakeReviewEdits(stagedParsedResume, {
+      const reviewEdits = {
         name: editableName,
         email: editableEmail,
         headline: editableHeadline,
         summary: editableStagedSummary
-      });
+      };
+      const reviewedSource = applyResumeIntakeReviewEdits(stagedParsedResume, reviewEdits);
       const structured = await parseResumeWithGroq(reviewedSource, groqApiKey);
-      setStagedParsedResume(structured);
-      setEditableStagedSummary(structured.summary);
-      setEditableHeadline(structured.headline);
-      setEditableName(structured.contactInfo.name || '');
-      setEditableEmail(structured.contactInfo.email || '');
+      // AI output may misread contact or headline fields; explicit user corrections win.
+      const reviewedStructured = applyResumeIntakeReviewEdits(structured, reviewEdits);
+      setStagedParsedResume(reviewedStructured);
+      setEditableStagedSummary(reviewedStructured.summary);
+      setEditableHeadline(reviewedStructured.headline);
+      setEditableName(reviewedStructured.contactInfo.name || '');
+      setEditableEmail(reviewedStructured.contactInfo.email || '');
       addToast({
         type: 'info',
         title: 'AI Structure Ready for Review',
