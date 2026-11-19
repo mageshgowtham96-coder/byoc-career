@@ -207,4 +207,25 @@ Commerce graduate with project experience.`);
     expect(parsed.contactInfo.name).toBe('ஆஷா ராவ்');
     expect(parsed.contactInfo.location).toBe('Chennai, India');
   });
+
+  it('does not treat an email provider or social profile URL as a personal portfolio', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+asha@gmail.com
+https://www.linkedin.com/in/asha-rao
+https://github.com/asha-rao
+Professional Summary
+Commerce graduate with project experience.`);
+    expect(parsed.contactInfo.portfolio).toBe('');
+    expect(parsed.contactInfo.linkedin).toContain('linkedin.com/in/asha-rao');
+    expect(parsed.contactInfo.github).toContain('github.com/asha-rao');
+  });
+
+  it('extracts a portfolio URL only when explicitly labelled or clearly present in the header', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+asha@gmail.com
+Portfolio: asha.dev
+Professional Summary
+Commerce graduate with project experience.`);
+    expect(parsed.contactInfo.portfolio).toBe('asha.dev');
+  });
 });
