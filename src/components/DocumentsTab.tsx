@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useWizardStore } from '../store/useWizardStore';
+import { dispatchExportFile } from '../services/exporterService';
 import {
   askPdfQuestion,
   extractPdfDocument,
@@ -17,13 +18,9 @@ import {
   AlertTriangle, Loader2, X, BookOpen
 } from 'lucide-react';
 
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+async function dispatchPdfExport(blob: Blob, filename: string, addToast: (toast: { type: 'success' | 'error' | 'info' | 'warning'; message: string }) => void) {
+  const completed = await dispatchExportFile(blob, filename, 'application/pdf');
+  if (!completed) addToast({ type: 'info', message: 'PDF export was cancelled or could not be started.' });
 }
 
 export const DocumentsTab: React.FC = () => {
@@ -98,7 +95,7 @@ export const DocumentsTab: React.FC = () => {
     if (!file) return;
     try {
       const blob = await rotatePdfPage(file, page, 90);
-      downloadBlob(blob, file.name.replace(/\.pdf$/i, '') + '-rotated.pdf');
+      void dispatchPdfExport(blob, file.name.replace(/\.pdf$/i, '') + '-rotated.pdf', addToast);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not rotate the page.');
     }
@@ -108,7 +105,7 @@ export const DocumentsTab: React.FC = () => {
     if (!file) return;
     try {
       const blob = await extractPdfPages(file, [page]);
-      downloadBlob(blob, file.name.replace(/\.pdf$/i, '') + `-page-${page}.pdf`);
+      void dispatchPdfExport(blob, file.name.replace(/\.pdf$/i, '') + `-page-${page}.pdf`, addToast);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not extract this page.');
     }
@@ -117,7 +114,7 @@ export const DocumentsTab: React.FC = () => {
   const runMerge = async () => {
     try {
       const blob = await mergePdfFiles(mergeFiles);
-      downloadBlob(blob, 'byoc-merged-document.pdf');
+      void dispatchPdfExport(blob, 'byoc-merged-document.pdf', addToast);
       setMergeFiles([]);
       if (mergeRef.current) mergeRef.current.value = '';
     } catch (err: unknown) {
