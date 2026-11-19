@@ -434,8 +434,19 @@ export const IntakeTab: React.FC = () => {
             Review Ingested Evidence Slab
           </h3>
           <p className="text-xs text-slate-400 mt-0.5 mb-4">
-            Verify parsed metrics and layout bounds before committing to your master store.
+            Check the extracted information. You can edit every section before approving it; BYOC will not change your active Master Profile until you confirm.
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              setCareerFormDraft(createCareerDraftFromMasterResume(localStagedProfile || stagedParsedResume));
+              setShowGuidedBuilder(true);
+            }}
+            className="mb-5 inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-200 hover:bg-sky-500/20"
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+            Edit all extracted details
+          </button>
 
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
@@ -1079,9 +1090,9 @@ export const IntakeTab: React.FC = () => {
 
       {showGuidedBuilder && (
         <GuidedMasterResumeBuilder
-          initialDraft={careerFormDraft || (masterResume ? createCareerDraftFromMasterResume(masterResume) : null)}
+          initialDraft={careerFormDraft || (stagedParsedResume ? createCareerDraftFromMasterResume(localStagedProfile || stagedParsedResume) : masterResume ? createCareerDraftFromMasterResume(masterResume) : null)}
           groqApiKey={groqApiKey}
-          isEditingExisting={Boolean(masterResume)}
+          isEditingExisting={Boolean(masterResume || stagedParsedResume)}
           onDraftChange={setCareerFormDraft}
           onComplete={handleGuidedBuilderComplete}
           onCancel={() => setShowGuidedBuilder(false)}
