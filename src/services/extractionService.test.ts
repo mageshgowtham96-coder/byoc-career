@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractResumeFile, parseRawResumeToStructured } from './extractionService';
+import { extractExternalHyperlinkTargets, extractResumeFile, parseRawResumeToStructured } from './extractionService';
 
 function makeOversizedDocxArchive(): Uint8Array {
   const entryName = new TextEncoder().encode('word/document.xml');
@@ -111,6 +111,19 @@ function makeStoredDocxArchive(entries: Array<{ name: string; xml: string }>): U
   return result;
 }
 
+describe('DOCX external hyperlink relationships', () => {
+  it('extracts only external HTTP(S) relationships', () => {
+    const targets = extractExternalHyperlinkTargets(`<Relationships>
+      <Relationship Id="rId1" Target="https://www.linkedin.com/in/asha-rao" TargetMode="External"/>
+      <Relationship Id="rId2" Target="file:///private/path" TargetMode="External"/>
+      <Relationship Id="rId3" Target="https://example.com/internal"/>
+    </Relationships>`);
+    expect(targets.get('rId1')).toBe('https://www.linkedin.com/in/asha-rao');
+    expect(targets.has('rId2')).toBe(false);
+    expect(targets.has('rId3')).toBe(false);
+  });
+});
+
 describe('DOCX document structure extraction', () => {
   it('includes content from the main document, tables, headers and footers', async () => {
     const xml = (text: string) => `<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:body></w:document>`;
@@ -134,7 +147,7 @@ describe('DOCX document structure extraction', () => {
     expect(result.rawText).toContain('Table role: Risk Analyst');
     expect(result.rawText).toContain('Table employer: Sample Bank');
     expect(result.rawText).toContain('மொழி: தமிழ்');
-    expect(result.rawText).toContain('LinkedIn Profile: https://www.linkedin.com/in/asha-rao');
+    expect(result.rawText).toContain('https://www.linkedin.com/in/asha-rao');
   });
   it('accepts a short but readable resume instead of imposing an arbitrary ten-word minimum', async () => {
     const text = `Asha Rao\nasha@example.com\nSQL`;
