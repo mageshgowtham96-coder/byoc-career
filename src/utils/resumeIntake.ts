@@ -20,10 +20,10 @@ export function applyResumeIntakeReviewEdits(
     ...profile,
     contactInfo: {
       ...profile.contactInfo,
-      name: edits.name.trim() || profile.contactInfo.name,
-      email: edits.email.trim() || profile.contactInfo.email
+      name: edits.name.trim(),
+      email: edits.email.trim()
     },
-    headline: edits.headline.trim() || profile.headline,
-    summary: edits.summary.trim() || profile.summary
+    headline: edits.headline.trim(),
+    summary: edits.summary.trim()
   };
 }
