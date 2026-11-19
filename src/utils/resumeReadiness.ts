@@ -48,9 +48,11 @@ export function assessResumeReadiness(resume: MasterResume | null | undefined): 
   const experiences = Array.isArray(resume.experiences) ? resume.experiences : [];
   const projects = Array.isArray(resume.projects) ? resume.projects : [];
   const education = Array.isArray(resume.education) ? resume.education : [];
-  const hasCareerEvidence = experiences.length > 0 || projects.length > 0 || education.length > 0;
+  const hasCareerEvidence = experiences.length > 0 || projects.length > 0 || education.length > 0 ||
+    (Array.isArray(resume.certifications) && resume.certifications.length > 0) ||
+    Boolean(resume.rawText?.trim() || resume.headline?.trim() || resume.summary?.trim());
   if (hasCareerEvidence) score += 25;
-  else missingSections.push('work, project or education evidence');
+  else missingSections.push('career history, projects, education, certifications or other profile evidence');
 
   const hasContributionEvidence = experiences.some((experience) =>
     Array.isArray(experience.bullets) && experience.bullets.some((bullet) => bullet.trim())
