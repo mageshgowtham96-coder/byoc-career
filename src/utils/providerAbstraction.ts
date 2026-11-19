@@ -4,12 +4,12 @@
  * Purpose: Clean provider-agnostic architecture for AI model integration.
  * Strategy:
  *   - Primary provider: Groq (user-configured API key)
- *   - Secondary free providers: OpenRouter, Gemini (via @google/genai)
+ *   - Experimental adapters: OpenRouter and Gemini (not enabled in BYOC's user-facing browser workflow)
  *   - Provider switching requires explicit user approval — never silent
  *   - All providers share the same chat completion interface contract
  *   - API keys stored exclusively in AES-256-GCM encrypted vault
  *   - Provider diagnostics: connection test, model list, rate-limit status
- *   - Graceful degradation: if primary provider fails, fall back to secondary
+ *   - No silent cross-provider failover: candidate data is not forwarded to a second company without consent
  *   - No provider is assumed operational without verification
  *
  * Contract:
@@ -120,7 +120,7 @@ export function isProviderClientUsable(name: keyof typeof PROVIDER_CONFIGS): boo
   if (!cfg) return false;
   // Gemini is intentionally disabled in BYOC's browser-only release until a
   // server-side proxy or explicit browser-key risk acceptance is implemented.
-  return name === 'groq' || name === 'openrouter';
+  return name === 'groq';
 }
 
 /**
@@ -438,7 +438,7 @@ export class ProviderManager {
   }
 
   /**
-   * Attempt chat with the selected provider, falling back if needed
+   * Attempt chat only with the explicitly selected provider
    */
   async attemptChat(
     systemPrompt: string,
