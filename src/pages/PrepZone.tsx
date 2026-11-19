@@ -22,7 +22,8 @@ import {
   DollarSign
 } from 'lucide-react';
 import { tailorResumeWithGroq, formatGroqError } from '../services/groqService';
-import type { PracticeQuestion } from '../types';
+import { buildDomainPracticeQuestions } from '../utils/domainPracticeQuestions';
+import { hasStructuredCareerEvidence } from '../utils/resumeReadiness';
 
 export const PrepZone: React.FC = () => {
   const {
@@ -38,7 +39,7 @@ export const PrepZone: React.FC = () => {
   } = useWizardStore();
 
   const [activeTab, setActiveTabState] = useState<'domain' | 'rolespecific'>('domain');
-  const [selectedCategory, setSelectedCategory] = useState<'All' | 'Architecture' | 'Technical' | 'Behavioral' | 'Leadership'>('All');
+  const [selectedCategory, setSelectedCategory] = useState<'All' | 'Technical' | 'Behavioral' | 'Situational' | 'Role-Specific'>('All');
   const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>('q-arch-1');
   const [candidateNotes, setCandidateNotes] = useState<Record<string, string>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -48,165 +49,9 @@ export const PrepZone: React.FC = () => {
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || null;
   const currentTailored = selectedJob ? tailoredArtifacts[selectedJob.id] || null : null;
 
-  const candidateSkills = (masterResume?.skills.technical || [])
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const primaryDomain =
-    masterResume?.headline?.trim() ||
-    masterResume?.experiences[0]?.role?.trim() ||
-    '';
-  const primaryCompany = masterResume?.experiences[0]?.company?.trim() || '';
-  const experienceBullets = (masterResume?.experiences || []).flatMap((exp) =>
-    (exp.bullets || [])
-      .map((b) => ({
-        bullet: b.trim(),
-        company: exp.company?.trim() || ''
-      }))
-      .filter((entry) => Boolean(entry.bullet))
-  );
-  const primaryExp = experienceBullets[0] || null;
-  const secondaryExp = experienceBullets[1] || primaryExp;
-
-  const hasSkills = candidateSkills.length > 0;
-  const hasExperience = experienceBullets.length > 0 || Boolean(primaryCompany);
-  const hasCareerProfile = Boolean(
-    masterResume &&
-      (primaryDomain ||
-        hasSkills ||
-        hasExperience ||
-        masterResume.summary?.trim() ||
-        masterResume.rawText?.trim())
-  );
-
-  const skill1 = candidateSkills[0] || '';
-  const skill2 = candidateSkills[1] || '';
-  const skill3 = candidateSkills[2] || '';
-
-  interface DomainPracticeCard extends PracticeQuestion {
-    isGenericPractice: boolean;
-    hasEvidence: boolean;
-  }
-
-  const domainQuestions: DomainPracticeCard[] = [
-    {
-      id: 'q-arch-1',
-      category: 'Architecture',
-      title: skill1
-        ? `${skill1} & Scalable Project Strategy`
-        : 'Generic Practice: Scalable System & Workflow Strategy',
-      question: skill1
-        ? `How do you design scalable, maintainable workflows leveraging ${skill1} while balancing operational trade-offs, resource constraints, and quality consistency?`
-        : 'Generic Practice: How do you design scalable, maintainable workflows while balancing operational trade-offs, resource constraints, and quality consistency?',
-      difficulty: 'Staff / Lead',
-      keyConcepts: [
-        ...(skill1 ? [skill1] : []),
-        'Modularity & Boundaries',
-        'Fault Tolerance',
-        'Lifecycle Planning'
-      ],
-      suggestedFramework: 'Architecture Framework (Context -> Requirements -> Trade-Offs -> Implementation -> Metrics)',
-      sampleEvidencePrompt: primaryExp
-        ? `Ground your response in your recorded experience${primaryExp.company ? ` at ${primaryExp.company}` : ''}: "${primaryExp.bullet}".`
-        : '',
-      isGenericPractice: !skill1,
-      hasEvidence: Boolean(primaryExp)
-    },
-    {
-      id: 'q-arch-2',
-      category: 'Architecture',
-      title: skill2
-        ? `${skill2} Lifecycle & Failure Mitigation`
-        : 'Generic Practice: Lifecycle & Failure Mitigation',
-      question: skill2
-        ? `Walk through your strategic approach for managing high-reliability workflows utilizing ${skill2} when handling unexpected upstream changes or bottlenecks.`
-        : 'Generic Practice: Walk through your strategic approach for managing high-reliability workflows when handling unexpected upstream changes or bottlenecks.',
-      difficulty: 'Staff / Lead',
-      keyConcepts: [
-        ...(skill2 ? [skill2] : []),
-        'Resilience Patterns',
-        'Validation Boundaries',
-        'Observability'
-      ],
-      suggestedFramework: 'Resilience Paradigm (Proactive Isolation -> Graceful Degradation -> Recovery Strategy)',
-      sampleEvidencePrompt: secondaryExp
-        ? `Cite your recorded experience detail${secondaryExp.company ? ` from ${secondaryExp.company}` : ''}: "${secondaryExp.bullet}".`
-        : '',
-      isGenericPractice: !skill2,
-      hasEvidence: Boolean(secondaryExp)
-    },
-    {
-      id: 'q-tech-1',
-      category: 'Technical',
-      title:
-        skill1 && skill3
-          ? `${skill1} & ${skill3} Performance Tuning`
-          : skill1
-          ? `${skill1} Performance Tuning`
-          : 'Generic Practice: Performance Profiling & Diagnostics',
-      question:
-        skill1 && skill3
-          ? `When profiling bottlenecked operations involving ${skill1} and ${skill3}, what instrumentation and diagnostic steps do you execute to pinpoint and eliminate inefficiencies?`
-          : skill1
-          ? `When profiling bottlenecked operations involving ${skill1}, what instrumentation and diagnostic steps do you execute to pinpoint and eliminate inefficiencies?`
-          : 'Generic Practice: When profiling bottlenecked operations, what instrumentation and diagnostic steps do you execute to pinpoint and eliminate inefficiencies?',
-      difficulty: 'Senior',
-      keyConcepts: ['Telemetry & Profiling', 'Root Cause Analysis', 'Targeted Optimization', 'Regression Prevention'],
-      suggestedFramework: 'Optimization Loop (Baseline Benchmark -> Trace Profiling -> Targeted Refactor -> Verification)',
-      sampleEvidencePrompt: hasSkills
-        ? `Leverage your listed technical skills: ${candidateSkills.slice(0, 4).join(', ')}.`
-        : '',
-      isGenericPractice: !skill1,
-      hasEvidence: hasSkills
-    },
-    {
-      id: 'q-tech-2',
-      category: 'Technical',
-      title: primaryDomain
-        ? `Quality Assurance & Rigorous Testing in ${primaryDomain}`
-        : 'Generic Practice: Quality Assurance & Release Validation',
-      question: primaryDomain
-        ? `How do you structure validation, test automation, and release criteria in ${primaryDomain} to ensure zero regression in mission-critical environments?`
-        : 'Generic Practice: How do you structure validation, test automation, and release criteria to ensure zero regression in mission-critical environments?',
-      difficulty: 'Senior',
-      keyConcepts: ['Automated Testing Suites', 'Boundary Validation', 'CI/CD Gateways', 'Rollback Preparedness'],
-      suggestedFramework: 'Quality Matrix (Unit Contract -> Integration Validation -> End-to-End Auditing)',
-      sampleEvidencePrompt: primaryCompany
-        ? `Reference your recorded deliverables from ${primaryCompany}.`
-        : primaryExp
-        ? `Reference your recorded deliverable: "${primaryExp.bullet}".`
-        : '',
-      isGenericPractice: !primaryDomain,
-      hasEvidence: Boolean(primaryCompany || primaryExp)
-    },
-    {
-      id: 'q-behav-1',
-      category: 'Behavioral',
-      title: 'Generic Practice: Managing Competing Stakeholder Priorities & Deadlines',
-      question: 'Generic Practice: Describe a situation where cross-functional stakeholders had conflicting objectives or demanding deadlines. How did you negotiate scope and preserve alignment?',
-      difficulty: 'Senior',
-      keyConcepts: ['STAR Method', 'Stakeholder Negotiation', 'Data-Driven Trade-offs', 'Transparent Communication'],
-      suggestedFramework: 'STAR Method (Situation -> Task -> Action -> Quantifiable Result)',
-      sampleEvidencePrompt: primaryCompany
-        ? `Focus on genuine collaboration during your recorded tenure at ${primaryCompany}.`
-        : '',
-      isGenericPractice: true,
-      hasEvidence: Boolean(primaryCompany)
-    },
-    {
-      id: 'q-lead-1',
-      category: 'Leadership',
-      title: 'Generic Practice: Technical Mentorship & Elevating Team Standards',
-      question: 'Generic Practice: How do you foster technical autonomy and raise the quality bar across your team? Describe your approach to constructive reviews and knowledge sharing.',
-      difficulty: 'Staff / Lead',
-      keyConcepts: ['Scaffolded Autonomy', 'Constructive Review Culture', 'Knowledge Documentation', 'Mentorship'],
-      suggestedFramework: 'Empowerment Framework (Scaffolding -> Delegated Ownership -> Retrospective Coaching)',
-      sampleEvidencePrompt: primaryCompany
-        ? `Highlight your recorded collaboration examples at ${primaryCompany}.`
-        : '',
-      isGenericPractice: true,
-      hasEvidence: Boolean(primaryCompany)
-    }
-  ];
+  const hasStructuredEvidence = hasStructuredCareerEvidence(masterResume);
+  const hasSkills = Boolean(masterResume && Object.values(masterResume.skills).some((items) => items.length > 0));
+  const domainQuestions = buildDomainPracticeQuestions(masterResume, selectedJob);
 
   const filteredDomainQuestions = domainQuestions.filter((q) =>
     selectedCategory === 'All' ? true : q.category === selectedCategory
@@ -221,10 +66,10 @@ export const PrepZone: React.FC = () => {
   };
 
   const handleGenerateRolePrep = async () => {
-    if (!selectedJob || !masterResume) {
+    if (!selectedJob || !hasStructuredEvidence) {
       addToast({
         type: 'warning',
-        message: 'Ingest your Master Resume and select a target job first.'
+        message: 'Add and confirm structured career evidence in Intake, then select a target job before generating personalized interview questions.'
       });
       return;
     }
@@ -258,16 +103,16 @@ export const PrepZone: React.FC = () => {
               Interview Mastery Suite
             </span>
             <span className="text-xs text-slate-400 font-mono">
-              Zero-Hallucination Preparation
+              Evidence-Anchored Preparation
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <span>Prep-Zone & Interview Intelligence</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            {hasCareerProfile
-              ? 'Domain practice and role-specific interview preparation anchored in your Master Resume.'
-              : 'Generic practice exercises until you ingest a master resume in Intake.'}
+            {hasStructuredEvidence
+              ? 'Practice prompts adapt to your selected role and the structured evidence in your Master Resume.'
+              : 'Generic practice only until you add and confirm structured career evidence in Intake.'}
           </p>
         </div>
 
@@ -283,7 +128,7 @@ export const PrepZone: React.FC = () => {
             }`}
           >
             <Code2 className="w-3.5 h-3.5" />
-            <span>Domain Role Practice</span>
+            <span>General Career Practice</span>
           </button>
           <button
             type="button"
@@ -306,10 +151,10 @@ export const PrepZone: React.FC = () => {
           {/* Domain Overview Slab */}
           <div className="p-5 rounded-3xl bg-slate-800/90 border border-slate-700 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              {hasCareerProfile ? (
+              {hasStructuredEvidence ? (
                 <>
                   <span className="text-[10px] font-mono font-bold text-sky-400 uppercase tracking-wider block mb-1">
-                    Active Domain Profile
+                    Active Career Profile
                   </span>
                   <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2 flex-wrap">
                     <span>{primaryDomain || 'Master Profile Loaded'}</span>
@@ -320,13 +165,13 @@ export const PrepZone: React.FC = () => {
                           : 'bg-amber-500/15 border-amber-500/30 text-amber-300'
                       }`}
                     >
-                      {hasSkills ? 'Skills in Master Resume' : 'Add Technical Skills in Intake'}
+                      {hasSkills ? 'Skills in Master Resume' : 'Add skills or evidence in Intake'}
                     </span>
                   </h3>
                   <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
                     {hasSkills
-                      ? `Practicing architecture, quality workflows, and execution depth grounded in your Master Resume${primaryDomain ? ` (${primaryDomain})` : ''}.`
-                      : 'Your master profile is loaded without technical skills listed. Prompts lacking specific profile evidence are labeled as Generic Practice.'}
+                      ? 'Questions are based on your selected role and recorded skills, projects, education or experience.'
+                      : 'Your profile does not yet contain structured career evidence. The prompts remain generic and do not assume your background.'}
                   </p>
                 </>
               ) : (
@@ -356,7 +201,7 @@ export const PrepZone: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-              {(['All', 'Architecture', 'Technical', 'Behavioral', 'Leadership'] as const).map((cat) => (
+              {(['All', 'Role-Specific', 'Technical', 'Behavioral', 'Situational'] as const).map((cat) => (
                 <button
                   key={cat}
                   type="button"
@@ -405,7 +250,7 @@ export const PrepZone: React.FC = () => {
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-mono text-emerald-300 font-semibold">
-                            Profile Skill Prompt
+                            Profile Evidence Prompt
                           </span>
                         )}
                         <span className="text-xs font-mono text-slate-500">•</span>
@@ -428,7 +273,7 @@ export const PrepZone: React.FC = () => {
                       {/* Key Concepts */}
                       <div>
                         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                          Critical Architectural Concepts
+                          Key Concepts
                         </span>
                         <div className="flex flex-wrap gap-1.5">
                           {q.keyConcepts.map((concept, i) => (
@@ -585,7 +430,7 @@ export const PrepZone: React.FC = () => {
                     </p>
                   </div>
 
-                  {hasCareerProfile && (
+                  {hasStructuredEvidence && (
                     <button
                       type="button"
                       disabled={isGeneratingPrep || !groqApiKey.trim()}
@@ -674,13 +519,13 @@ export const PrepZone: React.FC = () => {
                 ) : (
                   <div className="p-3.5 rounded-2xl bg-slate-900/70 border border-slate-800 text-xs text-slate-400 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <span>
-                      {!hasCareerProfile
-                        ? 'Upload your Master Resume in Intake first so AI prep questions anchor strictly to your recorded experience.'
+                      {!hasStructuredEvidence
+                        ? 'Add and confirm structured career evidence in Intake first so AI prep questions can be grounded in your actual profile.'
                         : !groqApiKey.trim()
                         ? 'No Groq API key configured. Add your key in Settings to generate AI prep questions, or use the offline interview blueprint and Domain Role Practice below.'
                         : 'No AI prep questions generated for this role yet. Click "Generate AI Prep Questions" above or synthesize a 3-variant kit in Customization.'}
                     </span>
-                    {!hasCareerProfile ? (
+                    {!hasStructuredEvidence ? (
                       <button
                         type="button"
                         onClick={() => setActiveTab('intake')}
