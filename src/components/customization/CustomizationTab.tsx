@@ -881,7 +881,7 @@ export const CustomizationTab: React.FC = () => {
               <input
                 type="checkbox"
                 checked={Boolean(currentArtifact.reviewConfirmed)}
-                onChange={(event) => setTailoredArtifactReviewConfirmed(selectedJob.id, event.target.checked)}
+                onChange={(event) => setTailoredArtifactReviewConfirmed(currentArtifact.jobId, event.target.checked)}
                 className="mt-0.5 accent-emerald-500"
               />
               <span className="text-[11px] leading-relaxed text-slate-300">
