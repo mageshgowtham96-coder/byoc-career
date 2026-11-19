@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { callGroqChat, getGroqRetryDelayMs, isRetryableGroqStatus, selectGroqChatModel } from './groqService';
+import { callGroqChat, getGroqRetryDelayMs, isAbortError, isRetryableGroqStatus, selectGroqChatModel } from './groqService';
 
 const fetchMock = vi.fn();
 beforeEach(() => { vi.stubGlobal('fetch', fetchMock); fetchMock.mockReset(); });
@@ -93,5 +93,13 @@ describe('Groq chat request resilience', () => {
     await expect(callGroqChat('system', 'user', 'test-key', 'openai/gpt-oss-120b'))
       .rejects.toMatchObject({ code: 'OUTPUT_TRUNCATED' });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('browser error normalization', () => {
+  it('recognizes AbortError DOMExceptions and plain named error objects', () => {
+    expect(isAbortError(new DOMException('Request aborted', 'AbortError'))).toBe(true);
+    expect(isAbortError({ name: 'AbortError' })).toBe(true);
+    expect(isAbortError(new Error('ordinary error'))).toBe(false);
   });
 });
