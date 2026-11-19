@@ -377,24 +377,25 @@ function extractParagraphsFromDocumentXml(xml: string, hyperlinkTargets: Map<str
 
   for (const block of paragraphBlocks) {
     const pieces: string[] = [];
-    let match: RegExpExecArray | null;
     tokenRegex.lastIndex = 0;
-    while ((match = tokenRegex.exec(block)) !== null) {
-      if (match[1] !== undefined) {
-        const relationshipId = match[1].match(/\br:id="([^"]+)"/i)?.[1];
-        const visibleText = Array.from(match[2].matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi))
+    let tokenMatch = tokenRegex.exec(block);
+    while (tokenMatch !== null) {
+      if (tokenMatch[1] !== undefined) {
+        const relationshipId = tokenMatch[1].match(/\br:id="([^"]+)"/i)?.[1];
+        const visibleText = Array.from(tokenMatch[2].matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi))
           .map((item) => decodeXmlEntities(item[1]))
           .join('')
           .trim();
         const target = relationshipId ? hyperlinkTargets.get(relationshipId) : undefined;
         pieces.push(target && visibleText ? visibleText + ': ' + target : visibleText || target || '');
-      } else if (match[3] !== undefined) {
-        pieces.push(decodeXmlEntities(match[3]));
-      } else if (/^<w:tab/i.test(match[0])) {
+      } else if (tokenMatch[3] !== undefined) {
+        pieces.push(decodeXmlEntities(tokenMatch[3]));
+      } else if (/^<w:tab/i.test(tokenMatch[0])) {
         pieces.push('\t');
       } else {
         pieces.push('\n');
       }
+      tokenMatch = tokenRegex.exec(block);
     }
 
     let line = pieces.join('').replace(/[ \t]+/g, ' ').trim();
