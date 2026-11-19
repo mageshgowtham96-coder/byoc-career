@@ -145,11 +145,11 @@ export async function askPdfQuestion(
     .sort((a, b) => a.page.pageNumber - b.page.pageNumber);
   let context = '';
   for (const item of selected) {
-    const excerpt = \`[Page \${item.page.pageNumber}] \${item.page.text.slice(0, 2500)}\`;
+    const excerpt = '[Page ' + item.page.pageNumber + '] ' + item.page.text.slice(0, 2500);
     if (context.length + excerpt.length > 30000) break;
-    context += \`\\n\\n\${excerpt}\`;
+    context += '\n\n' + excerpt;
   }
-  const user = \`Document name: \${document.name}\\nRelevant document excerpts (page-labelled):\${context}\\n\\nQuestion: \${cleanQuestion}\`;
+  const user = 'Document name: ' + document.name + '\nRelevant document excerpts (page-labelled):' + context + '\n\nQuestion: ' + cleanQuestion;
   const raw = await callGroqChat(system, user, apiKey);
   let parsed: unknown;
   try {
