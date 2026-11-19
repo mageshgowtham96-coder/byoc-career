@@ -184,3 +184,27 @@ Bachelor of Commerce - City University - 2025`);
     expect(parsed.skills.technical).toEqual(expect.arrayContaining(['Go', 'R', 'C', 'SQL']));
   });
 });
+
+
+describe('resume identity and location extraction', () => {
+  it('does not mistake a role headline for a candidate name and extracts a clear header location', () => {
+    const parsed = parseRawResumeToStructured(`Software Engineer
+Chennai, Tamil Nadu, India
+asha@example.com
+Professional Summary
+Builds reliable software systems.`);
+    expect(parsed.contactInfo.name).toBe('');
+    expect(parsed.headline).toBe('Software Engineer');
+    expect(parsed.contactInfo.location).toBe('Chennai, Tamil Nadu, India');
+  });
+
+  it('extracts an explicitly labelled location while preserving a Unicode candidate name', () => {
+    const parsed = parseRawResumeToStructured(`ஆஷா ராவ்
+Location: Chennai, India
+asha@example.com
+Professional Summary
+Commerce graduate with project experience.`);
+    expect(parsed.contactInfo.name).toBe('ஆஷா ராவ்');
+    expect(parsed.contactInfo.location).toBe('Chennai, India');
+  });
+});
