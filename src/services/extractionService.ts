@@ -548,6 +548,10 @@ export function parseRawResumeToStructured(
 ): MasterResume {
   const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
 
+  // Exact or explicitly delimited headings only; ordinary prose is never a boundary.
+  const sectionHeadingPattern = /^(?:summary|profile|professional summary|about me|overview|executive summary|experience|work experience|professional experience|employment history|work history|education|academic background|academics|qualifications|projects|personal projects|key projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies|awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)(?:\s*(?::|[-–])\s*.*)?$/i;
+  const isResumeSectionHeading = (line: string) => sectionHeadingPattern.test(line.trim());
+
   // 1. Contact Info Extraction (strictly from regex matches)
   const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   const phoneMatch = rawText.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
@@ -589,15 +593,15 @@ export function parseRawResumeToStructured(
     }
   }
 
-  const summaryHeaderIdx = lines.findIndex((l) =>
-    /^(summary|profile|professional summary|about me|overview|executive summary)/i.test(l)
+  const summaryHeaderIdx = lines.findIndex((line) =>
+    /^(?:summary|profile|professional summary|about me|overview|executive summary)(?:\s*(?::|[-–])\s*.*)?$/i.test(line)
   );
 
   if (summaryHeaderIdx !== -1) {
     const summaryLines: string[] = [];
     for (let i = summaryHeaderIdx + 1; i < Math.min(lines.length, summaryHeaderIdx + 6); i++) {
       const line = lines[i];
-      if (/^(experience|work experience|employment|education|skills|projects|certifications)/i.test(line)) {
+      if (isResumeSectionHeading(line)) {
         break;
       }
       summaryLines.push(line);
@@ -641,11 +645,6 @@ export function parseRawResumeToStructured(
       softSkills.push(soft);
     }
   });
-
-  // Section boundaries are exact headings or explicitly delimited inline headings.
-  // Do not treat ordinary content such as "Awards platform migration" as a section.
-  const sectionHeadingPattern = /^(?:summary|profile|professional summary|about me|overview|executive summary|experience|work experience|professional experience|employment history|work history|education|academic background|academics|qualifications|projects|personal projects|key projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies|awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)(?:\s*(?::|[-–])\s*.*)?$/i;
-  const isResumeSectionHeading = (line: string) => sectionHeadingPattern.test(line.trim());
 
   // Match only exact section headings or headings followed by an explicit delimiter.
   // This prevents ordinary prose such as "Awards platform migration" from ending a section.
@@ -696,7 +695,7 @@ export function parseRawResumeToStructured(
 
   // 4. Experiences Extraction (strictly parsed, zero fabrication)
   const experiences: ExperienceItem[] = [];
-  const expIndex = lines.findIndex((l) => /^(experience|work experience|employment history|work history|professional experience)/i.test(l));
+  const expIndex = lines.findIndex((line) => /^(?:experience|work experience|employment history|work history|professional experience)(?:\s*(?::|[-–])\s*.*)?$/i.test(line));
 
   if (expIndex !== -1) {
     const expSlice = lines.slice(expIndex + 1);
@@ -762,7 +761,7 @@ export function parseRawResumeToStructured(
 
   // 5. Education Extraction (strictly parsed, zero fabrication)
   const education: EducationItem[] = [];
-  const eduIndex = lines.findIndex((l) => /^(education|academic background|academics|qualifications)/i.test(l));
+  const eduIndex = lines.findIndex((line) => /^(?:education|academic background|academics|qualifications)(?:\s*(?::|[-–])\s*.*)?$/i.test(line));
 
   if (eduIndex !== -1) {
     const eduSlice = lines.slice(eduIndex + 1);
@@ -786,7 +785,7 @@ export function parseRawResumeToStructured(
 
   // 6. Projects & Certifications (strictly from detected headers, zero fabrication)
   const projects: ProjectItem[] = [];
-  const projIndex = lines.findIndex((l) => /^(projects|personal projects|key projects)/i.test(l));
+  const projIndex = lines.findIndex((line) => /^(?:projects|personal projects|key projects)(?:\s*(?::|[-–])\s*.*)?$/i.test(line));
   if (projIndex !== -1) {
     const projSlice = lines.slice(projIndex + 1);
     let currentProject: ProjectItem | null = null;
@@ -833,7 +832,7 @@ export function parseRawResumeToStructured(
   }
 
   const certifications: CertificationItem[] = [];
-  const certIndex = lines.findIndex((l) => /^(certifications|licenses|certificates)/i.test(l));
+  const certIndex = lines.findIndex((line) => /^(?:certifications|licenses|certificates)(?:\s*(?::|[-–])\s*.*)?$/i.test(line));
   if (certIndex !== -1) {
     const certSlice = lines.slice(certIndex + 1);
     for (let i = 0; i < Math.min(certSlice.length, 10); i++) {
