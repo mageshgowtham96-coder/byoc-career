@@ -15,7 +15,7 @@
 
 ## Phase 3: ATS Analysis and Resume Customization
 - [x] **Customization Tab Suite** — VERIFIED: Full `CustomizationTab.tsx` component integrated with job selection, variant preview, and kit generation.
-- [x] **Three Sibling Resume Variants** — VERIFIED: Generates Variant A (Leadership & Scale), Variant B (Systems & Reliability), and Variant C (ATS Match & Delivery) via Groq AI.
+- [x] **Evidence-Selected Resume Versions** — Updated: Generates only the presentation strategies supported by available profile evidence, plus ATS alignment; no fixed leadership or systems-architecture variants.
 - [x] **Tailored Kit Editing & Preview** — VERIFIED: Full variant switcher, bullet partition/verification resolver (`tailoredBulletResolver.ts`), and cover letter editing.
 - [x] **Material Export (DOCX, TXT, PDF)** — VERIFIED: Export service integrated via `exporterService.ts` for clean DOCX, formatted TXT, and PDF generation.
 - [x] **Evidence-Based ATS Analysis** — VERIFIED: Match rationale and skill highlight verification against Master Profile.
