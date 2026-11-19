@@ -364,7 +364,7 @@ export async function generatePdfResume(artifact: TailoredArtifact, resume: Mast
 
   // Professional Summary
   if (resolved.summary) {
-    drawSectionHeader('Executive Summary');
+    drawSectionHeader('Professional Summary');
     const summaryLines = wrapText(toPdfSafeText(resolved.summary), contentWidth, 9, fontRegular);
     summaryLines.forEach((line) => {
       checkPageSpace(14);
@@ -680,7 +680,7 @@ export async function generateDocxResume(artifact: TailoredArtifact, resume: Mas
   if (resolved.summary) {
     children.push(
       new Paragraph({
-        text: 'EXECUTIVE SUMMARY',
+        text: 'PROFESSIONAL SUMMARY',
         heading: HeadingLevel.HEADING_2,
         spacing: { before: 200, after: 100 }
       })
