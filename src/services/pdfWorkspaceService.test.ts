@@ -5,7 +5,8 @@ import {
   mergePdfs,
   extractPdfPages,
   rotatePdfPage,
-  reorderPdfPages
+  reorderPdfPages,
+  createPdfBlob
 } from './pdfWorkspaceService';
 
 async function makePdf(pageCount = 2): Promise<File> {
@@ -58,6 +59,14 @@ describe('PDF page operations', () => {
     const rotated = await PDFDocument.load(result);
     expect(rotated.getPage(0).getRotation().angle).toBe(0);
     expect(rotated.getPage(1).getRotation().angle).toBe(90);
+  });
+
+  it('rejects merging fewer than two documents', async () => {
+    await expect(mergePdfs([await makePdf(1)])).rejects.toThrow(/at least two PDFs/i);
+  });
+
+  it('returns an application/pdf Blob for downloads', () => {
+    expect(createPdfBlob(new Uint8Array([1, 2, 3])).type).toBe('application/pdf');
   });
 
   it('reorders pages and rejects duplicate or out-of-range selections', async () => {
