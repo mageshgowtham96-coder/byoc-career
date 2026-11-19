@@ -373,7 +373,7 @@ export function calculateHonestMatch(
   const calculatedScore = Math.round((matchedKeywords.length / requiredSkills.length) * 100);
   return {
     score: calculatedScore,
-    statusText: calculatedScore + '% keyword overlap — not a verified qualification match',
+    statusText: calculatedScore + '% keyword overlap — experience and eligibility not assessed',
     matchedKeywords,
     missingKeywords
   };
