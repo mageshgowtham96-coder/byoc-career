@@ -5,6 +5,7 @@ import type {
   JobPosting,
   JobVerificationEvidence,
   TailoredArtifact,
+  InterviewQuestion,
   ApplicationRecord,
   UserWorkspace,
   AppToast,
@@ -195,6 +196,7 @@ interface WizardState {
   // Tailored Artifacts & Sibling Variants
   tailoredArtifacts: Record<string, TailoredArtifact>;
   saveTailoredArtifact: (jobId: string, artifact: TailoredArtifact) => void;
+  saveInterviewPrepQuestions: (jobId: string, questions: InterviewQuestion[]) => void;
   setTailoredArtifactReviewConfirmed: (jobId: string, confirmed: boolean) => void;
   selectTailoredVariant: (jobId: string, variantId: string) => void;
   recordExportedMaterial: (jobId: string, record: Omit<ExportedMaterialRecord, 'id'>) => void;
@@ -648,6 +650,23 @@ export const useWizardStore = create<WizardState>()(
           title: 'Application Kit Saved',
           message: `Ready for ${artifact.jobTitle} at ${artifact.company} in Customization.`
         });
+      },
+      saveInterviewPrepQuestions: (jobId, questions) => {
+        const current = get().tailoredArtifacts[jobId];
+        if (!current) return;
+        set((state) => ({
+          tailoredArtifacts: {
+            ...state.tailoredArtifacts,
+            [jobId]: {
+              ...current,
+              interviewPrepQuestions: questions,
+              variants: current.variants.map((variant) => ({
+                ...variant,
+                interviewPrepQuestions: questions
+              }))
+            }
+          }
+        }));
       },
       setTailoredArtifactReviewConfirmed: (jobId, confirmed) => {
         const current = get().tailoredArtifacts[jobId];
