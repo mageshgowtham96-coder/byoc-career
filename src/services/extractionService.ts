@@ -635,7 +635,7 @@ export function parseRawResumeToStructured(
       !line.includes('http') &&
       !line.includes('/') &&
       !/^(resume|curriculum|cv|summary|experience|education|skills|page)/i.test(line) &&
-      !/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance)\b/i.test(line) &&
+      !/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance|inc|llc|ltd|pvt|company|university|college)\b/i.test(line) &&
       /^[\p{L}\p{M}'’\-]+(?:\s+[\p{L}\p{M}'’\-]+){1,3}$/u.test(line)
     ) {
       detectedName = line;
@@ -650,7 +650,7 @@ export function parseRawResumeToStructured(
     .find((part) => {
       if (part.length < 5 || part.length > 90 || !part.includes(',')) return false;
       if (part.includes('@') || /https?:\/\//i.test(part) || /\d/.test(part)) return false;
-      if (/\b(inc\.?|llc|ltd\.?|limited|corp\.?|corporation|pvt\.?|private limited)\b/i.test(part)) return false;
+      if (/\b(inc\.?|llc|ltd\.?|limited|corp\.?|corporation|pvt\.?|private limited|university|college|institute|technologies|solutions)\b/i.test(part)) return false;
       if (isResumeSectionHeading(part)) return false;
       if (/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance)\b/i.test(part)) return false;
       return part.split(',').filter((item) => item.trim().length > 1).length >= 2;
