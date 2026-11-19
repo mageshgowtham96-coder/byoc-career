@@ -72,7 +72,7 @@ describe('GroqBrowserSearchJobAdapter', () => {
       json: async () => ({
         choices: [{
           message: {
-            content: `${JSON.stringify(result)}\\nSource evidence 〖1†L2-L4〗`
+            content: `${JSON.stringify(result)}\nSource evidence 〖1†L2-L4〗`
           }
         }]
       })
