@@ -167,7 +167,7 @@ export async function translateCareerDraftToEnglish(
     `Translate the following resume text from ${sourceLanguage} into clear, professional English.`,
     'Translate only the supplied text. Do not add, remove, infer, embellish, or invent facts, achievements, metrics, responsibilities, skills, or qualifications.',
     'Preserve the JSON structure and array lengths exactly. Preserve all numbers and factual meaning.',
-    'Company names, institution names, contact details, dates, technical skills, technologies, certification issuers, and links are deliberately excluded and must not be added.',
+    'Dedicated company, institution, contact, date, skill, technology, certification-issuer, and link fields are not included in the supplied JSON. If any of those details appear inside a supplied free-text field, translate only what is present and do not invent or embellish anything.',
     'Return one valid JSON object with exactly these keys: targetRole, currentRole, professionalSummary, workExperience, education, projects, certifications.',
     JSON.stringify(payload)
   ].join('\n\n');
