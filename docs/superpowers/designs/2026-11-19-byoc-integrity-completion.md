@@ -9,9 +9,9 @@
 2. The user may build a resume from scratch or import an existing DOCX/PDF without being forced into a BYOC template.
 3. Preserve the uploaded original unchanged.
 4. Keep three concepts separate:
-   - Original document: immutable uploaded bytes and source metadata.
-   - Master Career Profile: structured, editable user-confirmed career evidence.
-   - Resume versions: separately generated, editable, approved and exportable presentations derived from the profile.
+   - Original document: the user's file is never modified. BYOC retains extracted source text and metadata in the encrypted profile; it does not create a separate binary archive of the uploaded file.
+   - Master Career Profile / Master Resume: structured, editable user-confirmed career evidence. An optional optimized proposal can replace the active Master Resume only after the user reviews and confirms it.
+   - Exported presentation: DOCX/PDF generated from the approved structured Master Resume. A separate version-history feature is not required for this release.
 5. No experience, skill, credential, dates, results or claims may be invented. Unsupported suggestions must be clearly marked and require user confirmation.
 6. Optimisation must produce a real exportable document (DOCX and PDF where supported), not only raw text. The approved artifact and its structured source must be stored in the existing encrypted local vault.
 7. Preserving an uploaded document's original visual layout is an optional additional output path, not a mandatory workflow. A newly styled resume is also supported.
@@ -37,9 +37,9 @@ Keep one BYOC app and one encrypted local data model. Separate ingestion, career
 
 ## Resume data lifecycle
 
-Original file bytes -> extraction result with provenance and uncertainty -> user review/correction -> Master Career Profile -> resume draft/version -> user approval -> encrypted structured resume record plus exportable DOCX/PDF artifact.
+User-owned original file (left unchanged) -> local extraction result -> user review/correction -> structured Master Career Profile -> optional optimization proposal -> user approval -> active encrypted Master Resume -> exportable DOCX/PDF.
 
-Extraction text is an intermediate representation only. It is not the final resume record and must not replace original bytes or approved document versions.
+Extracted text is retained as source evidence in the encrypted Master Resume. The app does not modify the source file or retain a separate binary copy. The approved optimized profile is stored in structured fields, not as raw text alone.
 
 ## Review requirements
 
