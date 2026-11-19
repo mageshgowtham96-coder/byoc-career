@@ -232,10 +232,13 @@ Tamil — Native; English — Professional working proficiency.
 Awards
 University merit scholarship, 2024.`);
 
-    expect(parsed.skills.domains).toEqual(expect.arrayContaining(['SQL', 'Excel']));
-    expect(parsed.skills.domains).not.toContain('Volunteering');
-    expect(parsed.skills.domains).not.toContain('Volunteer coordinator at a local learning centre.');
-    expect(parsed.skills.domains).not.toContain('Tamil — Native');
+    const allSkills = [
+      ...parsed.skills.technical, ...parsed.skills.soft, ...parsed.skills.tools, ...parsed.skills.domains
+    ];
+    expect(allSkills).toEqual(expect.arrayContaining(['SQL', 'Excel']));
+    expect(allSkills).not.toContain('Volunteering');
+    expect(allSkills).not.toContain('Volunteer coordinator at a local learning centre.');
+    expect(allSkills).not.toContain('Tamil — Native');
     expect(parsed.additionalEvidence).toEqual(expect.arrayContaining([
       expect.stringContaining('Volunteering: Volunteer coordinator'),
       expect.stringContaining('Languages: Tamil'),
