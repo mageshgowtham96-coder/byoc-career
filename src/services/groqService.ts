@@ -289,6 +289,14 @@ export function validateOptimizedMasterResume(parsed: unknown, source: MasterRes
     }
     return input.trim() || fallback;
   };
+  const assertSourceText = (provided: unknown, expected: string, label: string) => {
+    if (typeof provided !== 'string' || provided !== expected) {
+      throw new GroqApiError('Resume optimization could not map its ' + label + ' proposal to the exact source text.', 502, 'UNSUPPORTED_CLAIM');
+    }
+  };
+
+  if (value.headline !== undefined) assertSourceText(value.sourceHeadline, source.headline, 'headline');
+  if (value.summary !== undefined) assertSourceText(value.sourceSummary, source.summary, 'summary');
 
   let experiences = source.experiences;
   if (value.experiences !== undefined) {
@@ -311,11 +319,18 @@ export function validateOptimizedMasterResume(parsed: unknown, source: MasterRes
       if (!row || !Array.isArray(row.bullets) || row.bullets.length !== experience.bullets.length) {
         throw new GroqApiError('Resume optimization changed the number of bullets for an experience.', 502, 'UNSUPPORTED_CLAIM');
       }
-      const bullets = row.bullets.map((bullet) => {
-        if (typeof bullet !== 'string' || !bullet.trim() || bullet.length > 1200) {
+      const bullets = row.bullets.map((item, index) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) {
+          throw new GroqApiError('Resume optimization returned a bullet without source mapping.', 502, 'SCHEMA_ERROR');
+        }
+        const bullet = item as { source?: unknown; proposed?: unknown };
+        if (typeof bullet.source !== 'string' || bullet.source !== experience.bullets[index]) {
+          throw new GroqApiError('Resume optimization could not map a proposal to the exact source bullet.', 502, 'UNSUPPORTED_CLAIM');
+        }
+        if (typeof bullet.proposed !== 'string' || !bullet.proposed.trim() || bullet.proposed.length > 1200) {
           throw new GroqApiError('Resume optimization returned an invalid experience bullet.', 502, 'SCHEMA_ERROR');
         }
-        return bullet.trim();
+        return bullet.proposed.trim();
       });
       return { ...experience, bullets };
     });
@@ -326,23 +341,25 @@ export function validateOptimizedMasterResume(parsed: unknown, source: MasterRes
     if (!Array.isArray(value.projects) || value.projects.length !== source.projects.length) {
       throw new GroqApiError('Resume optimization changed the number of project records.', 502, 'UNSUPPORTED_CLAIM');
     }
-    const byId = new Map<string, string>();
+    const byId = new Map<string, { sourceDescription?: unknown; description?: unknown }>();
     for (const item of value.projects) {
       if (!item || typeof item !== 'object' || Array.isArray(item)) {
         throw new GroqApiError('Resume optimization returned an invalid project record.', 502, 'SCHEMA_ERROR');
       }
-      const row = item as { id?: unknown; description?: unknown };
-      if (typeof row.id !== 'string' || byId.has(row.id) || !source.projects.some((entry) => entry.id === row.id) ||
-          typeof row.description !== 'string' || row.description.length > 2000) {
-        throw new GroqApiError('Resume optimization referenced an unknown project or invalid description.', 502, 'UNSUPPORTED_CLAIM');
+      const row = item as { id?: unknown; sourceDescription?: unknown; description?: unknown };
+      if (typeof row.id !== 'string' || byId.has(row.id) || !source.projects.some((entry) => entry.id === row.id)) {
+        throw new GroqApiError('Resume optimization referenced an unknown project.', 502, 'UNSUPPORTED_CLAIM');
       }
-      byId.set(row.id, row.description.trim());
+      byId.set(row.id, row);
     }
     projects = source.projects.map((project) => {
-      if (!byId.has(project.id)) {
-        throw new GroqApiError('Resume optimization omitted a source project.', 502, 'UNSUPPORTED_CLAIM');
+      const row = byId.get(project.id);
+      if (!row) throw new GroqApiError('Resume optimization omitted a source project.', 502, 'UNSUPPORTED_CLAIM');
+      assertSourceText(row.sourceDescription, project.description, 'project description');
+      if (typeof row.description !== 'string' || row.description.length > 2000) {
+        throw new GroqApiError('Resume optimization returned an invalid project description.', 502, 'SCHEMA_ERROR');
       }
-      return { ...project, description: byId.get(project.id) || project.description };
+      return { ...project, description: row.description.trim() || project.description };
     });
   }
 
@@ -354,7 +371,6 @@ export function validateOptimizedMasterResume(parsed: unknown, source: MasterRes
     projects
   };
 }
-
 /**
  * Optional, user-triggered wording optimization. Only structured career evidence is
  * sent to Groq; the original uploaded raw text and contact details are not included.
