@@ -291,7 +291,7 @@ export function validateOptimizedMasterResume(parsed: unknown, source: MasterRes
   };
   const assertSourceText = (provided: unknown, expected: string, label: string) => {
     if (typeof provided !== 'string' || provided !== expected) {
-      throw new GroqApiError('Resume optimization could not map its ' + label + ' proposal to the exact source text.', 502, 'UNSUPPORTED_CLAIM');
+      throw new GroqApiError('Resume optimization could not map the proposed change to the exact source ' + label + '.', 502, 'UNSUPPORTED_CLAIM');
     }
   };
 
