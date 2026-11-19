@@ -531,7 +531,9 @@ export const PrepZone: React.FC = () => {
                         ? 'Add and confirm structured career evidence in Intake first so AI prep questions can be grounded in your actual profile.'
                         : !groqApiKey.trim()
                         ? 'No Groq API key configured. Add your key in Settings to generate AI prep questions, or use the illustrative preparation areas and General Career Practice below.'
-                        : 'No AI prep questions generated for this role yet. Generate interview questions above or create a tailored kit in Customization.'}
+                        : currentTailored
+                        ? 'No AI prep questions saved for this role yet. Generate AI Questions above; your existing tailored kit will remain unchanged.'
+                        : 'No interview questions or tailored kit generated for this role yet. Generate both above or create a tailored kit in Customization.'}
                     </span>
                     {!hasStructuredEvidence ? (
                       <button
