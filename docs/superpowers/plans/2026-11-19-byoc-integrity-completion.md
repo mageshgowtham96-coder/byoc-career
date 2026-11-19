@@ -38,14 +38,14 @@
 - [x] Preserve complete extracted text in the encrypted profile and classify supported non-standard career sections as additional evidence. Fine-grained per-field provenance/uncertainty metadata remains incomplete.
 - [x] Make profile sections editable through the guided builder launched from intake review, including education, experience, skills, projects and other career evidence.
 - [x] Remove employment-centric readiness penalties for students/freshers; education, projects and additional evidence can establish profile readiness.
-- [ ] Keep a separately encrypted copy of original uploaded file bytes. Current intake does not retain the binary; it leaves the user's source file unchanged and stores extracted source text in the encrypted profile.
+- [x] Keep the user's original file unchanged and retain extracted source text/metadata in the encrypted Master Resume. A separate binary archive is intentionally not part of the approved local-first workflow.
 - [x] Test actual generated DOCX upload -> extraction -> structured profile -> store confirmation -> encrypted vault round-trip. Physical UI/browser workflow remains separate.
 
 ### Workstream 2: Resume Studio, truthful optimisation and export
 
 - [x] Audit MasterResume, guided builder, tailoring and exporters as one data flow.
-- [ ] Add a separate version-history model for multiple approved Master Resume presentations. Current approved optimization is saved as structured fields in the active encrypted MasterResume; prior approved versions are not retained as a version list.
-- [x] Add optional optimization draft, before/after comparison, user acceptance, separate Master Resume approval and DOCX/PDF export. Retaining prior approved versions remains open.
+- [x] Store the approved optimized result as structured fields in the active encrypted MasterResume after user confirmation. A separate version-history feature is not required by the user's approved workflow.
+- [x] Add optional optimization draft, before/after comparison, user acceptance, separate Master Resume approval and DOCX/PDF export. The approved profile replaces the active Master Resume only after confirmation.
 - [x] Add exact source-text mapping for optimized headline/summary, experience bullets and project descriptions, preserve record identity/count, and require explicit human review. AI semantic correctness is not guaranteed.
 - [x] Ensure the approved Master Resume is exported as DOCX and PDF where supported.
 - [x] Remove lossy Unicode stripping. DOCX preserves Unicode; PDF rejects unsupported glyphs rather than silently corrupting text. Embedded multilingual PDF fonts remain open.
