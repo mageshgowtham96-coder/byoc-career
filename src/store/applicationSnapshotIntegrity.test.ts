@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JobPosting } from '../types';
+import type { JobPosting, MasterResume } from '../types';
 import { buildApplicationSnapshotRecord } from './useWizardStore';
 
 const job: JobPosting = {
@@ -42,15 +42,20 @@ describe('application snapshot authenticity', () => {
       interviewPrepQuestions: [], generationTimestamp: new Date().toISOString(),
       authenticityGuaranteed: false, reviewConfirmed: true
     };
-    const profile = useWizardStore.getState().masterResume;
-    useWizardStore.setState({ tailoredArtifacts: { 'job-1': artifact } });
+    const profile: MasterResume = {
+      rawText: 'Analyst career profile',
+      contactInfo: { name: 'Asha Rao', email: 'asha@example.com', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+      headline: 'Analyst', summary: 'Analyst profile with documented experience.',
+      skills: { technical: ['SQL'], soft: [], tools: [], domains: [] },
+      experiences: [], education: [], projects: [], certifications: [],
+      stats: { wordCount: 4, pageCount: 1, charCount: 20, lastParsedDate: '', sourceFileName: '' }
+    };
+    useWizardStore.setState({ masterResume: profile, tailoredArtifacts: { 'job-1': artifact } });
     useWizardStore.getState().setTailoredArtifactReviewConfirmed('job-1', true);
     expect(useWizardStore.getState().tailoredArtifacts['job-1'].reviewConfirmed).toBe(true);
-    if (profile) {
-      useWizardStore.getState().updateMasterResume((previous) => ({ ...previous, summary: previous.summary + ' Updated.' }));
-      expect(useWizardStore.getState().tailoredArtifacts['job-1'].reviewConfirmed).toBe(false);
-    }
-    useWizardStore.setState({ tailoredArtifacts: {}, masterResume: profile });
+    useWizardStore.getState().updateMasterResume((previous) => ({ ...previous, summary: previous.summary + ' Updated.' }));
+    expect(useWizardStore.getState().tailoredArtifacts['job-1'].reviewConfirmed).toBe(false);
+    useWizardStore.setState({ tailoredArtifacts: {}, masterResume: null });
   });
 
 });
