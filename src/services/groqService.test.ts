@@ -204,6 +204,6 @@ describe('role-aware tailoring strategies', () => {
     } as any;
     const strategies = getTailoringStrategies(job, profile);
     expect(strategies.map((strategy) => strategy.id)).toContain('variant-evidence');
-    expect(strategies.some((strategy) => /ATS/i.test(strategy.name))).toBe(true);
+    expect(strategies.some((strategy) => /ATS/i.test(strategy.badge))).toBe(true);
   });
 });
