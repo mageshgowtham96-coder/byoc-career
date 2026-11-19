@@ -428,7 +428,8 @@ export const CustomizationTab: React.FC = () => {
                 : 'Create Role-Relevant Resume Variations'}
             </h3>
             <p className="text-xs text-slate-400 max-w-xl mt-1 leading-relaxed">
-              Generates only the framing angles supported by your profile evidence and target role. Replacement bullets and listed skills are checked against your Master Resume; AI-written summaries, cover letters, and talking points still require your review before use.
+              Generates only the framing angles supported by your profile evidence and target role. Replacement bullets and listed skills are checked against your Master Resume; AI-written summaries, cover letters, and talking points still require your review before use. 
+                    <p className="mt-2 text-[10px] leading-relaxed text-slate-500">No request is sent until you choose Generate. The selected job details and structured Master Resume evidence (summary, skills, experience, education, projects, certifications and additional evidence) are sent to Groq using your configured key. Contact details and unstructured source-document text are excluded.</p>
             </p>
           </div>
 
@@ -840,7 +841,7 @@ export const CustomizationTab: React.FC = () => {
                 </div>
               ) : (
                 <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 text-xs text-slate-400">
-                  No AI cover letter generated in this baseline offline kit. Configure your Groq key and click &quot;Generate 3 Sibling Variants&quot; above if you want a role-tailored cover letter draft.
+                  No AI cover letter generated in this baseline offline kit. Configure your Groq key and click &quot;Generate role-relevant resume variations&quot; above if you want a role-tailored cover letter draft.
                 </div>
               )}
             </div>
@@ -1358,7 +1359,7 @@ export const CustomizationTab: React.FC = () => {
       ) : (
         <div className="p-6 sm:p-8 rounded-3xl bg-slate-800/40 border border-slate-800 text-center space-y-3">
           <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
-            No tailored artifact synthesized yet. Click &quot;Generate 3 Sibling Variants&quot; above (with a Groq key), or prepare an offline baseline kit using only your authentic Master Profile to export documents and launch Assisted-Apply without AI.
+            No tailored artifact synthesized yet. Click &quot;Generate role-relevant resume variations&quot; above (with a Groq key), or prepare an offline baseline kit using only your authentic Master Profile to export documents and launch Assisted-Apply without AI.
           </p>
           {hasResume && hasJob && (
             <button
