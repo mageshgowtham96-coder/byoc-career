@@ -82,7 +82,9 @@ export function assessResumeReadiness(resume: MasterResume | null | undefined): 
     Array.isArray(experience.bullets) && experience.bullets.some((bullet) => bullet.trim())
   ) || projects.some((project) =>
     Boolean(project.title?.trim() && project.description?.trim())
-  );
+  ) || (Array.isArray(resume.additionalEvidence) && resume.additionalEvidence.some((item) =>
+    item.trim().length > 40 && !/^(languages|professional memberships|memberships):/i.test(item.trim())
+  ));
   if (hasContributionEvidence) score += 15;
   else if (hasCareerEvidence) missingSections.push('specific contribution or project details');
 
