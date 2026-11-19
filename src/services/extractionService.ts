@@ -598,14 +598,14 @@ export function parseRawResumeToStructured(
   // Preserve explicit user-authored skills and competencies even when they are outside
   // BYOC's small common-technology dictionary (for example AML, KYC, chargebacks, or fraud ops).
   // Supports both standalone headings and compact inline formats such as "Skills: AML, KYC, SQL".
-  const skillsHeaderPattern = /^(skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies)\\s*(?::|[-–])?\\s*(.*)$/i;
+  const skillsHeaderPattern = /^(skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies)\s*(?::|[-–])?\s*(.*)$/i;
   const skillsHeaderIndex = lines.findIndex((line) => skillsHeaderPattern.test(line));
   if (skillsHeaderIndex !== -1) {
     const inlineSkills = lines[skillsHeaderIndex].match(skillsHeaderPattern)?.[2] || '';
     const skillLines = [inlineSkills, ...lines.slice(skillsHeaderIndex + 1)];
     for (const line of skillLines) {
-      if (/^(experience|work experience|professional experience|employment history|work history|education|projects|certifications|licenses|awards|publications|languages)\\s*:?[ ]*$/i.test(line)) break;
-      const entries = line.replace(/^[•*\\-]\\s*/, '').split(/[,;|•]/).map((entry) => entry.trim()).filter(Boolean);
+      if (/^(experience|work experience|professional experience|employment history|work history|education|projects|certifications|licenses|awards|publications|languages)\s*:?[ ]*$/i.test(line)) break;
+      const entries = line.replace(/^[•*\-]\s*/, '').split(/[,;|•]/).map((entry) => entry.trim()).filter(Boolean);
       for (const entry of entries) {
         if (entry.length > 1 && entry.length <= 80 && !domains.some((item) => item.toLowerCase() === entry.toLowerCase())) {
           domains.push(entry);
