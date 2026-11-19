@@ -3,19 +3,13 @@ import { useWizardStore } from '../store/useWizardStore';
 import {
   GraduationCap,
   Code2,
-  Users,
   Briefcase,
   Sparkles,
   ChevronRight,
-  CheckCircle2,
   AlertCircle,
   Copy,
   Check,
-  Building2,
-  HelpCircle,
-  TrendingUp,
   ShieldCheck,
-  Layers,
   ArrowRight,
   MessageSquareQuote,
   Target,
@@ -52,7 +46,6 @@ export const PrepZone: React.FC = () => {
   const hasStructuredEvidence = hasStructuredCareerEvidence(masterResume);
   const hasSkills = Boolean(masterResume && Object.values(masterResume.skills).some((items) => items.length > 0));
   const primaryDomain = selectedJob?.title || masterResume?.headline || masterResume?.experiences?.[0]?.role || 'Career profile';
-  const primarySkill = masterResume?.skills.technical[0] || masterResume?.skills.tools[0] || masterResume?.skills.domains[0] || '';
   const domainQuestions = buildDomainPracticeQuestions(masterResume, selectedJob);
 
   const filteredDomainQuestions = domainQuestions.filter((q) =>
@@ -173,13 +166,13 @@ export const PrepZone: React.FC = () => {
                           : 'bg-amber-500/15 border-amber-500/30 text-amber-300'
                       }`}
                     >
-                      {hasSkills ? 'Skills in Master Resume' : 'Add skills or evidence in Intake'}
+                      {hasSkills ? 'Skills listed in Master Resume' : 'Other career evidence recorded'}
                     </span>
                   </h3>
                   <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
                     {hasSkills
                       ? 'Questions are based on your selected role and recorded skills, projects, education or experience.'
-                      : 'Your profile does not yet contain structured career evidence. The prompts remain generic and do not assume your background.'}
+                      : 'Your profile includes other structured career evidence. Add skills if relevant; prompts without direct evidence remain generic.'}
                   </p>
                 </>
               ) : (
