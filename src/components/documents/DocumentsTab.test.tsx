@@ -6,10 +6,13 @@ import { extractResumeFile } from '../../services/extractionService';
 import { askPdfQuestion } from '../../services/pdfQuestionService';
 import { inspectPdf } from '../../services/pdfWorkspaceService';
 
-const { mockAskPdfQuestion } = vi.hoisted(() => ({ mockAskPdfQuestion: vi.fn() }));
+const { mockAskPdfQuestion, mockGroqApiKey } = vi.hoisted(() => ({
+  mockAskPdfQuestion: vi.fn(),
+  mockGroqApiKey: { value: 'test-groq-key' }
+}));
 
 vi.mock('../../store/useWizardStore', () => ({
-  useWizardStore: () => ({ groqApiKey: 'test-groq-key', addToast: vi.fn() })
+  useWizardStore: () => ({ groqApiKey: mockGroqApiKey.value, addToast: vi.fn() })
 }));
 vi.mock('../../services/extractionService', () => ({
   extractResumeFile: vi.fn()
@@ -32,6 +35,7 @@ describe('DocumentsTab privacy and explicit AI interaction', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGroqApiKey.value = 'test-groq-key';
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:byoc-pdf') });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
     vi.mocked(extractResumeFile).mockResolvedValue({
@@ -79,4 +83,29 @@ describe('DocumentsTab privacy and explicit AI interaction', () => {
     expect(mockAskPdfQuestion).toHaveBeenCalledWith('Which skills are listed?', 'Candidate skills: Excel and SQL.', 'test-groq-key');
     expect(container.textContent).toContain('The document lists Excel and SQL.');
   });
+  it('keeps document chat unavailable without a Groq key while local PDF tools remain visible', async () => {
+    mockGroqApiKey.value = '';
+    await act(async () => { root.render(<DocumentsTab />); });
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['%PDF-1.7'], 'resume.pdf', { type: 'application/pdf' });
+    Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] });
+    await act(async () => { fileInput.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(container.textContent).toContain('Page tools');
+    expect(container.textContent).toContain('Configure Groq in Settings');
+    expect(mockAskPdfQuestion).not.toHaveBeenCalled();
+  });
+
+  it('removes the selected document and revokes its temporary preview URL', async () => {
+    await act(async () => { root.render(<DocumentsTab />); });
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['%PDF-1.7'], 'resume.pdf', { type: 'application/pdf' });
+    Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] });
+    await act(async () => { fileInput.dispatchEvent(new Event('change', { bubbles: true })); });
+    const removeButton = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('Remove'));
+    await act(async () => { removeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(container.textContent).toContain('Your document workspace');
+    expect(container.textContent).not.toContain('resume.pdf');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:byoc-pdf');
+  });
+
 });
