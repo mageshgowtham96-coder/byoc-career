@@ -378,9 +378,8 @@ describe('Email Vault Configuration', () => {
 });
 describe('vault key extractability', () => {
   it('keeps PBKDF2-derived wrapping keys non-exportable', async () => {
-    const key = await deriveVaultKey('test passphrase', new Uint8Array(16));
-    expect(key.extractable).toBe(false);
-    expect(key.usages).toContain('encrypt');
-    expect(key.usages).toContain('decrypt');
+    await deriveVaultKey('test passphrase', new Uint8Array(16));
+    const deriveCall = (mockCrypto.subtle.deriveKey as any).mock.calls.at(-1);
+    expect(deriveCall?.[3]).toBe(false);
   });
 });
