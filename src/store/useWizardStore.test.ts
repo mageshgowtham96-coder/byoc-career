@@ -114,4 +114,31 @@ describe('interview prep question updates', () => {
     expect(saved.interviewPrepQuestions).toEqual(questions);
     expect(saved.variants[0].interviewPrepQuestions).toEqual(questions);
   });
+
+  it('invalidates interview questions and review approval when Master Resume evidence changes', () => {
+    const existing = {
+      id: 'artifact-1', jobId: 'job-1', jobTitle: 'Data Analyst', company: 'Acme',
+      selectedVariantId: 'variant-1',
+      variants: [{ id: 'variant-1', name: 'Role', badge: 'Role', description: '', tailoredSummary: 'Old summary', highlightedSkills: [], optimizedBullets: [], coverLetter: 'Old letter', interviewPrepQuestions: [{ question: 'Old question', category: 'Technical', suggestedTalkingPoints: ['Old point'], authenticEvidenceRef: 'Old source' }] }],
+      tailoredSummary: 'Old summary', highlightedSkills: [], optimizedBullets: [], coverLetter: 'Old letter',
+      interviewPrepQuestions: [{ question: 'Old question', category: 'Technical', suggestedTalkingPoints: ['Old point'], authenticEvidenceRef: 'Old source' }],
+      generationTimestamp: '2026-11-20T00:00:00.000Z', authenticityGuaranteed: false, reviewConfirmed: true
+    } as any;
+    const master = {
+      rawText: 'Asha Rao', contactInfo: { name: 'Asha Rao', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+      headline: '', summary: 'Updated career summary',
+      skills: { technical: [], soft: [], tools: [], domains: [] }, experiences: [], education: [], projects: [],
+      certifications: [], additionalEvidence: [],
+      stats: { wordCount: 2, pageCount: 1, charCount: 8, lastParsedDate: '2026-11-20T00:00:00.000Z', sourceFileName: '' }
+    } as any;
+    useWizardStore.setState({ masterResume: master, tailoredArtifacts: { 'job-1': existing } });
+
+    useWizardStore.getState().updateMasterResume({ ...master, summary: 'A changed summary.' });
+
+    const saved = useWizardStore.getState().tailoredArtifacts['job-1'];
+    expect(saved.reviewConfirmed).toBe(false);
+    expect(saved.interviewPrepQuestions).toEqual([]);
+    expect(saved.variants[0].interviewPrepQuestions).toEqual([]);
+  });
+
 });
