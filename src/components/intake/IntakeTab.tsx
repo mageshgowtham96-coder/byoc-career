@@ -136,6 +136,8 @@ export const IntakeTab: React.FC = () => {
     const file = files[0];
 
     setIsProcessing(true);
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
     setProcessingFileName(file.name);
     setScannedFallbackActive(false);
 
@@ -230,6 +232,7 @@ export const IntakeTab: React.FC = () => {
     if (!stagedParsedResume || !groqApiKey || isAiStructuring) return;
     setIsAiStructuring(true);
     setAiStructuringError(null);
+    setOptimizedMasterPreview(null);
     try {
       const reviewEdits = {
         name: editableName,
@@ -327,6 +330,7 @@ export const IntakeTab: React.FC = () => {
 
   const handleRevertToLocalParse = () => {
     if (!localStagedProfile) return;
+    setOptimizedMasterPreview(null);
     setStagedParsedResume(localStagedProfile);
     setOptimizedMasterPreview(null);
     setOptimizationError(null);
@@ -358,6 +362,7 @@ export const IntakeTab: React.FC = () => {
   };
 
   const handleGuidedBuilderComplete = (profile: MasterResume) => {
+    setOptimizedMasterPreview(null);
     setStagedParsedResume(profile);
     if (!localStagedProfile) setLocalStagedProfile(profile);
     setEditableStagedSummary(profile.summary);
@@ -541,6 +546,7 @@ export const IntakeTab: React.FC = () => {
           <button
             type="button"
             onClick={() => {
+              setOptimizedMasterPreview(null);
               setCareerFormDraft(createCareerDraftFromMasterResume(stagedParsedResume));
               setShowGuidedBuilder(true);
             }}
