@@ -43,6 +43,8 @@ describe('Master Resume document export integration', () => {
     expect(imported.success, imported.error || 'DOCX re-import failed without an error message').toBe(true);
     expect(imported.rawText).toContain('ஆஷா ராவ்');
     expect(imported.rawText).toContain('Commerce graduate with project experience');
+    expect(imported.rawText).toContain('PROFESSIONAL SUMMARY');
+    expect(imported.rawText).not.toContain('EXECUTIVE SUMMARY');
     expect(imported.rawText).toContain('Prepared weekly operational reports');
     expect(imported.rawText).toContain('PROFESSIONAL EXPERIENCE');
     expect(imported.rawText).not.toContain('TAILORED PROFESSIONAL EXPERIENCE');
