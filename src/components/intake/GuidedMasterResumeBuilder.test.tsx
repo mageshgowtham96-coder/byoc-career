@@ -75,6 +75,7 @@ describe('GuidedMasterResumeBuilder privacy and translation flow', () => {
     });
 
     expect(translateCareerDraftToEnglish).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('may still be sent');
     const continueButton = Array.from(container.querySelectorAll('button')).find((button) =>
       button.textContent?.includes('Continue')
     );
