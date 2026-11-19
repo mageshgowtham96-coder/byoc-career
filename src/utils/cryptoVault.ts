@@ -3,7 +3,7 @@
  *
  * Standard Web Cryptography API implementation providing:
  * 1. AES-256-GCM authenticated encryption at rest.
- * 2. PBKDF2-HMAC-SHA256 key derivation with 100,000 iterations.
+ * 2. PBKDF2-HMAC-SHA256 key derivation with 600,000 iterations for user passphrases; recovery phrases use a separately recorded 100,000-iteration KDF because they are randomly generated high-entropy secrets.
  * 3. Cryptographically secure 128-bit random salts and 96-bit unique IVs.
  * 4. Random 256-bit Master Vault Key (MVK) wrapped separately by:
  *    - Passphrase-derived KEK (`passphraseWrappedVaultKey`)
@@ -15,6 +15,8 @@
 import type { CareerApplicationFormState, EmailInteraction } from '../types';
 
 export const VAULT_STORAGE_KEY = 'byoc_secure_vault_envelope';
+export const VAULT_PASSPHRASE_KDF_ITERATIONS = 600_000;
+export const VAULT_RECOVERY_KDF_ITERATIONS = 100_000;
 export const DEMO_WORKSPACE_NAME = 'alex mercer';
 export const DEMO_WORKSPACE_EMAIL = 'alex.mercer@leaddev.io';
 
@@ -44,11 +46,11 @@ export function hasDemoWorkspaceIdentity(
 }
 
 export interface VaultEnvelope {
-  version: 3 | 4;
+  version: 3 | 4 | 5;
   encrypted: true;
   kdf: {
     algorithm: 'PBKDF2';
-    iterations: 100000;
+    iterations: number;
     salt: string; // Base64 16 bytes
     hash: 'SHA-256';
   };
@@ -57,6 +59,7 @@ export interface VaultEnvelope {
   passphraseWrappedVaultKey?: string; // v4: 12-byte IV + AES-GCM wrapped MVK under passphrase KEK
   wrappedVaultKey?: string; // 12-byte IV + AES-GCM wrapped MVK under recovery KEK
   recoverySalt?: string; // Salt for recovery key derivation
+  recoveryKdf?: { algorithm: 'PBKDF2'; iterations: number; hash: 'SHA-256' }; // v5: independent recovery phrase KDF parameters
   recoveryVerifier?: string; // SHA-256 hash of recovery token for quick validation
   meta: {
     id: string;
@@ -89,6 +92,7 @@ interface ActiveVaultSession {
   wrappedVaultKey?: string;
   recoverySalt?: string;
   recoveryVerifier?: string;
+  recoveryKdf?: VaultEnvelope['recoveryKdf'];
 }
 
 // Volatile memory-only vault session handle (never persisted to disk)
@@ -133,10 +137,12 @@ export function isValidVaultEnvelope(value: unknown): value is VaultEnvelope {
   if (!value || typeof value !== 'object') return false;
   const v = value as Partial<VaultEnvelope>;
   return (
-    (v.version === 3 || v.version === 4) &&
+    (v.version === 3 || v.version === 4 || v.version === 5) &&
     v.encrypted === true &&
     Boolean(v.kdf?.salt) &&
     v.kdf?.algorithm === 'PBKDF2' &&
+    Number.isInteger(v.kdf?.iterations) && (v.kdf?.iterations ?? 0) >= 100000 && (v.kdf?.iterations ?? 0) <= 600000 &&
+    (v.version !== 5 || (v.recoveryKdf?.algorithm === 'PBKDF2' && Number.isInteger(v.recoveryKdf.iterations) && v.recoveryKdf.iterations >= 100000 && v.recoveryKdf.iterations <= 600000)) &&
     typeof v.iv === 'string' &&
     typeof v.ciphertext === 'string' &&
     Boolean(v.meta?.id)
@@ -255,7 +261,8 @@ export function sanitizeStoredVaultEnvelopeMetadata(
       envelope: {
         version: 4,
         encrypted: true,
-        kdf: { algorithm: 'PBKDF2', iterations: 100000, salt: '', hash: 'SHA-256' },
+        kdf: { algorithm: 'PBKDF2', iterations: VAULT_PASSPHRASE_KDF_ITERATIONS, salt: '', hash: 'SHA-256' },
+        recoveryKdf: { algorithm: 'PBKDF2', iterations: VAULT_RECOVERY_KDF_ITERATIONS, hash: 'SHA-256' },
         iv: '',
         ciphertext: '',
         meta: { id: '', name: '', email: '', biometricEnabled: false, updatedAt: '' }
@@ -270,7 +277,8 @@ export function sanitizeStoredVaultEnvelopeMetadata(
  */
 export async function deriveVaultKey(
   passphrase: string,
-  saltBytes: Uint8Array
+  saltBytes: Uint8Array,
+  iterations: number = VAULT_PASSPHRASE_KDF_ITERATIONS
 ): Promise<CryptoKey> {
   const webCrypto = getSubtleCrypto();
   const enc = new TextEncoder();
@@ -286,7 +294,7 @@ export async function deriveVaultKey(
     {
       name: 'PBKDF2',
       salt: saltBytes as BufferSource,
-      iterations: 100000,
+      iterations,
       hash: 'SHA-256'
     },
     keyMaterial,
@@ -386,14 +394,14 @@ export async function encryptVault(
   // 2. Wrap MVK under passphrase-derived KEK
   const salt = new Uint8Array(16);
   webCrypto.getRandomValues(salt);
-  const passphraseKek = await deriveVaultKey(passphrase, salt);
+  const passphraseKek = await deriveVaultKey(passphrase, salt, VAULT_PASSPHRASE_KDF_ITERATIONS);
   const passphraseWrappedVaultKey = await wrapRawMasterKey(rawMvk, passphraseKek);
 
   // 3. Wrap MVK under recovery-phrase-derived KEK
   const activeRecoveryPhrase = (recoveryPhrase || generateRecoveryPhrase()).trim().toUpperCase();
   const recoverySalt = new Uint8Array(16);
   webCrypto.getRandomValues(recoverySalt);
-  const recoveryKek = await deriveVaultKey(activeRecoveryPhrase, recoverySalt);
+  const recoveryKek = await deriveVaultKey(activeRecoveryPhrase, recoverySalt, VAULT_RECOVERY_KDF_ITERATIONS);
   const wrappedVaultKey = await wrapRawMasterKey(rawMvk, recoveryKek);
   const recoveryVerifier = await sha256Hex(activeRecoveryPhrase);
 
@@ -409,15 +417,16 @@ export async function encryptVault(
 
   const kdf: VaultEnvelope['kdf'] = {
     algorithm: 'PBKDF2',
-    iterations: 100000,
+    iterations: VAULT_PASSPHRASE_KDF_ITERATIONS,
     salt: bufferToBase64(salt),
     hash: 'SHA-256'
   };
 
   const envelope: VaultEnvelope = {
-    version: 4,
+    version: 5,
     encrypted: true,
     kdf,
+    recoveryKdf: { algorithm: 'PBKDF2', iterations: VAULT_RECOVERY_KDF_ITERATIONS, hash: 'SHA-256' },
     iv: bufferToBase64(iv),
     ciphertext: bufferToBase64(ciphertextBuffer),
     passphraseWrappedVaultKey,
@@ -436,7 +445,8 @@ export async function encryptVault(
     passphraseWrappedVaultKey,
     wrappedVaultKey,
     recoverySalt: envelope.recoverySalt,
-    recoveryVerifier
+    recoveryVerifier,
+    recoveryKdf: envelope.recoveryKdf
   };
 
   return {
@@ -461,13 +471,13 @@ export async function decryptVault(
   const saltBytes = base64ToBuffer(envelope.kdf.salt);
   const ivBytes = base64ToBuffer(envelope.iv);
   const ciphertextBytes = base64ToBuffer(envelope.ciphertext);
-  const passphraseKek = await deriveVaultKey(passphrase, saltBytes);
+  const passphraseKek = await deriveVaultKey(passphrase, saltBytes, envelope.kdf.iterations);
 
   try {
     let mvk: CryptoKey;
     let passphraseWrappedVaultKey = envelope.passphraseWrappedVaultKey;
 
-    if (envelope.version === 4 && envelope.passphraseWrappedVaultKey) {
+    if ((envelope.version === 4 || envelope.version === 5) && envelope.passphraseWrappedVaultKey) {
       const rawMvk = await unwrapRawMasterKey(envelope.passphraseWrappedVaultKey, passphraseKek);
       mvk = await webCrypto.subtle.importKey(
         'raw',
@@ -491,13 +501,37 @@ export async function decryptVault(
 
     const parsed = JSON.parse(new TextDecoder().decode(decryptedBuffer)) as DecryptedVaultData;
 
+    // Versioned upgrade: after a successful legacy unlock, re-wrap the same MVK
+    // with a stronger passphrase KDF. The existing recovery wrapper remains
+    // compatible and carries its own KDF parameters in the v5 envelope.
+    let activeKdf = envelope.kdf;
+    if (envelope.kdf.iterations < VAULT_PASSPHRASE_KDF_ITERATIONS) {
+      const rawMvk = await webCrypto.subtle.exportKey('raw', mvk);
+      const upgradedSalt = new Uint8Array(16);
+      webCrypto.getRandomValues(upgradedSalt);
+      const upgradedKek = await deriveVaultKey(passphrase, upgradedSalt, VAULT_PASSPHRASE_KDF_ITERATIONS);
+      passphraseWrappedVaultKey = await wrapRawMasterKey(rawMvk, upgradedKek);
+      activeKdf = {
+        algorithm: 'PBKDF2',
+        iterations: VAULT_PASSPHRASE_KDF_ITERATIONS,
+        salt: bufferToBase64(upgradedSalt),
+        hash: 'SHA-256'
+      };
+    }
+    const activeRecoveryKdf = envelope.recoveryKdf || {
+      algorithm: 'PBKDF2' as const,
+      iterations: envelope.kdf.iterations,
+      hash: 'SHA-256' as const
+    };
+
     activeVaultSession = {
       mvk,
-      kdf: envelope.kdf,
+      kdf: activeKdf,
       passphraseWrappedVaultKey: passphraseWrappedVaultKey!,
       wrappedVaultKey: envelope.wrappedVaultKey,
       recoverySalt: envelope.recoverySalt,
-      recoveryVerifier: envelope.recoveryVerifier
+      recoveryVerifier: envelope.recoveryVerifier,
+      recoveryKdf: activeRecoveryKdf
     };
 
     return parsed;
@@ -527,7 +561,7 @@ export async function recoverVaultWithSecret(
   }
 
   const recoverySaltBytes = base64ToBuffer(envelope.recoverySalt);
-  const recoveryKek = await deriveVaultKey(cleanPhrase, recoverySaltBytes);
+  const recoveryKek = await deriveVaultKey(cleanPhrase, recoverySaltBytes, envelope.recoveryKdf?.iterations ?? envelope.kdf.iterations);
 
   let rawMvk: ArrayBuffer;
   try {
@@ -561,7 +595,8 @@ export async function recoverVaultWithSecret(
     passphraseWrappedVaultKey: envelope.passphraseWrappedVaultKey || '',
     wrappedVaultKey: envelope.wrappedVaultKey,
     recoverySalt: envelope.recoverySalt,
-    recoveryVerifier: envelope.recoveryVerifier
+    recoveryVerifier: envelope.recoveryVerifier,
+    recoveryKdf: envelope.recoveryKdf || { algorithm: 'PBKDF2', iterations: envelope.kdf.iterations, hash: 'SHA-256' }
   };
 
   return parsed;
@@ -590,9 +625,10 @@ export async function syncUnlockedVault(
   );
 
   return {
-    version: 4,
+    version: 5,
     encrypted: true,
     kdf: activeVaultSession.kdf,
+    recoveryKdf: activeVaultSession.recoveryKdf || { algorithm: 'PBKDF2', iterations: activeVaultSession.kdf.iterations, hash: 'SHA-256' },
     iv: bufferToBase64(iv),
     ciphertext: bufferToBase64(ciphertextBuffer),
     passphraseWrappedVaultKey: activeVaultSession.passphraseWrappedVaultKey,
