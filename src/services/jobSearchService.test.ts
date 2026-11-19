@@ -281,7 +281,7 @@ describe('honest keyword-overlap scoring', () => {
     workplaceType: 'Remote' as const, salary: 'Unspecified', postedDate: 'Today',
     source: 'User Import', url: 'https://example.com/jobs/1',
     skillsRequired: ['Go', 'R', 'C'], fitScore: null, matchedKeywords: [], missingKeywords: [],
-    experienceLevel: 'Unspecified', jobDescriptionRaw: 'Requires Go, R and C.'
+    experienceLevel: 'Unspecified' as const, jobDescriptionRaw: 'Requires Go, R and C.'
   };
 
   it('does not match short skills inside unrelated words', () => {
