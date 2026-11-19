@@ -659,7 +659,7 @@ export function parseRawResumeToStructured(
 
     for (let i = 0; i < expSlice.length; i++) {
       const line = expSlice[i];
-      if (/^(education|projects|certifications|skills|awards|publications)/i.test(line)) {
+      if (/^(education|projects|certifications|skills|awards|honours|honors|publications|research|volunteering|volunteer experience|community involvement|languages|professional memberships|memberships|extracurricular activities)/i.test(line)) {
         break;
       }
 
@@ -722,7 +722,7 @@ export function parseRawResumeToStructured(
     const eduSlice = lines.slice(eduIndex + 1);
     for (let i = 0; i < Math.min(eduSlice.length, 20); i++) {
       const line = eduSlice[i];
-      if (/^(experience|projects|certifications|skills|awards)/i.test(line)) {
+      if (/^(experience|projects|certifications|skills|awards|honours|honors|publications|research|volunteering|volunteer experience|community involvement|languages|professional memberships|memberships|extracurricular activities)/i.test(line)) {
         break;
       }
       if (/(bachelor|master|phd|b\.s|m\.s|b\.tech|m\.tech|bca|mca|degree|diploma|university|college|institute)/i.test(line)) {
@@ -750,7 +750,7 @@ export function parseRawResumeToStructured(
     };
     for (const rawLine of projSlice.slice(0, 40)) {
       const line = rawLine.trim();
-      if (/^(education|experience|work experience|certifications|skills|awards|publications|languages)/i.test(line)) break;
+      if (/^(education|experience|work experience|certifications|skills|awards|honours|honors|publications|research|volunteering|volunteer experience|community involvement|languages|professional memberships|memberships|extracurricular activities)/i.test(line)) break;
       if (!line || line.length > 500) continue;
       const isBullet = /^[•*\-–]\s*/.test(line) || /^\d+[.)]\s*/.test(line);
       const cleanLine = line.replace(/^[•*\-–]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
@@ -769,6 +769,22 @@ export function parseRawResumeToStructured(
       }
     }
     saveProject();
+  }
+
+  const additionalEvidence: string[] = [];
+  const additionalSectionPattern = /^(awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)\s*(?::|[-–])?\s*(.*)$/i;
+  const standardSectionPattern = /^(summary|profile|professional summary|experience|work experience|employment history|work history|education|academic background|projects|personal projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|awards|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)\s*(?::|[-–])?\s*(.*)$/i;
+  for (let index = 0; index < lines.length; index++) {
+    const heading = lines[index].match(additionalSectionPattern);
+    if (!heading) continue;
+    const category = heading[1].trim();
+    const inlineContent = (heading[2] || '').trim();
+    if (inlineContent) additionalEvidence.push(category + ': ' + inlineContent);
+    for (let next = index + 1; next < lines.length; next++) {
+      if (standardSectionPattern.test(lines[next])) break;
+      const item = lines[next].replace(/^[•*\-–]\s*/, '').trim();
+      if (item) additionalEvidence.push(category + ': ' + item);
+    }
   }
 
   const certifications: CertificationItem[] = [];
@@ -812,6 +828,7 @@ export function parseRawResumeToStructured(
     education,
     projects,
     certifications,
+    additionalEvidence,
     stats: {
       wordCount: wordCount || rawText.split(/\s+/).filter(Boolean).length,
       pageCount: pageCount || 1,
