@@ -186,6 +186,44 @@ Bachelor of Commerce - City University - 2025`);
 });
 
 
+
+describe('resume experience extraction across common layouts', () => {
+  it('handles role, employer and date on separate lines plus inline date-range entries', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+Professional Experience
+Software Engineer
+Acme Technologies
+Jan 2022 – Present
+• Built services using Go.
+• Improved API reliability.
+Product Analyst | Beta Labs | 2020 - 2021
+- Analysed customer data.
+Education
+Bachelor of Commerce - City University - 2019`);
+
+    expect(parsed.experiences).toHaveLength(2);
+    expect(parsed.experiences[0]).toMatchObject({
+      role: 'Software Engineer',
+      company: 'Acme Technologies',
+      startDate: 'Jan 2022',
+      endDate: 'Present',
+      isCurrent: true
+    });
+    expect(parsed.experiences[0].bullets).toEqual([
+      'Built services using Go.',
+      'Improved API reliability.'
+    ]);
+    expect(parsed.experiences[1]).toMatchObject({
+      role: 'Product Analyst',
+      company: 'Beta Labs',
+      startDate: '2020',
+      endDate: '2021',
+      isCurrent: false
+    });
+    expect(parsed.experiences[1].bullets).toEqual(['Analysed customer data.']);
+  });
+});
+
 describe('summary extraction completeness', () => {
   it('keeps every summary line until the next exact section heading', () => {
     const parsed = parseRawResumeToStructured(`Asha Rao
