@@ -442,7 +442,7 @@ export const useWizardStore = create<WizardState>()(
           get().addToast({
             type: 'success',
             title: 'Master Resume Approved',
-            message: `Ingested ${staged.stats.wordCount} words across ${staged.experiences.length} experience milestones.`
+            message: `Approved ${staged.stats.wordCount} words of career evidence. Your Master Profile is ready to use.`
           });
         }
       },
