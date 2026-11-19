@@ -757,7 +757,7 @@ export function getTailoringStrategies(job: JobPosting, masterResume: MasterResu
       id: 'variant-experience',
       name: 'Experience-led resume',
       badge: 'Relevant Experience',
-      description: 'Prioritize the candidate\'s documented work roles and original contribution bullets that relate to the target role.'
+      description: `Prioritize the candidate's documented work roles and original contribution bullets that relate to ${targetRole}.`
     });
   }
   if (masterResume.projects?.length || masterResume.education?.length) {
@@ -778,7 +778,7 @@ export function getTailoringStrategies(job: JobPosting, masterResume: MasterResu
       id: 'variant-skills',
       name: 'Skills and transferable evidence',
       badge: 'Skills & Evidence',
-      description: 'Organize the candidate\'s explicitly recorded skills and profile evidence for the target role without inventing experience.'
+      description: `Organize the candidate's explicitly recorded skills and profile evidence for ${targetRole} without inventing experience.`
     });
   }
   strategies.push({
