@@ -635,7 +635,7 @@ export function parseRawResumeToStructured(
       !line.includes('http') &&
       !line.includes('/') &&
       !/^(resume|curriculum|cv|summary|experience|education|skills|page)/i.test(line) &&
-      !/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance|inc|llc|ltd|pvt|company|university|college)\b/i.test(line) &&
+      !/\b(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|consultant|coordinator|administrator|assistant|teacher|nurse|accountant|executive|technician|intern|student|graduate|professional|officer|support|sales|marketing|finance|associate|representative|customer|service|operations|business|data|technical|program|retail|administrative|inc|llc|ltd|pvt|company|university|college)\b/i.test(line) &&
       /^[\p{L}\p{M}'’\-]+(?:\s+[\p{L}\p{M}'’\-]+){1,3}$/u.test(line)
     ) {
       detectedName = line;
@@ -666,10 +666,10 @@ export function parseRawResumeToStructured(
   let summary = '';
 
   // Look for a headline in first few lines beneath the name
-  for (let i = 0; i < Math.min(lines.length, 6); i++) {
-    const line = lines[i];
+  const headlineCandidates = lines.slice(0, 6).flatMap((line) => line.split(/[|•]/).map((part) => part.trim()));
+  for (const line of headlineCandidates) {
     if (line !== detectedName && !line.includes('@') && line.length > 5 && line.length < 60) {
-      if (/(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist)/i.test(line)) {
+      if (/(engineer|developer|architect|manager|lead|director|specialist|designer|analyst|scientist|support|associate|representative|coordinator|administrator|teacher|nurse|accountant|sales|marketing|operations|business|finance|retail|human resources)/i.test(line)) {
         detectedHeadline = line;
         break;
       }
