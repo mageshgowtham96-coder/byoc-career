@@ -214,20 +214,14 @@ export class OpenRouterProvider {
       return this.state;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs!);
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs!);
-
       const res = await fetch('https://openrouter.ai/api/v1/models', {
         method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey.trim()}`
-        },
+        headers: { Authorization: `Bearer ${apiKey.trim()}` },
         signal: controller.signal
       });
-
-      clearTimeout(timeoutId);
-
       if (!res.ok) {
         this.state.status = 'error';
         this.state.errorMessage = `OpenRouter returned ${res.status}: ${res.statusText}`;
@@ -235,8 +229,7 @@ export class OpenRouterProvider {
       }
 
       const data = await res.json();
-      const modelIds = (data.data || []).map((m: any) => m.id);
-      
+      const modelIds = Array.isArray(data.data) ? data.data.map((model: any) => model.id).filter(Boolean) : [];
       this.state.metadata = {
         id: 'openrouter',
         name: 'OpenRouter',
@@ -248,8 +241,12 @@ export class OpenRouterProvider {
       return this.state;
     } catch (err: unknown) {
       this.state.status = 'error';
-      this.state.errorMessage = err instanceof Error ? err.message : 'OpenRouter connectivity check failed';
+      this.state.errorMessage = err instanceof Error && err.name === 'AbortError'
+        ? 'OpenRouter connectivity check timed out.'
+        : err instanceof Error ? err.message : 'OpenRouter connectivity check failed';
       return this.state;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -260,41 +257,50 @@ export class OpenRouterProvider {
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs!);
+    try {
+      const res = await fetch(this.config.baseURL!, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey.trim()}`
+        },
+        body: JSON.stringify({
+          model: this.config.models[0],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.15,
+          max_tokens: 3800
+        }),
+        signal: controller.signal
+      });
 
-    const res = await fetch(this.config.baseURL!, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey.trim()}`
-      },
-      body: JSON.stringify({
-        model: this.config.models[0],
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.15,
-        max_tokens: 3800
-      }),
-      signal: controller.signal
-    });
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        throw new Error(`OpenRouter ${res.status}: ${errBody}`);
+      }
 
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`OpenRouter ${res.status}: ${errBody}`);
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (typeof content !== 'string' || !content.trim()) {
+        throw new Error('OpenRouter returned an empty completion.');
+      }
+      return {
+        content,
+        model: data.model || this.config.models[0],
+        usage: data.usage,
+        finishReason: data.choices?.[0]?.finish_reason || 'stop'
+      };
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('OpenRouter chat request timed out.');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    const data = await res.json();
-    return {
-      content: data.choices?.[0]?.message?.content || '',
-      model: data.model || this.config.models[0],
-      usage: data.usage,
-      finishReason: data.finish_reason || 'stop'
-    };
   }
-}
 
 /**
  * Gemini provider implementation using @google/genai SDK
