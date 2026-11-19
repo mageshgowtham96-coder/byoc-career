@@ -43,6 +43,7 @@ export const CustomizationTab: React.FC = () => {
     jobs,
     tailoredArtifacts,
     saveTailoredArtifact,
+    setTailoredArtifactReviewConfirmed,
     selectTailoredVariant,
     recordExportedMaterial,
     updateJobUrl,
@@ -209,6 +210,15 @@ export const CustomizationTab: React.FC = () => {
       addToast({
         type: 'warning',
         message: 'Prepare or generate an application kit before exporting.'
+      });
+      return;
+    }
+
+    if (!currentArtifact.reviewConfirmed) {
+      addToast({
+        type: 'warning',
+        title: 'Factual Review Required',
+        message: 'Review the summary, skills, rewritten bullets and cover letter. Confirm that every factual statement is supported by your career profile before exporting.'
       });
       return;
     }
@@ -867,6 +877,17 @@ export const CustomizationTab: React.FC = () => {
 
           {/* Exporter Engine & Assisted-Apply Kit */}
           <div className="p-5 rounded-3xl bg-slate-800/90 border border-slate-700 shadow-lg space-y-5">
+            <label className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={Boolean(currentArtifact.reviewConfirmed)}
+                onChange={(event) => setTailoredArtifactReviewConfirmed(selectedJob.id, event.target.checked)}
+                className="mt-0.5 accent-emerald-500"
+              />
+              <span className="text-[11px] leading-relaxed text-slate-300">
+                I reviewed this resume version and confirm its factual details are supported by my Master Profile. I understand AI wording is a draft, not independent verification.
+              </span>
+            </label>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-2">
@@ -882,7 +903,7 @@ export const CustomizationTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleExport('pdf')}
-                  disabled={isExporting !== null}
+                  disabled={isExporting !== null || !currentArtifact.reviewConfirmed}
                   className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5 text-rose-400" />
