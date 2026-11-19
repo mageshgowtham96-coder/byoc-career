@@ -315,3 +315,68 @@ describe('evidence-grounded interview preparation', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+
+describe('tailored artifact interview evidence integrity', () => {
+  it('maps every tailored-kit interview question to exact structured candidate evidence', async () => {
+    const { buildInterviewEvidenceMap, getTailoringStrategies, validateTailoredOutput } = await import('./groqService');
+    const profile = {
+      rawText: 'Do not use this unstructured source text.',
+      contactInfo: { name: 'Asha Rao', email: 'asha@example.com', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+      headline: 'Operations Analyst',
+      summary: 'Commerce graduate with reporting experience.',
+      skills: { technical: ['Excel'], soft: [], tools: [], domains: [] },
+      experiences: [], education: [], projects: [], certifications: [], additionalEvidence: [],
+      stats: { wordCount: 20, pageCount: 1, charCount: 100, lastParsedDate: '2026-11-20T00:00:00.000Z', sourceFileName: '' }
+    } as any;
+    const job = {
+      id: 'job-1', title: 'Operations Analyst', company: 'Acme', workplaceType: 'On-site',
+      location: 'Chennai', skillsRequired: ['Excel'], jobDescriptionRaw: 'Prepare operational reports.'
+    } as any;
+    const evidence = buildInterviewEvidenceMap(profile);
+    const evidenceId = 'skill:technical:0';
+    const strategies = getTailoringStrategies(job, profile);
+    const questions = [0, 1, 2].map((index) => ({
+      question: `How would you explain this recorded skill in a real task, example ${index + 1}?`,
+      category: 'Role-Specific',
+      suggestedTalkingPoints: ['Explain the context honestly.'],
+      evidenceId
+    }));
+    const parsed = {
+      variants: strategies.map((strategy) => ({
+        name: strategy.name, badge: strategy.badge, description: strategy.description,
+        tailoredSummary: profile.summary, highlightedSkills: ['Excel'], optimizedBullets: [],
+        coverLetter: 'I am interested in this role.', interviewPrepQuestions: questions
+      }))
+    };
+    const artifact = validateTailoredOutput(parsed, job, profile);
+    expect(artifact.interviewPrepQuestions[0].authenticEvidenceRef).toBe(evidence[evidenceId]);
+    expect(artifact.variants.every((variant) => variant.interviewPrepQuestions[0].authenticEvidenceRef === evidence[evidenceId])).toBe(true);
+  });
+
+  it('rejects tailored-kit interview questions that cite invented evidence IDs', async () => {
+    const { getTailoringStrategies, validateTailoredOutput } = await import('./groqService');
+    const profile = {
+      rawText: '', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+      headline: '', summary: 'Commerce graduate.', skills: { technical: ['Excel'], soft: [], tools: [], domains: [] },
+      experiences: [], education: [], projects: [], certifications: [], additionalEvidence: [],
+      stats: { wordCount: 2, pageCount: 1, charCount: 10, lastParsedDate: '2026-11-20T00:00:00.000Z', sourceFileName: '' }
+    } as any;
+    const job = { id: 'job-1', title: 'Analyst', company: 'Acme', skillsRequired: [], jobDescriptionRaw: '' } as any;
+    const strategies = getTailoringStrategies(job, profile);
+    const invalidQuestions = [0, 1, 2].map(() => ({
+      question: 'How would you explain your approach to this task?',
+      category: 'Behavioral',
+      suggestedTalkingPoints: ['Explain your own contribution.'],
+      evidenceId: 'invented-evidence-id'
+    }));
+    const parsed = {
+      variants: strategies.map((strategy) => ({
+        name: strategy.name, badge: strategy.badge, description: strategy.description,
+        tailoredSummary: profile.summary, highlightedSkills: ['Excel'], optimizedBullets: [],
+        coverLetter: '', interviewPrepQuestions: invalidQuestions
+      }))
+    };
+    expect(() => validateTailoredOutput(parsed, job, profile)).toThrowError(/candidate evidence that does not exist/i);
+  });
+});
