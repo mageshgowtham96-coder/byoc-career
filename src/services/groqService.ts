@@ -378,7 +378,7 @@ export async function optimizeMasterResumeWithGroq(
   });
   const raw = await callGroqChat(systemPrompt, userPrompt, apiKey);
   try {
-    const parsed = JSON.parse(raw.replace(/```json\\n?|\\n?```/g, '').trim());
+    const parsed = JSON.parse(raw.replace(/```json\\s*|\\s*```/g, '').trim());
     return validateOptimizedMasterResume(parsed, source);
   } catch (err: unknown) {
     if (err instanceof GroqApiError) throw err;
