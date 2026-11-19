@@ -7,6 +7,7 @@ import type {
   InterviewQuestion
 } from '../types';
 import { partitionTailoredBullets } from '../utils/tailoredBulletResolver';
+import { hasCareerEvidence } from '../utils/resumeReadiness';
 
 /**
  * Factuality instructions supplied to the model for generated drafts.
@@ -668,14 +669,7 @@ export async function vetJobWithGroq(
   masterResume: MasterResume | null,
   apiKey?: string
 ): Promise<JobVetting> {
-  const hasResume = Boolean(masterResume && (
-    masterResume.summary?.trim() ||
-    masterResume.rawText?.trim() ||
-    masterResume.experiences?.length ||
-    masterResume.education?.length ||
-    masterResume.projects?.length ||
-    Object.values(masterResume.skills || {}).some((items) => items?.length)
-  ));
+  const hasResume = hasCareerEvidence(masterResume);
 
   const systemPrompt = `You are a careful career-evidence analyst.
 ${SYSTEMIC_AUTHENTICITY_FILTER}
