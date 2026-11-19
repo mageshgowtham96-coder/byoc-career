@@ -208,6 +208,15 @@ Commerce graduate with project experience.`);
     expect(parsed.contactInfo.location).toBe('Chennai, India');
   });
 
+  it('extracts only the location from a pipe-separated contact line', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+Location: Chennai, India | asha@example.com | +91 90000 00000
+Professional Summary
+Commerce graduate with project experience.`);
+    expect(parsed.contactInfo.location).toBe('Chennai, India');
+    expect(parsed.contactInfo.email).toBe('asha@example.com');
+  });
+
   it('does not treat an email provider or social profile URL as a personal portfolio', () => {
     const parsed = parseRawResumeToStructured(`Asha Rao
 asha@gmail.com
