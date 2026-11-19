@@ -236,7 +236,6 @@ export const IntakeTab: React.FC = () => {
     setOptimizedMasterPreview(null);
     setOptimizationError(null);
     setAiStructuringError(null);
-    setOptimizedMasterPreview(null);
     try {
       const reviewEdits = {
         name: editableName,
