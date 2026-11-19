@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { extractResumeFile, parseRawResumeToStructured, validateExtractedSchema } from './extractionService';
 import { assessResumeReadiness } from '../utils/resumeReadiness';
+import { useWizardStore, buildVaultDataFromState } from '../store/useWizardStore';
 
 
 function crc32(bytes: Uint8Array): number {
