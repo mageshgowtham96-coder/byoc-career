@@ -919,7 +919,7 @@ export function getTailoringStrategies(job: JobPosting, masterResume: MasterResu
   }
   const hasStructuredSkills = Object.values(masterResume.skills || {}).some((items) => items?.length);
   const hasAnyProfileEvidence = Boolean(
-    masterResume.rawText?.trim() || masterResume.summary?.trim() || hasStructuredSkills ||
+    masterResume.summary?.trim() || hasStructuredSkills ||
     masterResume.experiences?.length || hasProjectsOrEducation || hasAdditionalEvidence
   );
   if (!hasAnyProfileEvidence) return [];
