@@ -213,6 +213,7 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
   let pageCount = pageMatches ? pageMatches.length : 1;
 
   const textChunks = collectPdfOperatorText(binaryString);
+  let totalPdfDecompressedBytes = 0;
 
   // Safely attempt FlateDecode decompression on streams to inspect Tj/TJ operators when uncompressed scan is sparse
   if (textChunks.join(' ').split(/\s+/).filter(Boolean).length < 15 && typeof DecompressionStream !== 'undefined') {
@@ -233,7 +234,10 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
 
       try {
         const compressedSlice = bytes.slice(streamStart, endIdx);
-        const decompressed = await decompressBytes(compressedSlice, 'deflate');
+        const remainingBudget = MAX_DECOMPRESSED_DOCUMENT_BYTES - totalPdfDecompressedBytes;
+        if (remainingBudget <= 0) break;
+        const decompressed = await decompressBytes(compressedSlice, 'deflate', remainingBudget);
+        totalPdfDecompressedBytes += decompressed.byteLength;
         const streamText = new TextDecoder('latin1').decode(decompressed);
         const decompressedChunks = collectPdfOperatorText(streamText);
         if (decompressedChunks.length > 0) {
@@ -480,12 +484,17 @@ async function extractDocxText(file: File): Promise<string> {
       'word/comments.xml'
     ];
     const extractedParts: string[] = [];
+    let totalDocxUncompressedBytes = 0;
 
     for (const partPath of documentParts) {
       const entry = partPath === 'word/document.xml'
         ? mainEntry
         : extractZipEntryViaCentralDirectory(bytes, partPath);
       if (!entry) continue;
+      totalDocxUncompressedBytes += entry.uncompressedSize;
+      if (totalDocxUncompressedBytes > MAX_DECOMPRESSED_DOCUMENT_BYTES) {
+        throw new Error('DOCX document parts exceed the 20MB combined extraction safety limit.');
+      }
 
       let xmlBytes: Uint8Array;
       if (entry.compressionMethod === 0) {
