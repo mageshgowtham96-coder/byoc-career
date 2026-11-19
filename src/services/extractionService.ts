@@ -642,16 +642,21 @@ export function parseRawResumeToStructured(
     }
   });
 
+  // Section boundaries are exact headings or explicitly delimited inline headings.
+  // Do not treat ordinary content such as "Awards platform migration" as a section.
+  const sectionHeadingPattern = /^(?:summary|profile|professional summary|about me|overview|executive summary|experience|work experience|professional experience|employment history|work history|education|academic background|academics|qualifications|projects|personal projects|key projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies|awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)(?:\s*(?::|[-–])\s*.*)?$/i;
+  const isResumeSectionHeading = (line: string) => sectionHeadingPattern.test(line.trim());
+
   // Preserve explicit user-authored skills and competencies even when they are outside
   // BYOC's small common-technology dictionary (for example AML, KYC, chargebacks, or fraud ops).
   // Supports both standalone headings and compact inline formats such as "Skills: AML, KYC, SQL".
-  const skillsHeaderPattern = /^(skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies)\s*(?::|[-–])?\s*(.*)$/i;
+  const skillsHeaderPattern = /^(skills|technical skills|core skills|core competencies|key competencies|key skills|skills and competencies|skills & competencies|relevant skills|competencies|technical competencies|areas of expertise|professional skills|tools and technologies)(?:\s*(?::|[-–])\s*(.*))?$/i;
   const skillsHeaderIndex = lines.findIndex((line) => skillsHeaderPattern.test(line));
   if (skillsHeaderIndex !== -1) {
     const inlineSkills = lines[skillsHeaderIndex].match(skillsHeaderPattern)?.[2] || '';
     const skillLines = [inlineSkills, ...lines.slice(skillsHeaderIndex + 1)];
     for (const line of skillLines) {
-      if (/^(experience|work experience|professional experience|employment history|work history|education|projects|certifications|licenses|awards|publications|languages)\s*:?[ ]*$/i.test(line)) break;
+      if (isResumeSectionHeading(line)) break;
       const entries = line.replace(/^[•*\-]\s*/, '').split(/[,;|•]/).map((entry) => entry.trim()).filter(Boolean);
       for (const entry of entries) {
         if (entry.length > 1 && entry.length <= 80 && !domains.some((item) => item.toLowerCase() === entry.toLowerCase())) {
@@ -785,8 +790,7 @@ export function parseRawResumeToStructured(
   }
 
   const additionalEvidence: string[] = [];
-  const additionalSectionPattern = /^(awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)\s*(?::|[-–])?\s*(.*)$/i;
-  const standardSectionPattern = /^(summary|profile|professional summary|experience|work experience|employment history|work history|education|academic background|projects|personal projects|certifications|licenses|certificates|skills|technical skills|core skills|core competencies|awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)\s*(?::|[-–])?\s*(.*)$/i;
+  const additionalSectionPattern = /^(awards(?: and honours| and honors)?|honours|honors|volunteering|volunteer experience|community involvement|publications|research|languages|professional memberships|memberships|extracurricular activities|activities|leadership activities|interests)(?:\s*(?::|[-–])\s*(.*))?$/i;
   for (let index = 0; index < lines.length; index++) {
     const heading = lines[index].match(additionalSectionPattern);
     if (!heading) continue;
@@ -794,7 +798,7 @@ export function parseRawResumeToStructured(
     const inlineContent = (heading[2] || '').trim();
     if (inlineContent) additionalEvidence.push(category + ': ' + inlineContent);
     for (let next = index + 1; next < lines.length; next++) {
-      if (standardSectionPattern.test(lines[next])) break;
+      if (isResumeSectionHeading(lines[next])) break;
       const item = lines[next].replace(/^[•*\-–]\s*/, '').trim();
       if (item) additionalEvidence.push(category + ': ' + item);
     }
