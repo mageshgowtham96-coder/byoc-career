@@ -7,7 +7,7 @@ import {
   resolveTailoredResumeForExportAndPreview
 } from '../../utils/tailoredBulletResolver';
 import type { TailoredArtifact, TailoredVariant } from '../../types';
-import { hasCareerEvidence } from '../../utils/resumeReadiness';
+import { hasStructuredCareerEvidence } from '../../utils/resumeReadiness';
 import {
   Wand2,
   Sparkles,
@@ -128,7 +128,7 @@ export const CustomizationTab: React.FC = () => {
   };
 
   // Action Gating Checks
-  const hasResume = hasCareerEvidence(masterResume);
+  const hasResume = hasStructuredCareerEvidence(masterResume);
   const hasJob = Boolean(selectedJob);
 
   const handleGenerateTailoring = async () => {
@@ -136,7 +136,7 @@ export const CustomizationTab: React.FC = () => {
       addToast({
         type: 'warning',
         title: 'Action Gated',
-        message: 'Add your master resume in the Intake tab to unlock AI tailoring.'
+        message: 'Add structured career evidence in the Intake tab before generating tailored materials. Use the guided builder or optional AI structuring to review your profile first.'
       });
       return;
     }
@@ -1019,7 +1019,7 @@ export const CustomizationTab: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => void handleDraftScreeningAnswer()}
-                        disabled={isDraftingAnswer || !screeningQuestion.trim() || !masterResume || !selectedJob || !groqApiKey}
+                        disabled={isDraftingAnswer || !screeningQuestion.trim() || !hasResume || !selectedJob || !groqApiKey}
                         className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-45"
                       >
                         <Sparkles className="h-3.5 w-3.5" />
