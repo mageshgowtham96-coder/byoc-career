@@ -83,7 +83,16 @@ const COUNTRY_SPECIFIC_LOCATION_MARKERS: Record<string, string[]> = {
   AE: ['dubai', 'abu dhabi']
 };
 
-const GLOBAL_REMOTE_MARKERS = ['worldwide', 'anywhere', 'global', 'everywhere', 'any location', 'open to all locations'];
+const GLOBAL_REMOTE_MARKERS = ['worldwide', 'anywhere', 'everywhere', 'any location', 'open to all locations'];
+
+function getExplicitWorldwideLocationEvidence(location: string): string | null {
+  // Require the location field itself to express worldwide scope. Do not let
+  // "Global HQ, New York" or "Anywhere in the US" bypass country eligibility.
+  const match = (location || '').trim().match(
+    /^(?:remote\\s*[-—,:]?\\s*)?(?:worldwide|anywhere|everywhere|global|any location|open to all locations|open worldwide|anywhere in (?:the )?world)(?:\\s*[-—,:]?\\s*remote)?$/i
+  );
+  return match?.[0] || null;
+}
 
 const EXCLUSIVE_REGION_MARKERS: Array<{ marker: RegExp; countries: string[] }> = [
   { marker: /\b(usa only|us only|u\.s\. only|united states only|us[- ]residents only|us[- ]based)\b/i, countries: ['US'] },
@@ -149,13 +158,12 @@ export function assessRemoteCountryEligibility(
     };
   }
 
-  const worldwideMarker = GLOBAL_REMOTE_MARKERS.find((marker) => locLower.includes(marker));
-  if (worldwideMarker) {
-    const index = locLower.indexOf(worldwideMarker);
+  const worldwideEvidence = getExplicitWorldwideLocationEvidence(location);
+  if (worldwideEvidence) {
     return {
       status: 'explicitly-eligible',
       market,
-      evidence: location.slice(index, index + worldwideMarker.length),
+      evidence: worldwideEvidence,
       source: 'published-location'
     };
   }
@@ -280,7 +288,7 @@ export function matchesRemoteCountryAndLocation(
       .some((alias) => locLower.includes(alias));
     const countryWideRemote = !knownSpecificCityInLocation && (COUNTRY_WIDE_REMOTE_MARKERS[normalizedCountry] || [])
       .some((marker) => locLower.includes(marker));
-    const explicitlyWorldwide = includeWorldwideRemote && GLOBAL_REMOTE_MARKERS.some((marker) => locLower.includes(marker));
+    const explicitlyWorldwide = includeWorldwideRemote && Boolean(getExplicitWorldwideLocationEvidence(jobLocation));
 
     // City eligibility comes from the published location only. A role mentioning a city in its description is not location evidence.
     // Country-wide remote postings remain valid for a city in that country; an explicit city elsewhere does not.
@@ -299,7 +307,7 @@ export function matchesRemoteCountryAndLocation(
   }
 
   // A worldwide listing may be eligible in this market, but the user can explicitly exclude it.
-  if (!includeWorldwideRemote && GLOBAL_REMOTE_MARKERS.some((marker) => locLower.includes(marker))) {
+  if (!includeWorldwideRemote && getExplicitWorldwideLocationEvidence(jobLocation)) {
     return false;
   }
   return true;
