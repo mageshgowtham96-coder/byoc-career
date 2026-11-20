@@ -960,7 +960,7 @@ function resolveTailoredEvidenceReferences(
   if (!required && (rawIds === undefined || rawIds === null)) return [];
   if (!Array.isArray(rawIds) || rawIds.length > 20 || (required && rawIds.length === 0)) {
     throw new GroqApiError(
-      section + ' must cite one or more supplied candidate evidence IDs.',
+      section + ' must cite source evidence IDs from the Master Profile.',
       502,
       'UNSUPPORTED_CLAIM',
       'Retry generation. Each factual section must include exact evidence IDs from the Master Profile.'
