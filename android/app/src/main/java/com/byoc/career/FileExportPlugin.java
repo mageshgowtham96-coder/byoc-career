@@ -57,7 +57,10 @@ public class FileExportPlugin extends Plugin {
 
             ContentValues published = new ContentValues();
             published.put(MediaStore.MediaColumns.IS_PENDING, 0);
-            getContext().getContentResolver().update(outputUri, published, null, null);
+            int publishedRows = getContext().getContentResolver().update(outputUri, published, null, null);
+            if (publishedRows != 1) {
+                throw new IllegalStateException("Android could not publish the exported file to Downloads.");
+            }
 
             JSObject result = new JSObject();
             result.put("uri", outputUri.toString());
