@@ -2,7 +2,13 @@ appId: com.byoc.career
 ---
 - launchApp:
     clearState: true
-- assertVisible: "Your name"
+- extendedWaitUntil:
+    visible: "AES-256-GCM Local Vault"
+    timeout: 60000
+- extendedWaitUntil:
+    visible: "Your name"
+    timeout: 20000
+- takeScreenshot: "artifacts/first-run-vault-registration"
 - tapOn: "Your full name"
 - inputText: "BYOC E2E Candidate"
 - tapOn: "you@domain.com"
