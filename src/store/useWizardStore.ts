@@ -703,9 +703,11 @@ export const useWizardStore = create<WizardState>()(
           selectedVariantId: variantId,
           reviewConfirmed: false,
           tailoredSummary: chosen.tailoredSummary,
+          summaryEvidence: chosen.summaryEvidence,
           highlightedSkills: chosen.highlightedSkills,
           optimizedBullets: chosen.optimizedBullets,
           coverLetter: chosen.coverLetter,
+          coverLetterEvidence: chosen.coverLetterEvidence,
           interviewPrepQuestions: chosen.interviewPrepQuestions
         };
 
