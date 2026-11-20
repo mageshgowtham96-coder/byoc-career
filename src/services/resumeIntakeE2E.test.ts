@@ -279,7 +279,8 @@ describe('real DOCX intake lifecycle', () => {
     expect(parsed.rawText).toBe(extracted.rawText);
     expect(parsed.additionalEvidence).toContain('Languages: Tamil — Native');
 
-    useWizardStore.setState({ masterResume: null, stagedParsedResume: parsed, tailoredArtifacts: {} });
+    useWizardStore.setState({ masterResume: null, tailoredArtifacts: {} });
+    useWizardStore.getState().setStagedParsedResume(parsed);
     useWizardStore.getState().confirmStagedResume();
     const state = useWizardStore.getState();
     expect(state.stagedParsedResume).toBeNull();
