@@ -25,7 +25,7 @@ describe('role-relevant tailoring strategies', () => {
     const strategies = getTailoringStrategies(job, makeProfile({
       projects: [{ id: 'p1', title: 'Customer Feedback Study', description: 'Reviewed survey responses', technologies: [] }]
     }));
-    expect(strategies.map((item) => item.badge)).toEqual(['Projects & Learning', 'ATS Alignment']);
+    expect(strategies.map((item) => item.badge)).toEqual(['Projects & Learning', 'ATS-readable format']);
     expect(strategies.some((item) => /leadership|systems|architecture/i.test(item.badge))).toBe(false);
   });
 
@@ -34,7 +34,7 @@ describe('role-relevant tailoring strategies', () => {
       experiences: [{ id: 'e1', company: 'Example', role: 'Support Associate', startDate: '2023', endDate: 'Present', location: '', bullets: ['Resolved customer cases'] }],
       projects: [{ id: 'p1', title: 'Feedback Study', description: 'Reviewed survey responses', technologies: [] }]
     }));
-    expect(strategies.map((item) => item.badge)).toEqual(['Relevant Experience', 'Projects & Learning', 'ATS Alignment']);
+    expect(strategies.map((item) => item.badge)).toEqual(['Relevant Experience', 'Projects & Learning', 'ATS-readable format']);
   });
 
   it('uses certifications and additional career evidence when no employment, project or education records exist', () => {
@@ -42,7 +42,7 @@ describe('role-relevant tailoring strategies', () => {
       certifications: [{ id: 'c1', name: 'Customer Service Foundations', issuer: 'Open Learning', issueDate: '2025' }],
       additionalEvidence: ['Volunteering: Helped coordinate a community learning centre.', 'Languages: Tamil — Native']
     }));
-    expect(strategies.map((item) => item.badge)).toEqual(['Career Evidence', 'ATS Alignment']);
+    expect(strategies.map((item) => item.badge)).toEqual(['Career Evidence', 'ATS-readable format']);
     expect(strategies[0].description).toMatch(/volunteering.*languages/i);
     expect(strategies.some((item) => /do not convert these into invented employment/i.test(item.description))).toBe(true);
   });
