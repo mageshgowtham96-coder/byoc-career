@@ -1098,10 +1098,13 @@ export function validateExtractedSchema(
         'Candidate Full Name',
         'Email Address',
         'Professional Summary',
-        'Work Experience Milestones',
+        'Work, project or education evidence',
         'Skills & Competencies'
       ],
-      warnings: ['No profile data is currently staged or loaded.'],
+      warnings: [
+        'No profile data is currently staged or loaded.',
+        'You can establish career evidence through work, projects, education or other relevant experience; paid employment is not required.'
+      ],
       completenessPercent: 0
     };
   }
