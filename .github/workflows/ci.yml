@@ -97,6 +97,15 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
+      - name: Validate APK archive and embedded Capacitor app
+        run: |
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -t "$APK"
+          unzip -l "$APK" | grep -q 'AndroidManifest.xml'
+          unzip -l "$APK" | grep -q 'assets/public/index.html'
+          unzip -l "$APK" | grep -q 'assets/capacitor.config.json'
+
       - name: Upload installable APK
         uses: actions/upload-artifact@v7
         with:

@@ -59,7 +59,7 @@ const COUNTRY_ELIGIBILITY_ALIASES: Record<string, string[]> = {
 
 const COUNTRY_WIDE_REMOTE_MARKERS: Record<string, string[]> = {
   IN: ['india', 'india only', 'within india', 'apac', 'asia'],
-  US: ['usa', 'u.s.', 'united states', 'us only', 'north america', 'americas'],
+  US: ['usa', 'u.s.', 'united states', 'us only', 'anywhere in the us', 'anywhere in us', 'remote anywhere in the us', 'north america', 'americas'],
   GB: ['uk', 'u.k.', 'united kingdom', 'britain', 'england', 'europe', 'emea'],
   CA: ['canada', 'north america', 'americas'],
   DE: ['germany', 'deutschland', 'europe', 'eu', 'emea'],
@@ -93,6 +93,7 @@ function getExplicitWorldwideLocationEvidence(location: string): string | null {
 }
 
 const EXCLUSIVE_REGION_MARKERS: Array<{ marker: RegExp; countries: string[] }> = [
+  { marker: /\b(anywhere|work from anywhere|remote anywhere)\s+in\s+(?:the\s+)?(?:us|usa|u\.s\.|united states)\b/i, countries: ['US'] },
   { marker: /\b(usa only|us only|u\.s\. only|united states only|us[- ]residents only|us[- ]based)\b/i, countries: ['US'] },
   { marker: /\b(uk only|united kingdom only)\b/i, countries: ['GB'] },
   { marker: /\b(canada only)\b/i, countries: ['CA'] },
@@ -240,7 +241,10 @@ export function mergePortalShortcuts(saved?: PortalShortcut[]): PortalShortcut[]
   }
   if (Array.isArray(saved)) {
     for (const item of saved) {
-      if (item && item.id && item.name && sanitizeExternalHttpUrl(item.searchUrlTemplate.replace('{query}', 'engineer'))) {
+      const validTemplate = typeof item?.searchUrlTemplate === 'string'
+        && Boolean(sanitizeExternalHttpUrl(item.searchUrlTemplate.replace('{query}', 'engineer')));
+      if (item && typeof item.id === 'string' && item.id.trim()
+        && typeof item.name === 'string' && item.name.trim() && validTemplate) {
         const existing = byId.get(item.id);
         if (!existing || !existing.isBuiltIn || item.isBuiltIn) {
           byId.set(item.id, item);
@@ -321,11 +325,14 @@ export function matchesJobSearchTerms(
 ): boolean {
   const normalizedQuery = (query || '').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ').trim();
   if (!normalizedQuery) return true;
-  const terms = Array.from(new Set(normalizedQuery.split(/\s+/).filter((term) => term.length > 1)));
+  // Keep standalone C and R searchable; discard other one-letter noise.
+  const terms = Array.from(new Set(normalizedQuery.split(/\s+/).filter((term) =>
+    term.length > 1 || term === 'c' || term === 'r'
+  )));
   if (terms.length === 0) return true;
   const haystack = fields.flatMap((field) => Array.isArray(field) ? field : [field || ''])
     .join(' ').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ');
-  return terms.every((term) => haystack.includes(term));
+  return terms.every((term) => matchesSearchTerm(haystack, term));
 }
 
 export function normalizeLocation(rawLocation?: string): string {
@@ -361,6 +368,35 @@ export function mergeDiscoveredJobs(existingJobs: JobPosting[], discoveredJobs: 
 }
 
 /**
+ * Search terms should respect token boundaries but tolerate common singular/plural
+ * forms in job titles and descriptions (e.g. analyst/analysts, company/companies).
+ * Skill scoring intentionally continues to use exact token matching.
+ */
+function matchesSearchTerm(text: string, term: string): boolean {
+  if (containsSkillToken(text, term)) return true;
+  if (term.length <= 2) return false;
+
+  const variants = new Set<string>();
+  if (term.endsWith('ies') && term.length > 4) {
+    variants.add(term.slice(0, -3) + 'y');
+  } else if (/(ches|shes|xes|zes|sses)$/.test(term)) {
+    variants.add(term.slice(0, -2));
+  } else if (term.endsWith('s') && !term.endsWith('ss')) {
+    variants.add(term.slice(0, -1));
+  }
+
+  if (term.endsWith('y') && term.length > 2) {
+    variants.add(term.slice(0, -1) + 'ies');
+  } else if (/(s|x|z|ch|sh)$/.test(term)) {
+    variants.add(term + 'es');
+  } else {
+    variants.add(term + 's');
+  }
+
+  return Array.from(variants).some((variant) => containsSkillToken(text, variant));
+}
+
+/**
  * Keyword overlap is a discovery aid, not proof of qualification or eligibility.
  * Matching uses token boundaries so short skills such as Go, R and C do not
  * match inside unrelated words. Experience depth and eligibility are assessed
@@ -378,16 +414,47 @@ function containsSkillToken(text: string, skill: string): boolean {
  * Describes the provenance of the skill criteria behind a keyword-overlap score.
  * Feed tags are not classified by providers as mandatory or preferred requirements.
  */
+export interface JobMatchCriteria {
+  skills: string[];
+  basis: 'user-required' | 'provider-listed-unknown' | 'none';
+  label: string;
+}
+
+/**
+ * Resolve the exact criteria used for both scoring and UI disclosure.
+ * Empty/malformed entries are ignored so the displayed denominator cannot
+ * drift from the denominator used by calculateHonestMatch.
+ */
+export function getJobMatchCriteria(
+  job: Pick<JobPosting, 'skillsRequired' | 'skillsListed'>
+): JobMatchCriteria {
+  const required = (Array.isArray(job.skillsRequired) ? job.skillsRequired : [])
+    .filter((skill): skill is string => typeof skill === 'string' && skill.trim().length > 0);
+  if (required.length > 0) {
+    return {
+      skills: required,
+      basis: 'user-required',
+      label: 'Based on user-specified required skills'
+    };
+  }
+
+  const listed = (Array.isArray(job.skillsListed) ? job.skillsListed : [])
+    .filter((skill): skill is string => typeof skill === 'string' && skill.trim().length > 0);
+  if (listed.length > 0) {
+    return {
+      skills: listed,
+      basis: 'provider-listed-unknown',
+      label: 'Provider-listed skills; requirement status unknown'
+    };
+  }
+
+  return { skills: [], basis: 'none', label: 'No job skill criteria specified' };
+}
+
 export function getJobMatchBasisLabel(
   job: Pick<JobPosting, 'skillsRequired' | 'skillsListed'>
 ): string {
-  if ((job.skillsRequired || []).some((skill) => skill.trim())) {
-    return 'Based on user-specified required skills';
-  }
-  if ((job.skillsListed || []).some((skill) => skill.trim())) {
-    return 'Provider-listed skills; requirement status unknown';
-  }
-  return 'No job skill criteria specified';
+  return getJobMatchCriteria(job).label;
 }
 
 export function calculateHonestMatch(
@@ -399,21 +466,15 @@ export function calculateHonestMatch(
   matchedKeywords: string[];
   missingKeywords: string[];
 } {
-  const explicitRequiredSkills = (job.skillsRequired || []).filter((skill) => skill.trim());
+  const criteria = getJobMatchCriteria(job);
+  const criteriaSkills = criteria.skills;
   // Public feed tags are useful discovery hints, but providers do not classify them
   // as required or preferred. Score them only with an explicit uncertainty label.
-  const feedListedSkills = explicitRequiredSkills.length === 0
-    ? (job.skillsListed || []).filter((skill) => skill.trim())
-    : [];
-  const criteriaSkills = explicitRequiredSkills.length > 0 ? explicitRequiredSkills : feedListedSkills;
-  const criteriaLabel = explicitRequiredSkills.length > 0
+  const criteriaLabel = criteria.basis === 'user-required'
     ? 'user-specified required skills'
     : 'feed-listed skills (requirement status unknown)';
 
-  const hasSkills = masterResume ? Object.values(masterResume.skills || {}).some((items) => Array.isArray(items) && items.length > 0) : false;
-  const hasExperience = Boolean(masterResume?.experiences?.length);
-  const hasText = Boolean(masterResume?.rawText?.trim() || masterResume?.summary?.trim());
-  if (!masterResume || (!hasText && !hasSkills && !hasExperience)) {
+  if (!masterResume) {
     return {
       score: null,
       statusText: 'Insufficient profile data',
@@ -422,29 +483,58 @@ export function calculateHonestMatch(
     };
   }
 
-  const candidateSkills = [
+  const nonEmptyStrings = (values: unknown[]): string[] =>
+    values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+  const candidateSkills = nonEmptyStrings([
     ...(masterResume.skills?.technical || []),
     ...(masterResume.skills?.tools || []),
     ...(masterResume.skills?.soft || []),
     ...(masterResume.skills?.domains || [])
-  ];
-  const evidenceText = [
-    masterResume.rawText || '',
-    masterResume.summary || '',
+  ]);
+  const experienceEvidence = (masterResume.experiences || []).flatMap((experience) => [
+    experience?.role, experience?.company, ...(experience?.bullets || [])
+  ]);
+  const educationEvidence = (masterResume.education || []).flatMap((education) => [
+    education?.institution, education?.degree, education?.field, education?.gradYear, education?.gpa || ''
+  ]);
+  const projectEvidence = (masterResume.projects || []).flatMap((project) => [
+    project?.title, project?.description, ...(project?.technologies || [])
+  ]);
+  const certificationEvidence = (masterResume.certifications || []).flatMap((certification) => [
+    certification?.name, certification?.issuer, certification?.issueDate
+  ]);
+  const additionalEvidence = masterResume.additionalEvidence || [];
+  const profileEvidence = nonEmptyStrings([
+    masterResume.rawText,
+    masterResume.summary,
+    masterResume.headline,
     ...candidateSkills,
-    ...(masterResume.experiences || []).flatMap((experience) => [
-      experience.role, experience.company, ...(experience.bullets || [])
-    ]),
-    ...(masterResume.projects || []).flatMap((project) => [
-      project.title, project.description, ...(project.technologies || [])
-    ]),
-    ...(masterResume.additionalEvidence || [])
-  ].join(' ');
+    ...experienceEvidence,
+    ...educationEvidence,
+    ...projectEvidence,
+    ...certificationEvidence,
+    ...additionalEvidence
+  ]);
+
+  // Guided profiles may legitimately have no paid-work history. Education,
+  // projects, certifications and other user-authored evidence still count.
+  // Blank placeholder rows do not count as evidence.
+  if (profileEvidence.length === 0) {
+    return {
+      score: null,
+      statusText: 'Insufficient profile data',
+      matchedKeywords: [],
+      missingKeywords: criteriaSkills
+    };
+  }
+
+  const evidenceText = profileEvidence.join(' ');
 
   if (criteriaSkills.length === 0) {
     return {
       score: null,
-      statusText: (job.skillsPreferred?.length || 0) > 0
+      statusText: nonEmptyStrings(job.skillsPreferred || []).length > 0
         ? 'No required or feed-listed skill criteria specified; preferred skills are not treated as requirements'
         : 'No job skill criteria specified',
       matchedKeywords: [],

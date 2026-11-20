@@ -43,6 +43,68 @@ describe('honest job match semantics', () => {
     expect(result.statusText.toLowerCase()).not.toContain('verified');
   });
 
+  it('uses education and project evidence for students without employment history', () => {
+    const studentProfile: MasterResume = {
+      ...profile(''),
+      education: [{
+        id: 'education-1', institution: 'Example University', degree: 'BSc',
+        field: 'Computer Science', gradYear: '2026'
+      }],
+      projects: [{
+        id: 'project-1', title: 'Student Data Platform',
+        description: 'Built a reporting platform for student services.',
+        technologies: ['SQL', 'TypeScript']
+      }]
+    };
+
+    const result = calculateHonestMatch(job(['SQL']), studentProfile);
+
+    expect(result.score).toBe(100);
+    expect(result.matchedKeywords).toEqual(['SQL']);
+    expect(result.statusText).toContain('keyword overlap');
+  });
+
+  it('uses certification evidence when a guided profile has no work history', () => {
+    const certifiedProfile: MasterResume = {
+      ...profile(''),
+      certifications: [{
+        id: 'certification-1', name: 'AWS Certified Developer',
+        issuer: 'Amazon Web Services', issueDate: '2026'
+      }]
+    };
+
+    const result = calculateHonestMatch(job(['AWS']), certifiedProfile);
+
+    expect(result.score).toBe(100);
+    expect(result.matchedKeywords).toEqual(['AWS']);
+  });
+
+  it('does not treat blank placeholder sections as meaningful profile evidence', () => {
+    const blankProfile: MasterResume = {
+      ...profile(''),
+      skills: { technical: ['  '], soft: [], tools: [], domains: [] },
+      experiences: [{
+        id: 'experience-1', company: ' ', role: ' ', startDate: '', endDate: '',
+        location: '', bullets: [' ']
+      }],
+      education: [{
+        id: 'education-1', institution: ' ', degree: ' ', field: ' ',
+        gradYear: '', gpa: ''
+      }],
+      projects: [{
+        id: 'project-1', title: ' ', description: ' ', technologies: [' ']
+      }],
+      certifications: [{
+        id: 'certification-1', name: ' ', issuer: ' ', issueDate: ''
+      }]
+    };
+
+    const result = calculateHonestMatch(job(['SQL']), blankProfile);
+
+    expect(result.score).toBeNull();
+    expect(result.statusText).toBe('Insufficient profile data');
+  });
+
   it('returns insufficient data when profile contains neither structured evidence nor text', () => {
     const result = calculateHonestMatch(job(['SQL']), profile(''));
     expect(result.score).toBeNull();

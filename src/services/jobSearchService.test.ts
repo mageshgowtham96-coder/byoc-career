@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ArbeitnowJobAdapter, assessRemoteCountryEligibility, calculateHonestMatch, getJobMatchBasisLabel, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, matchesRemoteCountryAndLocation, mergeDiscoveredJobs, PublicFeedsJobAdapter } from './jobSearchService';
+import { ArbeitnowJobAdapter, assessRemoteCountryEligibility, calculateHonestMatch, getJobMatchBasisLabel, getJobMatchCriteria, mergePortalShortcuts, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, matchesRemoteCountryAndLocation, mergeDiscoveredJobs, PublicFeedsJobAdapter } from './jobSearchService';
 
 const fetchMock = vi.fn();
 
@@ -22,6 +22,11 @@ describe('published-location-only eligibility gate', () => {
     expect(matchesRemoteCountryAndLocation('Worldwide', '', 'IN', undefined, true)).toBe(true);
     expect(matchesRemoteCountryAndLocation('Worldwide', '', 'IN', undefined, false)).toBe(false);
   });
+
+  it('treats country-wide remote scope as eligible for a city inside that market', () => {
+    expect(matchesRemoteCountryAndLocation('Anywhere in the US', '', 'US', 'New York')).toBe(true);
+    expect(matchesRemoteCountryAndLocation('Anywhere in the US', '', 'IN', 'Chennai')).toBe(false);
+  });
 });
 
 describe('explicit remote market eligibility evidence', () => {
@@ -35,7 +40,9 @@ describe('explicit remote market eligibility evidence', () => {
     ['Worldwide', 'GLOBAL', 'not-assessed'],
     ['Global Remote', 'IN', 'explicitly-eligible'],
     ['Remote — Anywhere', 'IN', 'explicitly-eligible'],
-    ['Anywhere in the US', 'IN', 'not-stated'],
+    ['Anywhere in the US', 'IN', 'explicitly-ineligible'],
+    ['Anywhere in the US', 'US', 'explicitly-eligible'],
+    ['Remote anywhere in USA', 'IN', 'explicitly-ineligible'],
     ['Global HQ, New York', 'IN', 'not-stated']
   ])('classifies published location %s for market %s as %s', (location, market, expected) => {
     expect(assessRemoteCountryEligibility(location, market).status).toBe(expected);
@@ -264,6 +271,18 @@ describe('isPostedWithinDays', () => {
 });
 
 
+describe('saved portal shortcut resilience', () => {
+  it('ignores malformed saved shortcuts instead of crashing while merging defaults', () => {
+    expect(() => mergePortalShortcuts([
+      { id: 'bad-template', name: 'Broken', searchUrlTemplate: undefined } as any,
+      { id: 'bad-protocol', name: 'Unsafe', searchUrlTemplate: 'javascript:alert(1)' } as any
+    ])).not.toThrow();
+    expect(mergePortalShortcuts([
+      { id: 'bad-template', name: 'Broken', searchUrlTemplate: undefined } as any
+    ]).some((item) => item.id === 'bad-template')).toBe(false);
+  });
+});
+
 describe('multi-term role matching', () => {
   it.each([
     ['fraud analyst', 'Fraud & Risk Analyst', true],
@@ -283,6 +302,24 @@ describe('multi-term role matching', () => {
       ['Fraud Detection', 'Transaction Monitoring'],
       'Partner with analysts to investigate suspicious transactions'
     )).toBe(true);
+  });
+
+  it('does not match a role keyword as a substring inside an unrelated word', () => {
+    expect(matchesJobSearchTerms('go developer', 'Ongoing developer role')).toBe(false);
+    expect(matchesJobSearchTerms('react engineer', 'Reactive engineer role')).toBe(false);
+  });
+
+  it('keeps standalone C and R technical search terms instead of dropping them', () => {
+    expect(matchesJobSearchTerms('R developer', 'R Developer')).toBe(true);
+    expect(matchesJobSearchTerms('R developer', 'React developer')).toBe(false);
+    expect(matchesJobSearchTerms('C developer', 'C developer')).toBe(true);
+  });
+
+  it('matches common singular and plural role wording without substring false positives', () => {
+    expect(matchesJobSearchTerms('fraud analyst', 'Fraud & Risk Analysts')).toBe(true);
+    expect(matchesJobSearchTerms('software engineers', 'Software Engineer')).toBe(true);
+    expect(matchesJobSearchTerms('company', 'Companies')).toBe(true);
+    expect(matchesJobSearchTerms('react engineer', 'Reactive Engineers')).toBe(false);
   });
 });
 
@@ -410,6 +447,24 @@ describe('job match criteria disclosure', () => {
       .toBe('Provider-listed skills; requirement status unknown');
     expect(getJobMatchBasisLabel({ skillsRequired: [], skillsListed: [] }))
       .toBe('No job skill criteria specified');
+  });
+
+  it('uses the same non-empty criteria list for scoring and the displayed denominator', () => {
+    expect(getJobMatchCriteria({
+      skillsRequired: [' ', ''],
+      skillsListed: ['React', '  ', 'TypeScript']
+    })).toEqual({
+      skills: ['React', 'TypeScript'],
+      basis: 'provider-listed-unknown',
+      label: 'Provider-listed skills; requirement status unknown'
+    });
+  });
+
+  it('does not count empty required entries when valid required skills exist', () => {
+    expect(getJobMatchCriteria({
+      skillsRequired: ['SQL', ' '],
+      skillsListed: ['Excel', 'Power BI']
+    }).skills).toEqual(['SQL']);
   });
 });
 
