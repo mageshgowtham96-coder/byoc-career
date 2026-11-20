@@ -89,7 +89,7 @@ function getExplicitWorldwideLocationEvidence(location: string): string | null {
   // Require the location field itself to express worldwide scope. Do not let
   // "Global HQ, New York" or "Anywhere in the US" bypass country eligibility.
   const match = (location || '').trim().match(
-    /^(?:remote\\s*[-—,:]?\\s*)?(?:worldwide|anywhere|everywhere|global|any location|open to all locations|open worldwide|anywhere in (?:the )?world)(?:\\s*[-—,:]?\\s*remote)?$/i
+    /^(?:remote\s*[-—,:]?\s*)?(?:worldwide|anywhere|everywhere|global|any location|open to all locations|open worldwide|anywhere in (?:the )?world)(?:\s*[-—,:]?\s*remote)?$/i
   );
   return match?.[0] || null;
 }
