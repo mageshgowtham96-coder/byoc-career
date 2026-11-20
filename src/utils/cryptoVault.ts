@@ -235,7 +235,7 @@ export function writeStoredVaultEnvelope(envelope: VaultEnvelope, storageKey: st
         vaultEnvelopeCache.set(storageKey, sanitized);
         return true;
       } catch (fallbackError) {
-        vaultEnvelopeCache.set(storageKey, null);
+        // Preserve the last verified in-memory envelope if this attempted update cannot persist.
         throw fallbackError instanceof Error ? fallbackError : new Error('Encrypted vault persistence failed.');
       }
     }

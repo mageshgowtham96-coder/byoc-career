@@ -265,7 +265,7 @@ export type EmailVaultMigrationResult =
 export interface MigrateLegacyEmailRecordsParams {
   readLegacyEmails: () => Promise<LegacyEmailReadResult>;
   clearLegacyEmails: () => Promise<void> | void;
-  writeEnvelope: (envelope: VaultEnvelope) => boolean | void;
+  writeEnvelope: (envelope: VaultEnvelope) => boolean | void | Promise<boolean | void>;
   readEnvelope: () => VaultEnvelope | null;
   currentVaultData: DecryptedVaultData;
   vaultMeta: VaultEnvelope['meta'];
@@ -344,7 +344,7 @@ export async function migrateLegacyEmailRecordsToVault(
 
   try {
     const envelope = await syncUnlockedVault(nextVaultData, params.vaultMeta);
-    const wrote = params.writeEnvelope(envelope);
+    const wrote = await params.writeEnvelope(envelope);
     if (wrote === false) {
       throw new Error('Encrypted vault write returned false.');
     }
