@@ -4,6 +4,7 @@ import { getRoleSuggestions } from '../../utils/roleSuggestions';
 import {
   jobSearchEngine,
   calculateHonestMatch,
+  getJobMatchBasisLabel,
   isWorldwideCountryCode,
   matchesRemoteCountryAndLocation,
   isLiveDiscoveredJobSource,
@@ -185,6 +186,7 @@ export const SourcingTab: React.FC = () => {
         return {
           ...job,
           fitScore: match.score,
+          fitStatusText: match.statusText,
           matchedKeywords: match.matchedKeywords,
           missingKeywords: match.missingKeywords
         };
@@ -933,6 +935,9 @@ export const SourcingTab: React.FC = () => {
                         </div>
                         <span className="text-[9px] text-slate-400 font-mono">
                           {job.matchedKeywords.length}/{job.skillsRequired.length || job.skillsListed?.length || 0} keywords
+                        </span>
+                        <span className="text-[9px] text-slate-500 text-right max-w-36">
+                          {getJobMatchBasisLabel(job)}
                         </span>
                       </>
                     ) : (
