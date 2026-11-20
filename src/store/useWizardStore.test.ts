@@ -147,8 +147,9 @@ describe('interview prep question updates', () => {
     const existing = {
       id: 'artifact-1', jobId: 'job-1', jobTitle: 'Data Analyst', company: 'Acme',
       selectedVariantId: 'variant-1',
-      variants: [{ id: 'variant-1', name: 'Role', badge: 'Role', description: '', tailoredSummary: 'Old summary', highlightedSkills: [], optimizedBullets: [], coverLetter: 'Old letter', interviewPrepQuestions: [{ question: 'Old question', category: 'Technical', suggestedTalkingPoints: ['Old point'], authenticEvidenceRef: 'Old source' }] }],
-      tailoredSummary: 'Old summary', highlightedSkills: [], optimizedBullets: [], coverLetter: 'Old letter',
+      variants: [{ id: 'variant-1', name: 'Role', badge: 'Role', description: '', tailoredSummary: 'Old summary', summaryEvidence: [{ id: 'summary', text: 'Old summary evidence.' }], highlightedSkills: [], optimizedBullets: [], coverLetter: 'Old letter', coverLetterEvidence: [{ id: 'experience:exp-1:bullet:0', text: 'Old bullet evidence.' }], interviewPrepQuestions: [{ question: 'Old question', category: 'Technical', suggestedTalkingPoints: ['Old point'], authenticEvidenceRef: 'Old source' }] }],
+      tailoredSummary: 'Old summary', summaryEvidence: [{ id: 'summary', text: 'Old summary evidence.' }], highlightedSkills: [], optimizedBullets: [], coverLetter: 'Old letter',
+      coverLetterEvidence: [{ id: 'experience:exp-1:bullet:0', text: 'Old bullet evidence.' }],
       interviewPrepQuestions: [{ question: 'Old question', category: 'Technical', suggestedTalkingPoints: ['Old point'], authenticEvidenceRef: 'Old source' }],
       generationTimestamp: '2026-11-20T00:00:00.000Z', authenticityGuaranteed: false, reviewConfirmed: true
     } as any;
@@ -167,6 +168,10 @@ describe('interview prep question updates', () => {
     expect(saved.reviewConfirmed).toBe(false);
     expect(saved.interviewPrepQuestions).toEqual([]);
     expect(saved.variants[0].interviewPrepQuestions).toEqual([]);
+    expect(saved.summaryEvidence).toEqual([]);
+    expect(saved.coverLetterEvidence).toEqual([]);
+    expect(saved.variants[0].summaryEvidence).toEqual([]);
+    expect(saved.variants[0].coverLetterEvidence).toEqual([]);
   });
 
 });
