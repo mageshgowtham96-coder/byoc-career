@@ -1,7 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ArbeitnowJobAdapter, calculateHonestMatch, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, mergeDiscoveredJobs, PublicFeedsJobAdapter } from './jobSearchService';
+import { ArbeitnowJobAdapter, assessRemoteCountryEligibility, calculateHonestMatch, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, mergeDiscoveredJobs, PublicFeedsJobAdapter } from './jobSearchService';
 
 const fetchMock = vi.fn();
+
+describe('explicit remote market eligibility evidence', () => {
+  it.each([
+    ['Remote — India', 'IN', 'explicitly-eligible'],
+    ['Remote — Asia', 'IN', 'regionally-eligible'],
+    ['Remote — USA only', 'IN', 'explicitly-ineligible'],
+    ['Remote — North America', 'IN', 'explicitly-ineligible'],
+    ['Remote', 'IN', 'not-stated'],
+    ['Worldwide', 'IN', 'explicitly-eligible'],
+    ['Worldwide', 'GLOBAL', 'not-assessed']
+  ])('classifies published location %s for market %s as %s', (location, market, expected) => {
+    expect(assessRemoteCountryEligibility(location, market).status).toBe(expected);
+  });
+
+  it('retains the exact published location phrase as eligibility evidence', () => {
+    expect(assessRemoteCountryEligibility('Remote — India', 'IN')).toMatchObject({
+      status: 'explicitly-eligible',
+      market: 'IN',
+      evidence: 'India',
+      source: 'published-location'
+    });
+  });
+});
 
 describe('isLiveDiscoveredJobSource', () => {
   it.each([
