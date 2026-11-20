@@ -136,7 +136,7 @@ export interface JobEligibilityAssessment {
   status: 'explicitly-eligible' | 'regionally-eligible' | 'explicitly-ineligible' | 'not-stated' | 'not-assessed';
   market: string;
   evidence: string;
-  source: 'published-location';
+  source: 'published-location' | 'search-scope';
 }
 
 export interface JobPosting {
