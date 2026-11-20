@@ -332,7 +332,7 @@ export function matchesJobSearchTerms(
   if (terms.length === 0) return true;
   const haystack = fields.flatMap((field) => Array.isArray(field) ? field : [field || ''])
     .join(' ').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ');
-  return terms.every((term) => matchesSearchTerm(haystack, term));
+  return terms.every((term, index) => matchesSearchTerm(haystack, term, index === terms.length - 1));
 }
 
 export function normalizeLocation(rawLocation?: string): string {
@@ -389,13 +389,13 @@ function editDistanceAtMostOne(a: string, b: string): boolean {
   return edits <= 1;
 }
 
-function matchesSearchTerm(text: string, term: string): boolean {
+function matchesSearchTerm(text: string, term: string, allowPartial = false): boolean {
   if (containsSkillToken(text, term)) return true;
   if (term.length <= 2) return false;
 
   const tokens = text.split(/[^a-z0-9+#]+/i).filter(Boolean);
   // Partial tokens support live typeahead searches such as "Supp" -> "Support".
-  if (term.length >= 3 && tokens.some((token) => token.startsWith(term))) return true;
+  if (allowPartial && term.length >= 3 && tokens.some((token) => token.startsWith(term))) return true;
 
   const variants = new Set<string>();
   if (term.endsWith('ies') && term.length > 4) {

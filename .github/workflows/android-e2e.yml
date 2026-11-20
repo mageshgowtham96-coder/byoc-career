@@ -3,8 +3,6 @@ name: BYOC Android E2E
 on:
   pull_request:
     branches: ["**"]
-  push:
-    branches: ["feat/byoc-release-candidate-verified"]
 
 permissions:
   contents: read

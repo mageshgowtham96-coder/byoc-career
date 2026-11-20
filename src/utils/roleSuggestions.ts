@@ -43,10 +43,9 @@ function editDistanceAtMostOne(a: string, b: string): boolean {
   return edits <= 1;
 }
 
-function tokenMatch(queryToken: string, candidateToken: string): number {
+function tokenMatch(queryToken: string, candidateToken: string, allowPartial = false): number {
   if (candidateToken === queryToken) return 5;
-  if (candidateToken.startsWith(queryToken) && queryToken.length >= 2) return 4;
-  if (candidateToken.includes(queryToken) && queryToken.length >= 3) return 2;
+  if (allowPartial && candidateToken.startsWith(queryToken) && queryToken.length >= 2) return 4;
   if (editDistanceAtMostOne(queryToken, candidateToken)) return 1;
   return 0;
 }
@@ -57,8 +56,9 @@ function candidateScore(queryTokens: string[], candidate: string): number {
   const initials = candidateTokens.map((token) => token[0]).join('');
   if (queryTokens.length === 1 && initials === queryTokens[0]) return 5;
   let score = 0;
-  for (const queryToken of queryTokens) {
-    const best = Math.max(0, ...candidateTokens.map((token) => tokenMatch(queryToken, token)));
+  for (let index = 0; index < queryTokens.length; index += 1) {
+    const queryToken = queryTokens[index];
+    const best = Math.max(0, ...candidateTokens.map((token) => tokenMatch(queryToken, token, index === queryTokens.length - 1)));
     if (!best) return 0;
     score += best;
   }
