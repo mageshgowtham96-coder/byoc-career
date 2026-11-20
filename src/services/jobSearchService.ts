@@ -290,6 +290,10 @@ export function matchesRemoteCountryAndLocation(
   }
 
   const assessment = assessRemoteCountryEligibility(jobLocation, country);
+  // A worldwide search intentionally has no country-specific eligibility gate.
+  if (assessment.status === 'not-assessed' && isWorldwideCountryCode(country)) {
+    return true;
+  }
   if (assessment.status !== 'explicitly-eligible' && assessment.status !== 'regionally-eligible') {
     return false;
   }
