@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { openExternalPortalUrl, shouldUseNativeExternalBrowser } from '../../services/externalBrowser';
 import { useWizardStore } from '../../store/useWizardStore';
 import { getRoleSuggestions } from '../../utils/roleSuggestions';
 import {
@@ -626,6 +627,12 @@ export const SourcingTab: React.FC = () => {
                 >
                   <a
                     href={targetHref}
+                    onClick={(event) => {
+                      if (shouldUseNativeExternalBrowser()) {
+                        event.preventDefault();
+                        void openExternalPortalUrl(targetHref).catch((error) => console.error('Portal launch failed:', error));
+                      }
+                    }}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-slate-200 hover:text-sky-300 font-semibold transition"
@@ -1052,6 +1059,12 @@ export const SourcingTab: React.FC = () => {
                       return (
                         <a
                           href={validJobUrl}
+                          onClick={(event) => {
+                            if (shouldUseNativeExternalBrowser()) {
+                              event.preventDefault();
+                              void openExternalPortalUrl(validJobUrl).catch((error) => console.error('Portal launch failed:', error));
+                            }
+                          }}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-xs font-semibold transition"

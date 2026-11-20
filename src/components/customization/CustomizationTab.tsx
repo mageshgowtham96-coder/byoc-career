@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { openExternalPortalUrl, shouldUseNativeExternalBrowser } from '../../services/externalBrowser';
 import { useWizardStore } from '../../store/useWizardStore';
 import { tailorResumeWithGroq, draftQuestionnaireAnswer, formatGroqError } from '../../services/groqService';
 import { sanitizeExternalHttpUrl } from '../../services/jobSearchService';
@@ -1292,6 +1293,12 @@ export const CustomizationTab: React.FC = () => {
                     {validListingUrl && (
                       <a
                         href={validListingUrl}
+                        onClick={(event) => {
+                          if (shouldUseNativeExternalBrowser()) {
+                            event.preventDefault();
+                            void openExternalPortalUrl(validListingUrl).catch((error) => console.error('Portal launch failed:', error));
+                          }
+                        }}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-sm"
