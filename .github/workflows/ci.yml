@@ -37,13 +37,13 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: TypeScript check
-        run: bun run lint
+        run: npm run lint
 
       - name: Unit tests
-        run: bun run test
+        run: npm test
 
       - name: Production web build
-        run: bun run build
+        run: npm run build
 
       - name: Verify web build output
         run: test -s dist/index.html

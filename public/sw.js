@@ -33,6 +33,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
+  // Never cache cross-origin resources, including all external APIs and providers.
+  if (url.origin !== self.location.origin) return;
+
   // STRICT PRIVACY & CREDENTIAL SECURITY + DEV FRESHNESS:
   // Never cache external API queries, auth endpoints, AI streams, or Vite dev/source modules.
   if (
