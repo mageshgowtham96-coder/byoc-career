@@ -296,7 +296,7 @@ export function buildApplicationSnapshotRecord(params: {
         selectedVariantId: 'master-baseline',
         variants: [],
         tailoredSummary: masterResumeSummary,
-        highlightedSkills: job.skillsRequired || [],
+        highlightedSkills: [...(job.skillsRequired || []), ...(job.skillsListed || [])],
         optimizedBullets: [],
         coverLetter: '',
         interviewPrepQuestions: [],
@@ -328,6 +328,8 @@ export function buildApplicationSnapshotRecord(params: {
     portalSource: portalSource || job.source || 'User Import',
     jobUrl: validUrl || undefined,
     skillsRequired: Array.isArray(job.skillsRequired) && job.skillsRequired.length > 0 ? [...job.skillsRequired] : undefined,
+    skillsPreferred: Array.isArray(job.skillsPreferred) && job.skillsPreferred.length > 0 ? [...job.skillsPreferred] : undefined,
+    skillsListed: Array.isArray(job.skillsListed) && job.skillsListed.length > 0 ? [...job.skillsListed] : undefined,
     exportedMaterials,
     lastActivityDate: nowIso,
     interviewStages: [

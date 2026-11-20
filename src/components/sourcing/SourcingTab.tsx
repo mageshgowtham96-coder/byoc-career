@@ -95,6 +95,7 @@ export const SourcingTab: React.FC = () => {
   const [customWorkplace, setCustomWorkplace] = useState<'Remote' | 'Hybrid' | 'On-site' | 'Unspecified'>('Unspecified');
   const [customSalary, setCustomSalary] = useState('');
   const [customSkills, setCustomSkills] = useState('');
+  const [customPreferredSkills, setCustomPreferredSkills] = useState('');
   const [customRawJD, setCustomRawJD] = useState('');
 
   const portalShortcuts = React.useMemo(
@@ -189,7 +190,7 @@ export const SourcingTab: React.FC = () => {
         };
       })
       .filter((job) => {
-        if (!matchesJobSearchTerms(searchQuery, job.title, job.company, job.location, job.skillsRequired, job.jobDescriptionRaw)) return false;
+        if (!matchesJobSearchTerms(searchQuery, job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.jobDescriptionRaw)) return false;
         const source = (job.source || '').toLowerCase();
         // Hide legacy Groq-discovered candidates retained in older local vaults; do not delete user data.
         if (source.includes('groq')) return false;
@@ -280,6 +281,10 @@ export const SourcingTab: React.FC = () => {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
+    const preferredSkillsArray = customPreferredSkills
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     const honest = calculateHonestMatch(
       {
@@ -293,6 +298,7 @@ export const SourcingTab: React.FC = () => {
         source: chosenSource,
         url: cleanListingUrl || '#',
         skillsRequired: skillsArray,
+        skillsPreferred: preferredSkillsArray,
         fitScore: null,
         matchedKeywords: [],
         missingKeywords: [],
@@ -313,6 +319,7 @@ export const SourcingTab: React.FC = () => {
       source: chosenSource,
       url: cleanListingUrl || '#',
       skillsRequired: skillsArray,
+      skillsPreferred: preferredSkillsArray,
       fitScore: honest.score,
       matchedKeywords: honest.matchedKeywords,
       missingKeywords: honest.missingKeywords,
@@ -331,6 +338,7 @@ export const SourcingTab: React.FC = () => {
     setCustomWorkplace('Unspecified');
     setCustomRawJD('');
     setCustomSkills('');
+    setCustomPreferredSkills('');
 
     addToast({
       type: 'success',
@@ -923,7 +931,7 @@ export const SourcingTab: React.FC = () => {
                           />
                         </div>
                         <span className="text-[9px] text-slate-400 font-mono">
-                          {job.matchedKeywords.length}/{job.skillsRequired.length} keywords
+                          {job.matchedKeywords.length}/{job.skillsRequired.length || job.skillsListed?.length || 0} keywords
                         </span>
                       </>
                     ) : (
@@ -957,13 +965,18 @@ export const SourcingTab: React.FC = () => {
                   </div>
                 )}
 
-                {/* Skills tags */}
+                {/* Skill classifications remain distinct: required, preferred and feed-listed. */}
                 <div className="flex flex-wrap gap-1.5 mb-4">
-                  {job.skillsRequired.map((s, i) => {
-                    const isMatched = job.matchedKeywords.includes(s);
+                  {[
+                    ...job.skillsRequired.map((skill) => ({ skill, kind: 'Required' })),
+                    ...(job.skillsPreferred || []).map((skill) => ({ skill, kind: 'Preferred' })),
+                    ...(job.skillsListed || []).map((skill) => ({ skill, kind: 'Listed' }))
+                  ].map(({ skill, kind }, index) => {
+                    const isMatched = job.matchedKeywords.includes(skill);
                     return (
                       <span
-                        key={i}
+                        key={kind + '-' + skill + '-' + index}
+                        title={kind === 'Listed' ? 'Provider-listed tag; requirement status is unknown.' : kind + ' skill'}
                         className={`px-2 py-0.5 rounded-md text-[11px] font-mono border ${
                           isMatched
                             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
@@ -971,7 +984,7 @@ export const SourcingTab: React.FC = () => {
                         }`}
                       >
                         {isMatched && '✓ '}
-                        {s}
+                        {kind}: {skill}
                       </span>
                     );
                   })}
@@ -1301,6 +1314,20 @@ export const SourcingTab: React.FC = () => {
                   placeholder="TypeScript, React, Node.js, GraphQL, Docker"
                   className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Preferred / Nice-to-have Skills (optional, comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={customPreferredSkills}
+                  onChange={(e) => setCustomPreferredSkills(e.target.value)}
+                  placeholder="Power BI, stakeholder reporting, a second language"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
+                />
+                <p className="mt-1 text-[10px] text-slate-500">These are not counted as mandatory requirements in the keyword-overlap score.</p>
               </div>
 
               <div>

@@ -144,6 +144,8 @@ export interface JobPosting {
   url: string;
   source: string;
   skillsRequired: string[];
+  skillsPreferred?: string[];
+  skillsListed?: string[];
   fitScore: number | null; // 0 - 100, or null when profile/criteria data is insufficient
   matchedKeywords: string[];
   missingKeywords: string[];
@@ -241,6 +243,8 @@ export interface ApplicationRecord {
   portalSource?: string;
   jobUrl?: string;
   skillsRequired?: string[];
+  skillsPreferred?: string[];
+  skillsListed?: string[];
   exportedMaterials?: ExportedMaterialRecord[];
   lastActivityDate?: string;
   followUpDate?: string;

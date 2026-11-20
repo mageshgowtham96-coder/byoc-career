@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ArbeitnowJobAdapter, calculateHonestMatch, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, mergeDiscoveredJobs } from './jobSearchService';
+import { ArbeitnowJobAdapter, calculateHonestMatch, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, mergeDiscoveredJobs, PublicFeedsJobAdapter } from './jobSearchService';
 
 const fetchMock = vi.fn();
 
@@ -82,6 +82,40 @@ describe('ArbeitnowJobAdapter', () => {
 
     const jobs = await new ArbeitnowJobAdapter().search({ query: 'Office Role', country: 'GLOBAL' });
     expect(jobs[0].workplaceType).toBe('Unspecified');
+  });
+});
+
+describe('PublicFeedsJobAdapter', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps Remotive provider tags as listed skills rather than required skills', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        jobs: [{
+          id: 101,
+          title: 'Frontend Engineer',
+          company_name: 'Example',
+          candidate_required_location: 'Worldwide',
+          description: 'Build accessible web interfaces.',
+          url: 'https://remotive.com/remote-jobs/software-dev/frontend-engineer-101',
+          publication_date: '2026-11-19',
+          tags: ['React', 'TypeScript']
+        }]
+      })
+    });
+    const jobs = await new PublicFeedsJobAdapter().search({ query: 'Frontend Engineer', country: 'GLOBAL' });
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].skillsRequired).toEqual([]);
+    expect(jobs[0].skillsListed).toEqual(['React', 'TypeScript']);
   });
 });
 
@@ -299,6 +333,25 @@ describe('honest keyword-overlap scoring', () => {
     expect(result.score).toBe(0);
     expect(result.statusText).toContain('keyword overlap');
     expect(result.statusText).toContain('experience and eligibility not assessed');
+  });
+
+  it('does not count preferred skills as mandatory match criteria', () => {
+    const preferredOnlyJob = {
+      ...job,
+      skillsRequired: [],
+      skillsListed: [],
+      skillsPreferred: ['SQL']
+    };
+    const result = calculateHonestMatch(preferredOnlyJob as any, {
+      rawText: 'SQL experience',
+      contactInfo: { name: 'Asha Rao', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+      headline: '', summary: '', skills: { technical: ['SQL'], soft: [], tools: [], domains: [] },
+      experiences: [], education: [], projects: [], certifications: [],
+      stats: { wordCount: 2, pageCount: 1, charCount: 10, lastParsedDate: '', sourceFileName: '' }
+    } as any);
+    expect(result.score).toBeNull();
+    expect(result.matchedKeywords).toEqual([]);
+    expect(result.statusText).toContain('preferred skills are not treated as requirements');
   });
 
   it('reports provider-listed skills as unclassified overlap, not required qualifications', () => {

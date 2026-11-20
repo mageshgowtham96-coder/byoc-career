@@ -321,6 +321,17 @@ export function calculateHonestMatch(
   matchedKeywords: string[];
   missingKeywords: string[];
 } {
+  const explicitRequiredSkills = (job.skillsRequired || []).filter((skill) => skill.trim());
+  // Public feed tags are useful discovery hints, but providers do not classify them
+  // as required or preferred. Score them only with an explicit uncertainty label.
+  const feedListedSkills = explicitRequiredSkills.length === 0
+    ? (job.skillsListed || []).filter((skill) => skill.trim())
+    : [];
+  const criteriaSkills = explicitRequiredSkills.length > 0 ? explicitRequiredSkills : feedListedSkills;
+  const criteriaLabel = explicitRequiredSkills.length > 0
+    ? 'user-specified required skills'
+    : 'feed-listed skills (requirement status unknown)';
+
   const hasSkills = masterResume ? Object.values(masterResume.skills || {}).some((items) => Array.isArray(items) && items.length > 0) : false;
   const hasExperience = Boolean(masterResume?.experiences?.length);
   const hasText = Boolean(masterResume?.rawText?.trim() || masterResume?.summary?.trim());
@@ -329,7 +340,7 @@ export function calculateHonestMatch(
       score: null,
       statusText: 'Insufficient profile data',
       matchedKeywords: [],
-      missingKeywords: job.skillsRequired || []
+      missingKeywords: criteriaSkills
     };
   }
 
@@ -352,20 +363,20 @@ export function calculateHonestMatch(
     ...(masterResume.additionalEvidence || [])
   ].join(' ');
 
-  const matchedKeywords: string[] = [];
-  const missingKeywords: string[] = [];
-  const requiredSkills = (job.skillsRequired || []).filter((skill) => skill.trim());
-
-  if (requiredSkills.length === 0) {
+  if (criteriaSkills.length === 0) {
     return {
       score: null,
-      statusText: 'No job skill criteria specified',
+      statusText: (job.skillsPreferred?.length || 0) > 0
+        ? 'No required or feed-listed skill criteria specified; preferred skills are not treated as requirements'
+        : 'No job skill criteria specified',
       matchedKeywords: [],
       missingKeywords: []
     };
   }
 
-  for (const skill of requiredSkills) {
+  const matchedKeywords: string[] = [];
+  const missingKeywords: string[] = [];
+  for (const skill of criteriaSkills) {
     const normalizedSkill = skill.trim().toLowerCase();
     // One- and two-character skills are too ambiguous in ordinary prose (Go, R, C).
     // Count them only when the user explicitly listed the exact skill in a structured
@@ -377,10 +388,13 @@ export function calculateHonestMatch(
     else missingKeywords.push(skill);
   }
 
-  const calculatedScore = Math.round((matchedKeywords.length / requiredSkills.length) * 100);
+  const calculatedScore = Math.round((matchedKeywords.length / criteriaSkills.length) * 100);
+  const statusText = explicitRequiredSkills.length > 0
+    ? calculatedScore + '% keyword overlap against user-specified required skills — experience and eligibility not assessed'
+    : calculatedScore + '% overlap with feed-listed skills (requirement status unknown) — experience and eligibility not assessed';
   return {
     score: calculatedScore,
-    statusText: calculatedScore + '% keyword overlap — experience and eligibility not assessed',
+    statusText,
     matchedKeywords,
     missingKeywords
   };
@@ -480,7 +494,8 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
           jobDescriptionRaw: plainDesc,
           url: item.url || '#',
           source: 'Remotive Live',
-          skillsRequired: Array.isArray(item.tags) ? item.tags.slice(0, 8) : [],
+          skillsRequired: [],
+          skillsListed: Array.isArray(item.tags) ? item.tags.slice(0, 8) : [],
           fitScore: null,
           matchedKeywords: [],
           missingKeywords: [],
@@ -600,8 +615,9 @@ function createRemoteFeedJob(item: any, sourceId: string, sourceName: string, fi
     jobDescriptionRaw: description,
     url,
     source: sourceName,
-    skillsRequired: tags,
-    fitScore: null,
+    skillsRequired: [],
+    skillsListed: tags,
+    fitScore: null;
     matchedKeywords: [],
     missingKeywords: [],
     experienceLevel: 'Unspecified'
