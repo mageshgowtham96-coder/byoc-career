@@ -262,9 +262,44 @@ describe('LiveJobSearchEngine provider isolation', () => {
     );
 
     expect(result.jobs.map((job) => job.title)).toEqual(['Fraud & Risk Analyst']);
+    expect(result.jobs[0].fitStatusText).toBe('Insufficient profile data');
     expect(result.providerStatuses.find((status) => status.id === 'slow-feed')?.status).toBe('error');
     expect(result.providerStatuses.find((status) => status.id === 'working-feed')?.count).toBe(1);
     expect(result.error).toContain('Slow Feed timed out');
+  });
+});
+
+describe('LiveJobSearchEngine skill classification', () => {
+  it('searches provider-listed tags without relabelling them as required skills', async () => {
+    const listedJob = {
+      id: 'listed-frontend-1',
+      title: 'Frontend Engineer',
+      company: 'Example',
+      location: 'Worldwide',
+      workplaceType: 'Remote' as const,
+      salary: 'Undisclosed',
+      postedDate: '2026-11-19',
+      jobDescriptionRaw: 'Build accessible interfaces.',
+      url: 'https://example.com/jobs/frontend',
+      source: 'Remotive Live',
+      skillsRequired: [],
+      skillsListed: ['React'],
+      fitScore: null,
+      matchedKeywords: [],
+      missingKeywords: [],
+      experienceLevel: 'Unspecified' as const
+    };
+    const provider = {
+      id: 'listed-feed', name: 'Listed Feed', isConfigured: true, requiresAuth: false,
+      search: vi.fn(async () => [listedJob])
+    };
+    const result = await new LiveJobSearchEngine([provider]).executeLiveSearch(
+      { query: 'React', country: 'GLOBAL' }, null
+    );
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0].skillsRequired).toEqual([]);
+    expect(result.jobs[0].skillsListed).toEqual(['React']);
+    expect(result.jobs[0].fitStatusText).toBe('Insufficient profile data');
   });
 });
 
