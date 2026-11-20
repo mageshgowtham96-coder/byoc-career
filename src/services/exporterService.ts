@@ -87,10 +87,13 @@ export async function dispatchExportFile(blob: Blob, filename: string, mimeType:
   if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
     try {
       const base64Data = await encodeBlobAsBase64(blob);
-      await NativeFileExport.saveFile({ filename, mimeType, base64Data });
+      const saved = await NativeFileExport.saveFile({ filename, mimeType, base64Data });
+      if (!saved?.uri || !saved?.filename) throw new Error('Android did not confirm the saved MediaStore file.');
       return true;
     } catch (error) {
-      console.warn('Native Android export failed; trying supported browser sharing fallback.', error);
+      // Do not claim a Downloads save when Android MediaStore did not confirm it.
+      console.error('Native Android Downloads export failed:', error);
+      return false;
     }
   }
 

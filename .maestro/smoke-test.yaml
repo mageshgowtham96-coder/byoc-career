@@ -22,6 +22,8 @@ appId: com.byoc.career
       - extendedWaitUntil:
           visible: "Emergency Recovery Phrase Generated"
           timeout: 30000
+      - assertVisible: "I have written down or securely stored my recovery phrase"
+      - tapOn: "I have written down or securely stored my recovery phrase"
       - assertVisible: "I Have Saved My Recovery Phrase"
       - tapOn:
           text: "I Have Saved My Recovery Phrase.*"
