@@ -13,6 +13,8 @@ describe('explicit remote market eligibility evidence', () => {
     ['Worldwide', 'IN', 'explicitly-eligible'],
     ['Worldwide', 'GLOBAL', 'not-assessed'],
     ['Global Remote', 'IN', 'explicitly-eligible'],
+    ['Remote — Anywhere', 'IN', 'explicitly-eligible'],
+    ['Anywhere in the US', 'IN', 'not-stated'],
     ['Global HQ, New York', 'IN', 'not-stated']
   ])('classifies published location %s for market %s as %s', (location, market, expected) => {
     expect(assessRemoteCountryEligibility(location, market).status).toBe(expected);
@@ -24,6 +26,14 @@ describe('explicit remote market eligibility evidence', () => {
       market: 'IN',
       evidence: 'India',
       source: 'published-location'
+    });
+  });
+
+  it('identifies worldwide searches as a scope choice rather than published eligibility evidence', () => {
+    expect(assessRemoteCountryEligibility('Worldwide', 'GLOBAL')).toMatchObject({
+      status: 'not-assessed',
+      market: 'GLOBAL',
+      source: 'search-scope'
     });
   });
 });
