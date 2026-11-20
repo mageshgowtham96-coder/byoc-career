@@ -54,12 +54,29 @@ describe('Master Resume document export integration', () => {
     expect(artifact.jobId).toBe('master-resume');
   });
 
-  it('exports a readable PDF for standard-font-supported text', async () => {
+  it('exports a readable PDF that BYOC can re-import as career evidence', async () => {
     const resume = createApprovedMasterResume();
     const artifact = createMasterResumeExportArtifact(resume);
     const pdf = await generatePdfResume(artifact, resume);
     expect(pdf.size).toBeGreaterThan(0);
     expect(pdf.type).toBe('application/pdf');
+
+    const pdfBytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error || new Error('Could not read generated PDF blob.'));
+      reader.readAsArrayBuffer(pdf);
+    });
+    const file = {
+      name: 'asha-master-resume.pdf',
+      size: pdfBytes.byteLength,
+      arrayBuffer: async () => pdfBytes
+    } as unknown as File;
+    const imported = await extractResumeFile(file);
+    expect(imported.success, imported.error || 'PDF re-import failed without an error message').toBe(true);
+    expect(imported.rawText).toContain('Asha Rao');
+    expect(imported.rawText).toContain('Prepared weekly operational reports');
+    expect(imported.rawText).toContain('Retail Sales Analysis');
   });
 
   it('refuses lossy PDF export for unsupported scripts while leaving DOCX export available', async () => {
