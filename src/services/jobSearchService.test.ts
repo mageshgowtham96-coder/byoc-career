@@ -60,7 +60,8 @@ describe('ArbeitnowJobAdapter', () => {
       workplaceType: 'Remote',
       url: 'https://www.arbeitnow.com/jobs/companies/example/frontend-engineer-123',
       source: 'Arbeitnow Live',
-      skillsRequired: ['React', 'TypeScript']
+      skillsRequired: [],
+      skillsListed: ['React', 'TypeScript']
     });
     expect(jobs[0].postedDate).not.toBe('Unspecified');
   });
@@ -298,6 +299,27 @@ describe('honest keyword-overlap scoring', () => {
     expect(result.score).toBe(0);
     expect(result.statusText).toContain('keyword overlap');
     expect(result.statusText).toContain('experience and eligibility not assessed');
+  });
+
+  it('reports provider-listed skills as unclassified overlap, not required qualifications', () => {
+    const listedJob = {
+      ...job,
+      skillsRequired: [],
+      skillsListed: ['Go', 'SQL']
+    };
+    const profile = {
+      rawText: 'Candidate profile with relevant project experience.',
+      contactInfo: { name: 'Asha Rao', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+      headline: '', summary: '', skills: { technical: ['SQL'], soft: [], tools: [], domains: [] },
+      experiences: [], education: [], projects: [], certifications: [],
+      stats: { wordCount: 14, pageCount: 1, charCount: 80, lastParsedDate: '', sourceFileName: 'resume.txt' }
+    };
+    const result = calculateHonestMatch(listedJob as any, profile as any);
+    expect(result.matchedKeywords).toEqual(['SQL']);
+    expect(result.missingKeywords).toEqual(['Go']);
+    expect(result.score).toBe(50);
+    expect(result.statusText).toContain('listed skills');
+    expect(result.statusText).toContain('requirement status unknown');
   });
 
   it('matches short skills only when present as standalone tokens', () => {
