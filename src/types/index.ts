@@ -188,15 +188,22 @@ export interface InterviewQuestion {
   authenticEvidenceRef: string;
 }
 
+export interface CandidateEvidenceReference {
+  id: string;
+  text: string;
+}
+
 export interface TailoredVariant {
   id: string; // e.g. 'variant-a' | 'variant-b' | 'variant-c'
   name: string; // e.g. 'Variant A: Role-Relevant Evidence'
   badge: string; // e.g. 'Role Alignment'
   description: string;
   tailoredSummary: string;
+  summaryEvidence?: CandidateEvidenceReference[];
   highlightedSkills: string[];
   optimizedBullets: TailoredBullet[];
   coverLetter: string;
+  coverLetterEvidence?: CandidateEvidenceReference[];
   interviewPrepQuestions: InterviewQuestion[];
 }
 
@@ -217,9 +224,11 @@ export interface TailoredArtifact {
   selectedVariantId: string;
   variants: TailoredVariant[];
   tailoredSummary: string;
+  summaryEvidence?: CandidateEvidenceReference[];
   highlightedSkills: string[];
   optimizedBullets: TailoredBullet[];
   coverLetter: string;
+  coverLetterEvidence?: CandidateEvidenceReference[];
   interviewPrepQuestions: InterviewQuestion[];
   generationTimestamp: string;
   authenticityGuaranteed: boolean; // True only when every artifact field is independently source-validated

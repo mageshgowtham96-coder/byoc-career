@@ -615,6 +615,18 @@ export const CustomizationTab: React.FC = () => {
                 <p className="text-xs text-slate-200 leading-relaxed bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
                   {currentArtifact.tailoredSummary}
                 </p>
+                {currentArtifact.variants.length === 0 ? (
+                  <p className="mt-2 text-[10px] text-slate-500">Master Profile wording — no AI rewrite applied.</p>
+                ) : currentArtifact.summaryEvidence && currentArtifact.summaryEvidence.length > 0 ? (
+                  <div className="mt-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-1.5">
+                    <span className="text-[9px] uppercase font-mono font-bold text-emerald-300">Linked Master Profile evidence — review aid, not proof</span>
+                    {currentArtifact.summaryEvidence.map((reference) => (
+                      <p key={reference.id} className="text-[10px] leading-relaxed text-slate-400">{reference.text}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-[10px] text-amber-300">No source links attached to this saved draft. Verify every factual statement manually.</p>
+                )}
               </div>
 
               {/* Skills */}
@@ -894,7 +906,7 @@ export const CustomizationTab: React.FC = () => {
                 className="mt-0.5 accent-emerald-500"
               />
               <span className="text-[11px] leading-relaxed text-slate-300">
-                I reviewed this resume version. Candidate claims are supported by my Master Profile, and job-specific claims by the supplied job description. I understand AI wording is a draft, not independent verification.
+                I reviewed this resume version and checked each claim against the linked Master Profile evidence and supplied job description. Evidence links are review aids, not proof; AI wording is not independent verification.
               </span>
             </label>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -951,6 +963,19 @@ export const CustomizationTab: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {currentArtifact.coverLetter && (
+              <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-3 space-y-1.5">
+                <span className="text-[9px] uppercase font-mono font-bold text-sky-300">Cover-letter source evidence</span>
+                {currentArtifact.coverLetterEvidence && currentArtifact.coverLetterEvidence.length > 0 ? (
+                  currentArtifact.coverLetterEvidence.map((reference) => (
+                    <p key={reference.id} className="text-[10px] leading-relaxed text-slate-400">{reference.text}</p>
+                  ))
+                ) : (
+                  <p className="text-[10px] text-amber-300">No source links attached to this saved cover letter. Verify every factual statement manually.</p>
+                )}
+              </div>
+            )}
 
             {currentArtifact.exportedMaterials && currentArtifact.exportedMaterials.length > 0 && (
               <div className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-1.5">

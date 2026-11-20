@@ -54,14 +54,14 @@ describe('whole career workflow integration', () => {
     const artifact = validateTailoredOutput({
       variants: strategies.map((strategy) => ({
         name: strategy.name, badge: strategy.badge, description: strategy.description,
-        tailoredSummary: resume.summary, highlightedSkills: ['SQL', 'Excel'],
+        tailoredSummary: resume.summary, tailoredSummaryEvidenceIds: ['summary'], highlightedSkills: ['SQL', 'Excel'],
         optimizedBullets: [{
           experienceId: 'exp-1', company: 'Example Co-op', role: 'Operations Analyst',
           originalBullet: 'Prepared weekly operational reports using Excel and SQL.',
           tailoredBullet: 'Prepared weekly operational reports using Excel and SQL.',
           matchRationale: 'Preserves the original reporting evidence.'
         }],
-        coverLetter: 'I am interested in the Operations Analyst role.',
+        coverLetter: 'I am interested in the Operations Analyst role.', coverLetterEvidenceIds: ['experience:exp-1:bullet:0'],
         interviewPrepQuestions: questions
       }))
     }, job, resume);

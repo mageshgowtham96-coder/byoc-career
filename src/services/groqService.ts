@@ -951,6 +951,41 @@ export function getTailoringStrategies(job: JobPosting, masterResume: MasterResu
 /**
  * Validates the evidence-relevant strategies returned by the model.
  */
+function resolveTailoredEvidenceReferences(
+  rawIds: unknown,
+  evidenceMap: Record<string, string>,
+  section: string,
+  required: boolean
+): import('../types').CandidateEvidenceReference[] {
+  if (!required && (rawIds === undefined || rawIds === null)) return [];
+  if (!Array.isArray(rawIds) || rawIds.length > 20 || (required && rawIds.length === 0)) {
+    throw new GroqApiError(
+      section + ' must cite one or more supplied candidate evidence IDs.',
+      502,
+      'UNSUPPORTED_CLAIM',
+      'Retry generation. Each factual section must include exact evidence IDs from the Master Profile.'
+    );
+  }
+
+  const references: import('../types').CandidateEvidenceReference[] = [];
+  for (const rawId of rawIds) {
+    if (typeof rawId !== 'string' || !evidenceMap[rawId]) {
+      throw new GroqApiError(
+        section + ' references candidate evidence that does not exist.',
+        502,
+        'UNSUPPORTED_CLAIM'
+      );
+    }
+    if (!references.some((reference) => reference.id === rawId)) {
+      references.push({ id: rawId, text: evidenceMap[rawId] });
+    }
+  }
+  if (required && references.length === 0) {
+    throw new GroqApiError(section + ' must cite source evidence.', 502, 'UNSUPPORTED_CLAIM');
+  }
+  return references;
+}
+
 export function validateTailoredOutput(parsed: any, job: JobPosting, masterResume: MasterResume): TailoredArtifact {
   if (!parsed || typeof parsed !== 'object') {
     throw new GroqApiError('LLM response was not valid JSON.', 502, 'SCHEMA_ERROR');
@@ -1001,15 +1036,33 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
       }
     }
 
+    const tailoredSummary = String(rv.tailoredSummary || masterResume.summary || '');
+    const coverLetter = String(rv.coverLetter || '');
+    const summaryEvidence = resolveTailoredEvidenceReferences(
+      rv.tailoredSummaryEvidenceIds,
+      interviewEvidenceMap,
+      'Tailored summary',
+      Boolean(tailoredSummary.trim())
+    );
+    const coverLetterEvidence = resolveTailoredEvidenceReferences(
+      rv.coverLetterEvidenceIds,
+      interviewEvidenceMap,
+      'Cover letter',
+      Boolean(coverLetter.trim())
+    );
+
     return {
       id: def.id,
-      name: String(rv.name || def.name),
-      badge: String(rv.badge || def.badge),
-      description: String(rv.description || `Specialized tailoring focusing on ${def.badge}.`),
-      tailoredSummary: String(rv.tailoredSummary || masterResume.summary || ''),
+      // Strategy identity and description are derived locally, not trusted from model output.
+      name: def.name,
+      badge: def.badge,
+      description: def.description,
+      tailoredSummary,
+      summaryEvidence,
       highlightedSkills: highlightedSkills.length > 0 ? highlightedSkills : [...masterResume.skills.technical, ...masterResume.skills.soft, ...masterResume.skills.tools, ...masterResume.skills.domains].slice(0, 8),
       optimizedBullets,
-      coverLetter: String(rv.coverLetter || ''),
+      coverLetter,
+      coverLetterEvidence,
       interviewPrepQuestions
     };
   });
@@ -1024,9 +1077,11 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
     selectedVariantId: active.id,
     variants: validatedVariants,
     tailoredSummary: active.tailoredSummary,
+    summaryEvidence: active.summaryEvidence,
     highlightedSkills: active.highlightedSkills,
     optimizedBullets: active.optimizedBullets,
     coverLetter: active.coverLetter,
+    coverLetterEvidence: active.coverLetterEvidence,
     interviewPrepQuestions: active.interviewPrepQuestions,
     generationTimestamp: new Date().toISOString(),
     // Bullets and displayed skills are checked against source data, but AI-generated prose still requires review.
@@ -1215,6 +1270,7 @@ export async function tailorResumeWithGroq(
       badge: strategy.badge,
       description: 'string',
       tailoredSummary: 'string',
+      tailoredSummaryEvidenceIds: ['exact supplied candidate evidence ID'],
       highlightedSkills: ['string'],
       optimizedBullets: [{
         experienceId: 'string',
@@ -1225,6 +1281,7 @@ export async function tailorResumeWithGroq(
         matchRationale: 'string'
       }],
       coverLetter: 'string',
+      coverLetterEvidenceIds: ['exact supplied candidate evidence ID'],
       interviewPrepQuestions: [{
         question: 'string',
         category: 'Technical | Behavioral | Situational | Role-Specific',
@@ -1238,7 +1295,7 @@ export async function tailorResumeWithGroq(
 ${SYSTEMIC_AUTHENTICITY_FILTER}
 Generate exactly ${strategies.length} distinct resume presentation versions, one for each strategy in the supplied schema. These strategies are selected from the candidate's actual evidence; do not add leadership, architecture, metrics or specialist claims unless supported by that evidence.
 Every factual claim must be directly supported by the supplied candidate profile. Rewrite for clarity and relevance, but never create new duties, achievements, numbers, employers, qualifications, dates or skills.
-Only rewrite existing experience bullets when the source bullet and experienceId are supplied. If a statement cannot be mapped to source evidence, omit it. highlightedSkills must be exact skills from the candidate profile. Tailored summaries and cover letters must not assert unsupported facts. Each variant must include 3 to 8 interview questions; every question must cite exactly one evidenceId from the supplied candidate evidence references, and its talking points must be prompts rather than claims.
+Only rewrite existing experience bullets when the source bullet and experienceId are supplied. If a statement cannot be mapped to source evidence, omit it. highlightedSkills must be exact skills from the candidate profile. Tailored summaries and cover letters must not assert unsupported facts. Every factual tailored-summary and cover-letter section must include one or more exact supporting evidence IDs in tailoredSummaryEvidenceIds and coverLetterEvidenceIds. Do not cite evidence that does not support the text. Each variant must include 3 to 8 interview questions; every question must cite exactly one evidenceId from the supplied candidate evidence references, and its talking points must be prompts rather than claims.
 Return JSON matching this schema exactly:
 ${strategySchema}`;
 
