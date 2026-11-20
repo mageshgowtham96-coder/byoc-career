@@ -17,7 +17,7 @@ This document reports implementation and verification evidence. A passing build 
 - Optional Groq-assisted resume structuring and optional Master Resume wording optimization. Optimization is a staged proposal with before/after review; the active Master Resume changes only after user confirmation. The optimized result is retained as structured Master Resume fields in the encrypted vault, not as a TXT-only record.
 - Master Resume DOCX and PDF export. PDF export refuses unsupported Unicode rather than silently dropping characters; DOCX supports Unicode. The current PDF exporter creates a newly styled document and does not preserve an uploaded document's original visual layout.
 - Job discovery from the supported public feeds and external portal shortcuts. Coverage is not exhaustive, especially for local India vacancies.
-- Job fit display is explicitly labelled keyword overlap. It is not a verified qualification, experience or eligibility assessment.
+- Job fit display is explicitly labelled keyword overlap. Required, preferred and provider-listed skills are distinct; feed tags are not assumed mandatory. Experience depth is not assessed. Market eligibility is recorded separately from the score using published-location evidence only (explicit, regional, not stated or not assessed); job-description mentions are not treated as location proof.
 - AI vetting and tailoring are user-triggered. Unsupported employer, salary-market, culture and growth claims are labelled as unverified or not assessed. AI-generated wording still requires human factual review.
 - Application tracking and local document workflows remain available without requiring a BYOC-hosted backend.
 
@@ -29,7 +29,7 @@ This document reports implementation and verification evidence. A passing build 
 - A successful DOCX/PDF export is not proof of layout fidelity for every office suite or device.
 - Job discovery does not cover every portal or every local vacancy. External portal shortcuts are destinations, not live integrated feeds.
 - No automatic applications, authenticated portal scraping, BYOC cloud sync or Gmail inbox access.
-- No physical Android device smoke test has been performed in this verification cycle.
+- Cross-workflow integration coverage now exercises matching, tailoring, export, tracking and encrypted reload. No physical Android device smoke test or visual layout comparison across office suites has been performed in this verification cycle.
 - The current APK pipeline produces a debug APK, not a signed production release.
 
 ## Verification policy

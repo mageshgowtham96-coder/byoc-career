@@ -28,7 +28,9 @@ const job: JobPosting = {
   workplaceType: 'Hybrid', salary: 'Undisclosed', postedDate: '2026-11-19',
   jobDescriptionRaw: 'Prepare operational reports and analyze transaction data.',
   url: 'https://example.com/careers/operations-analyst', source: 'User Import',
-  skillsRequired: ['SQL', 'Excel'], skillsPreferred: ['Power BI'], fitScore: null,
+  skillsRequired: ['SQL', 'Excel'], skillsPreferred: ['Power BI'],
+  eligibilityAssessment: { status: 'explicitly-eligible', market: 'IN', evidence: 'India', source: 'published-location' },
+  fitScore: null,
   matchedKeywords: [], missingKeywords: [], experienceLevel: 'Unspecified'
 };
 
@@ -78,6 +80,7 @@ describe('whole career workflow integration', () => {
     const application = useWizardStore.getState().applyForJob(job.id, 'Reviewed the exported materials.');
     expect(application?.status).toBe('Saved');
     expect(application?.tailoredResumeSnapshot).toEqual(approved);
+    expect(application?.eligibilityAssessment).toEqual(job.eligibilityAssessment);
     const { envelope } = await encryptVault(buildVaultDataFromState(useWizardStore.getState()), 'unit-test-only-passphrase', {
       id: 'example-user', name: 'Example Candidate', email: '', biometricEnabled: false, updatedAt: new Date().toISOString()
     }, 'unit-test-recovery-material');
@@ -85,6 +88,7 @@ describe('whole career workflow integration', () => {
     expect(restored.masterResume?.rawText).toBe('Original source text remains unchanged.');
     expect(restored.tailoredArtifacts[job.id].reviewConfirmed).toBe(true);
     expect(restored.applications[0].tailoredResumeSnapshot).toEqual(approved);
+    expect(restored.applications[0].eligibilityAssessment).toEqual(job.eligibilityAssessment);
     useWizardStore.setState({ masterResume: null, jobs: [], selectedJobId: null, tailoredArtifacts: {}, applications: [], toasts: [] });
   });
 });

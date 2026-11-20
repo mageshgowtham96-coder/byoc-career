@@ -83,8 +83,6 @@ const COUNTRY_SPECIFIC_LOCATION_MARKERS: Record<string, string[]> = {
   AE: ['dubai', 'abu dhabi']
 };
 
-const GLOBAL_REMOTE_MARKERS = ['worldwide', 'anywhere', 'everywhere', 'any location', 'open to all locations'];
-
 function getExplicitWorldwideLocationEvidence(location: string): string | null {
   // Require the location field itself to express worldwide scope. Do not let
   // "Global HQ, New York" or "Anywhere in the US" bypass country eligibility.

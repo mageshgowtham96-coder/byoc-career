@@ -34,7 +34,7 @@
 ### Workstream 1: Resume evidence and document lifecycle
 
 - [x] Audit parser and profile schema for content loss and structural assumptions; strict section boundaries and broader additional-evidence capture are implemented.
-- [x] Add generated DOCX archive regression fixtures for paragraphs, real table cells, mixed runs, line breaks, headers/footers/notes and Unicode. Hyperlink relationships and all Word list-numbering styles still need broader fixtures.
+- [x] Add generated DOCX archive regression fixtures for paragraphs, real table cells, mixed runs, line breaks, headers/footers, footnotes, endnotes, comments, hyperlinks and Unicode. One list-numbering structure is covered; numbering-format and style variants still need broader fixtures.
 - [x] Preserve complete extracted text in the encrypted profile and classify supported non-standard career sections as additional evidence. Fine-grained per-field provenance/uncertainty metadata remains incomplete.
 - [x] Make profile sections editable through the guided builder launched from intake review, including education, experience, skills, projects and other career evidence.
 - [x] Remove employment-centric readiness penalties for students/freshers; education, projects and additional evidence can establish profile readiness.
@@ -50,13 +50,13 @@
 - [x] Ensure the approved Master Resume is exported as DOCX and PDF where supported.
 - [x] Remove lossy Unicode stripping. DOCX preserves Unicode; PDF rejects unsupported glyphs rather than silently corrupting text. Embedded multilingual PDF fonts remain open.
 - [x] Keep original-layout preservation optional; default styled document generation is available.
-- [ ] Add full DOCX/PDF export -> re-import round-trip tests and visual layout comparisons. Master profile immutability is covered by current export/optimization tests.
+- [x] Add DOCX/PDF export -> re-import round-trip tests and verify Master Profile source immutability. Visual layout comparisons across office suites and devices remain open.
 
 ### Workstream 3: Job intelligence correctness
 
 - [x] Replace substring matching and "Verified Match" labels with token-boundary keyword overlap. The UI explicitly says experience and eligibility are not assessed; separate dimensions remain unimplemented rather than guessed.
 - [x] Add token-boundary regression tests for short skills (Go, R, C) and unrelated-word false positives.
-- [ ] Extend the job data model to distinguish required vs preferred skills and explicit vs inferred eligibility. Current provider data does not consistently supply these distinctions.
+- [x] Extend the job model to separate user-specified required skills, preferred skills and provider-listed tags. Record published-location eligibility as explicitly eligible, regionally eligible, explicitly ineligible, not stated or not assessed; do not infer eligibility from job-description prose.
 - [x] Ensure ranking labels and uses the value as keyword overlap only, not verified qualification evidence.
 - [x] Clarify provider/source coverage in README and UI; do not imply exhaustive India-wide coverage.
 
@@ -78,7 +78,7 @@
 
 ### Workstream 6: Whole-product regression and release
 
-- [ ] Add a complete whole-product integration journey from profile through jobs, match, tailoring, export, tracking and reload. DOCX intake/encrypted-vault round-trip is covered separately.
+- [x] Add a whole-product integration journey from structured profile through keyword match, evidence-validated tailoring, reviewed DOCX/PDF export, application tracking and encrypted vault reload. DOCX intake/approval/encrypted-vault round-trip is separately covered.
 - [ ] Complete a full five-phase mobile UI consistency and physical-device accessibility review; current cinematic redesign is not yet applied to every workflow screen.
 - [ ] Run TypeScript, all Vitest tests, production build and Android debug build on the exact final PR head.
 - [ ] Inspect final exact-head CI logs and APK artifact; record SHA-256 and artifact ID.
