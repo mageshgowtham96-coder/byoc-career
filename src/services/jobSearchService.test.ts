@@ -139,6 +139,7 @@ describe('PublicFeedsJobAdapter', () => {
     expect(jobs).toHaveLength(1);
     expect(jobs[0].skillsRequired).toEqual([]);
     expect(jobs[0].skillsListed).toEqual(['React', 'TypeScript']);
+    expect(jobs[0].eligibilityAssessment?.status).toBe('not-assessed');
   });
 });
 

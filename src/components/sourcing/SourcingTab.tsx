@@ -991,6 +991,13 @@ export const SourcingTab: React.FC = () => {
                   })}
                 </div>
 
+                {job.eligibilityAssessment && (
+                  <p className="mb-3 text-[10px] leading-relaxed text-slate-400" title={job.eligibilityAssessment.evidence}>
+                    Market eligibility: <span className="font-semibold text-slate-300">{job.eligibilityAssessment.status.replace(/-/g, ' ')}</span>
+                    {' · '}{job.eligibilityAssessment.evidence}
+                  </p>
+                )}
+
                 {/* Raw JD Preview */}
                 <p className="text-xs text-slate-400 line-clamp-2 mb-4 leading-relaxed bg-slate-900/40 p-2.5 rounded-xl border border-slate-800">
                   {job.jobDescriptionRaw}

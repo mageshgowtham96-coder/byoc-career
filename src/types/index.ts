@@ -132,6 +132,13 @@ export interface JobVerificationEvidence {
   employerIdentityVerified: false;
 }
 
+export interface JobEligibilityAssessment {
+  status: 'explicitly-eligible' | 'regionally-eligible' | 'explicitly-ineligible' | 'not-stated' | 'not-assessed';
+  market: string;
+  evidence: string;
+  source: 'published-location';
+}
+
 export interface JobPosting {
   id: string;
   title: string;
@@ -146,6 +153,7 @@ export interface JobPosting {
   skillsRequired: string[];
   skillsPreferred?: string[];
   skillsListed?: string[];
+  eligibilityAssessment?: JobEligibilityAssessment;
   fitScore: number | null;
   fitStatusText?: string; // 0 - 100, or null when profile/criteria data is insufficient
   matchedKeywords: string[];
@@ -246,6 +254,7 @@ export interface ApplicationRecord {
   skillsRequired?: string[];
   skillsPreferred?: string[];
   skillsListed?: string[];
+  eligibilityAssessment?: JobEligibilityAssessment;
   exportedMaterials?: ExportedMaterialRecord[];
   lastActivityDate?: string;
   followUpDate?: string;

@@ -330,6 +330,7 @@ export function buildApplicationSnapshotRecord(params: {
     skillsRequired: Array.isArray(job.skillsRequired) && job.skillsRequired.length > 0 ? [...job.skillsRequired] : undefined,
     skillsPreferred: Array.isArray(job.skillsPreferred) && job.skillsPreferred.length > 0 ? [...job.skillsPreferred] : undefined,
     skillsListed: Array.isArray(job.skillsListed) && job.skillsListed.length > 0 ? [...job.skillsListed] : undefined,
+    eligibilityAssessment: job.eligibilityAssessment ? { ...job.eligibilityAssessment } : undefined,
     exportedMaterials,
     lastActivityDate: nowIso,
     interviewStages: [

@@ -96,6 +96,78 @@ const EXCLUSIVE_REGION_MARKERS: Array<{ marker: RegExp; countries: string[] }> =
   { marker: /\b(north america)\b/i, countries: ['US', 'CA'] }
 ];
 
+export function assessRemoteCountryEligibility(
+  jobLocation: string,
+  country?: string
+): import('../types').JobEligibilityAssessment {
+  const location = (jobLocation || '').trim();
+  const locLower = location.toLowerCase();
+  const market = (country || '').trim().toUpperCase();
+
+  if (isWorldwideCountryCode(market)) {
+    return {
+      status: 'not-assessed',
+      market: 'GLOBAL',
+      evidence: 'No country-specific eligibility filter was applied.',
+      source: 'published-location'
+    };
+  }
+
+  if (!locLower || /\b(location unspecified|unspecified|unknown location|location unknown)\b/i.test(locLower)) {
+    return {
+      status: 'not-stated',
+      market,
+      evidence: 'The published location does not state an eligible market.',
+      source: 'published-location'
+    };
+  }
+
+  for (const rule of EXCLUSIVE_REGION_MARKERS) {
+    const match = location.match(rule.marker);
+    if (!match) continue;
+    const regionalMarker = /north america|europe only|eu only|emea only/i.test(match[0]);
+    return {
+      status: rule.countries.includes(market)
+        ? (regionalMarker ? 'regionally-eligible' : 'explicitly-eligible')
+        : 'explicitly-ineligible',
+      market,
+      evidence: match[0],
+      source: 'published-location'
+    };
+  }
+
+  const aliases = COUNTRY_ELIGIBILITY_ALIASES[market] || [];
+  const matchedAlias = aliases.find((alias) => locLower.includes(alias));
+  if (matchedAlias) {
+    const regionalMarker = /^(apac|asia|europe|eu|emea|americas|north america|mena)$/i.test(matchedAlias);
+    const index = locLower.indexOf(matchedAlias);
+    return {
+      status: regionalMarker ? 'regionally-eligible' : 'explicitly-eligible',
+      market,
+      evidence: location.slice(index, index + matchedAlias.length),
+      source: 'published-location'
+    };
+  }
+
+  const worldwideMarker = GLOBAL_REMOTE_MARKERS.find((marker) => locLower.includes(marker));
+  if (worldwideMarker) {
+    const index = locLower.indexOf(worldwideMarker);
+    return {
+      status: 'explicitly-eligible',
+      market,
+      evidence: location.slice(index, index + worldwideMarker.length),
+      source: 'published-location'
+    };
+  }
+
+  return {
+    status: 'not-stated',
+    market,
+    evidence: 'The published location does not explicitly name this market or worldwide eligibility.',
+    source: 'published-location'
+  };
+}
+
 export function sanitizeExternalHttpUrl(rawUrl?: string): string | null {
   const trimmed = (rawUrl || '').trim();
   if (!trimmed || trimmed === '#') return null;
@@ -217,36 +289,16 @@ export function matchesRemoteCountryAndLocation(
     }
   }
 
-  if (isWorldwideCountryCode(country)) {
-    return true;
-  }
-
-  const normalizedCountry = (country || '').trim().toUpperCase();
-  // Missing feed location data is not proof that a posting is eligible in a selected market.
-  if (/\b(location unspecified|unspecified|unknown location|location unknown)\b/i.test(locLower)) {
+  const assessment = assessRemoteCountryEligibility(jobLocation, country);
+  if (assessment.status !== 'explicitly-eligible' && assessment.status !== 'regionally-eligible') {
     return false;
   }
-  const aliases = COUNTRY_ELIGIBILITY_ALIASES[normalizedCountry] || [];
 
-  // Exclude postings explicitly locked to a different region/country
-  for (const rule of EXCLUSIVE_REGION_MARKERS) {
-    if (rule.marker.test(locLower)) {
-      return rule.countries.includes(normalizedCountry);
-    }
+  // A worldwide listing may be eligible in this market, but the user can explicitly exclude it.
+  if (!includeWorldwideRemote && GLOBAL_REMOTE_MARKERS.some((marker) => locLower.includes(marker))) {
+    return false;
   }
-
-  if (aliases.some((alias) => locLower.includes(alias))) {
-    return true;
-  }
-
-  // Only explicit all-location eligibility qualifies as global. A generic "Remote" label is insufficient.
-  if (includeWorldwideRemote && GLOBAL_REMOTE_MARKERS.some((marker) => locLower.includes(marker))) {
-    return true;
-  }
-
-  // Fail closed: a country-specific search must have explicit country/region eligibility evidence.
-  // This prevents generic remote and unrecognized locations (e.g. Warsaw) from appearing in India results.
-  return false;
+  return true;
 }
 
 /**
@@ -494,6 +546,7 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
           source: 'Remotive Live',
           skillsRequired: [],
           skillsListed: Array.isArray(item.tags) ? item.tags.slice(0, 8) : [],
+          eligibilityAssessment: assessRemoteCountryEligibility(parsedLocation, params.country),
           fitScore: null,
           matchedKeywords: [],
           missingKeywords: [],
@@ -588,7 +641,7 @@ function parseSalaryRange(min: unknown, max: unknown, currency: unknown, period:
 
 function createRemoteFeedJob(item: any, sourceId: string, sourceName: string, fields: {
   id: unknown; title: unknown; company: unknown; location: unknown; description: unknown; url: unknown;
-  date?: unknown; salary?: string; tags?: unknown; workplaceType?: JobPosting['workplaceType'];
+  date?: unknown; salary?: string; tags?: unknown; workplaceType?: JobPosting['workplaceType']; country?: string;
 }): JobPosting | null {
   const title = typeof fields.title === 'string' ? fields.title.trim() : '';
   const company = typeof fields.company === 'string' ? fields.company.trim() : '';
@@ -615,6 +668,7 @@ function createRemoteFeedJob(item: any, sourceId: string, sourceName: string, fi
     source: sourceName,
     skillsRequired: [],
     skillsListed: tags,
+    eligibilityAssessment: assessRemoteCountryEligibility(location, fields.country),
     fitScore: null,
     matchedKeywords: [],
     missingKeywords: [],
@@ -665,7 +719,8 @@ export class RemoteOkJobAdapter implements JobProviderAdapter {
       salary: item.salary_min || item.salary_max
         ? parseSalaryRange(item.salary_min, item.salary_max, item.salary_currency, item.salary_period)
         : 'Undisclosed',
-      tags: item.tags
+      tags: item.tags,
+      country: params.country
     })).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
       job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
     ));
@@ -699,7 +754,8 @@ export class ArbeitnowJobAdapter implements JobProviderAdapter {
         url: item.url,
         date: createdAt,
         tags: item.tags,
-        workplaceType: item.remote === true ? 'Remote' : 'Unspecified'
+        workplaceType: item.remote === true ? 'Remote' : 'Unspecified',
+        country: params.country
       });
     }).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
       job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
@@ -748,7 +804,8 @@ export class JobicyJobAdapter implements JobProviderAdapter {
       url: item.url,
       date: item.pubDate,
       salary: parseSalaryRange(item.salaryMin, item.salaryMax, item.salaryCurrency, item.salaryPeriod),
-      tags: []
+      tags: [],
+      country: params.country
     })).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
       job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
     ));

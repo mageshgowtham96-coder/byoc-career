@@ -1161,6 +1161,7 @@ export async function generateInterviewPrepQuestionsWithGroq(
       requiredSkills: job.skillsRequired,
       preferredSkills: job.skillsPreferred || [],
       providerListedSkills: job.skillsListed || [],
+      eligibilityAssessment: job.eligibilityAssessment || null,
       description: (job.jobDescriptionRaw || '').slice(0, 12000)
     },
     candidateEvidence: Object.entries(evidenceMap).map(([id, text]) => ({ id, text }))
@@ -1250,6 +1251,7 @@ ${strategySchema}`;
       requiredSkills: job.skillsRequired || [],
       preferredSkills: job.skillsPreferred || [],
       providerListedSkills: job.skillsListed || [],
+      eligibilityAssessment: job.eligibilityAssessment || null,
       description: (job.jobDescriptionRaw || '').slice(0, 12000)
     },
     candidateProfile: {
