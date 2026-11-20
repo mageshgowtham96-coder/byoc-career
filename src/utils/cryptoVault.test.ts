@@ -14,6 +14,7 @@ import {
   sanitizeStoredVaultEnvelopeMetadata,
   writeStoredVaultEnvelope,
   readStoredVaultEnvelope,
+  shouldPreferLocalVaultEnvelope,
   isValidVaultEnvelope,
   hasDemoWorkspaceIdentity,
   stripDemoWorkspaceName,
@@ -102,6 +103,23 @@ const mockCrypto = {
 Object.defineProperty(global, 'crypto', { value: mockCrypto, writable: true });
 
 describe('Crypto Vault Core', () => {
+  it('does not let a stale localStorage envelope overwrite a newer IndexedDB envelope', () => {
+    const baseEnvelope: VaultEnvelope = {
+      version: 5,
+      encrypted: true,
+      kdf: { algorithm: 'PBKDF2', iterations: 100000, salt: 'c2FsdA==', hash: 'SHA-256' },
+      recoveryKdf: { algorithm: 'PBKDF2', iterations: 100000, hash: 'SHA-256' },
+      iv: 'aXY=',
+      ciphertext: 'Y2lwaGVydGV4dA==',
+      meta: { id: 'timestamp-user', name: 'Timestamp User', email: 'time@example.com', biometricEnabled: false, updatedAt: '2026-11-19T10:00:00.000Z' }
+    };
+    const newerIndexedDb = { ...baseEnvelope, meta: { ...baseEnvelope.meta, updatedAt: '2026-11-20T10:00:00.000Z' } };
+    const newerLocal = { ...baseEnvelope, meta: { ...baseEnvelope.meta, updatedAt: '2026-11-21T10:00:00.000Z' } };
+    expect(shouldPreferLocalVaultEnvelope(baseEnvelope, newerIndexedDb)).toBe(false);
+    expect(shouldPreferLocalVaultEnvelope(newerLocal, baseEnvelope)).toBe(true);
+    expect(shouldPreferLocalVaultEnvelope(baseEnvelope, null)).toBe(true);
+  });
+
   it('awaits and verifies the localStorage fallback when IndexedDB is unavailable', async () => {
     const envelope: VaultEnvelope = {
       version: 5,

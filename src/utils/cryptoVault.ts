@@ -162,6 +162,20 @@ const vaultEnvelopeCache = new Map<string, VaultEnvelope | null>();
 let vaultEnvelopeInitialized = false;
 let vaultEnvelopeWriteChain: Promise<unknown> = Promise.resolve();
 
+/** Prefer the most recently updated verified copy if both stores still contain data. */
+export function shouldPreferLocalVaultEnvelope(
+  localEnvelope: VaultEnvelope | null,
+  indexedDbEnvelope: VaultEnvelope | null
+): boolean {
+  if (!localEnvelope) return false;
+  if (!indexedDbEnvelope) return true;
+  const localUpdatedAt = Date.parse(localEnvelope.meta.updatedAt);
+  const indexedDbUpdatedAt = Date.parse(indexedDbEnvelope.meta.updatedAt);
+  if (!Number.isFinite(indexedDbUpdatedAt)) return true;
+  if (!Number.isFinite(localUpdatedAt)) return false;
+  return localUpdatedAt >= indexedDbUpdatedAt;
+}
+
 function parseVaultEnvelopeRecord(raw: string | null): VaultEnvelope | null {
   if (!raw) return null;
   try {
@@ -180,8 +194,10 @@ export async function initializeVaultEnvelopeStorage(storageKey: string = VAULT_
   try {
     const dbRaw = await readVaultEnvelopeRecord(storageKey);
     const dbEnvelope = parseVaultEnvelopeRecord(dbRaw);
-    // A retained local copy wins if migration was interrupted or IDB previously fell back.
-    if (localEnvelope && localRaw && localRaw !== dbRaw) {
+    // A retained local copy wins only when it is newer (or IDB is absent/invalid).
+    // If an earlier verified IDB write succeeded but localStorage cleanup was blocked,
+    // the older local copy must never overwrite the newer encrypted vault.
+    if (localEnvelope && localRaw && shouldPreferLocalVaultEnvelope(localEnvelope, dbEnvelope)) {
       await writeVaultEnvelopeRecord(storageKey, localRaw);
       if (await readVaultEnvelopeRecord(storageKey) !== localRaw) throw new Error('IndexedDB migration read-back mismatch.');
       vaultEnvelopeCache.set(storageKey, localEnvelope);
