@@ -13,6 +13,29 @@ import {
   sanitizeUserMetadata
 } from '../store/useWizardStore';
 import { ChakraLogo } from './ChakraLogo';
+
+async function copyRecoveryPhrase(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* use the WebView-compatible fallback */ }
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const copied = typeof document.execCommand === 'function' && document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return copied;
+  } catch { return false; }
+}
 import {
   KeyRound,
   ShieldCheck,
@@ -147,9 +170,17 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
   // Newly generated recovery phrase display (post-signup / post-migration)
   const [createdRecoveryPhrase, setCreatedRecoveryPhrase] = useState<string | null>(null);
   const [hasCopiedRecovery, setHasCopiedRecovery] = useState(false);
+  const [hasConfirmedRecovery, setHasConfirmedRecovery] = useState(false);
   const [envelopeVersion, setEnvelopeVersion] = useState(0);
 
   const backupImportRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (createdRecoveryPhrase) {
+      setHasCopiedRecovery(false);
+      setHasConfirmedRecovery(false);
+    }
+  }, [createdRecoveryPhrase]);
 
   useEffect(() => {
     if (isAuthenticated) return;
@@ -300,7 +331,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       );
 
       // Verify persistent encrypted write AND round-trip payload restoration before scrubbing old keys
-      writeStoredVaultEnvelope(envelope);
+      await writeStoredVaultEnvelope(envelope);
       await verifyActiveSessionEnvelopeRestorable((restored) => {
         if (currentDraftState.status === 'valid' && !hasMeaningfulCareerFormDraft(restored.careerFormDraft)) {
           return false;
@@ -440,7 +471,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
             window.localStorage.removeItem(CAREER_FORM_DRAFT_KEY);
           }
         },
-        writeEnvelope: (env) => writeStoredVaultEnvelope(env),
+        writeEnvelope: async (env) => writeStoredVaultEnvelope(env),
         readEnvelope: () => readStoredVaultEnvelope(),
         currentVaultData: decrypted,
         vaultMeta: buildVaultMetaFromUser(restoredUser)
@@ -459,7 +490,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       const emailMigration = await migrateLegacyEmailRecordsToVault({
         readLegacyEmails: () => readLegacyEmailRecords(),
         clearLegacyEmails: () => clearLegacyEmailStores(),
-        writeEnvelope: (env) => writeStoredVaultEnvelope(env),
+        writeEnvelope: async (env) => writeStoredVaultEnvelope(env),
         readEnvelope: () => readStoredVaultEnvelope(),
         currentVaultData: decrypted,
         vaultMeta: buildVaultMetaFromUser(restoredUser)
@@ -522,7 +553,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         ...candidateEnvelope,
         meta: sanitizeVaultMeta(candidateEnvelope.meta)
       };
-      writeStoredVaultEnvelope(sanitizedEnvelope);
+      await writeStoredVaultEnvelope(sanitizedEnvelope);
       sanitizeStoredVaultEnvelopeMetadata();
       setUser(
         sanitizeUserMetadata({
@@ -587,7 +618,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         recoveryInput.trim()
       );
 
-      writeStoredVaultEnvelope(newEnvelope);
+      await writeStoredVaultEnvelope(newEnvelope);
 
       const restoredUser = sanitizeUserMetadata({
         id: user?.id || meta.id,
@@ -614,7 +645,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
             window.localStorage.removeItem(CAREER_FORM_DRAFT_KEY);
           }
         },
-        writeEnvelope: (env) => writeStoredVaultEnvelope(env),
+        writeEnvelope: async (env) => writeStoredVaultEnvelope(env),
         readEnvelope: () => readStoredVaultEnvelope(),
         currentVaultData: buildVaultDataFromState(useWizardStore.getState()),
         vaultMeta: buildVaultMetaFromUser(restoredUser)
@@ -633,7 +664,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       const emailMigration = await migrateLegacyEmailRecordsToVault({
         readLegacyEmails: () => readLegacyEmailRecords(),
         clearLegacyEmails: () => clearLegacyEmailStores(),
-        writeEnvelope: (env) => writeStoredVaultEnvelope(env),
+        writeEnvelope: async (env) => writeStoredVaultEnvelope(env),
         readEnvelope: () => readStoredVaultEnvelope(),
         currentVaultData: buildVaultDataFromState(useWizardStore.getState()),
         vaultMeta: buildVaultMetaFromUser(restoredUser)
@@ -716,23 +747,33 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
             </div>
             <button
               type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(createdRecoveryPhrase);
-                setHasCopiedRecovery(true);
-                addToast({ type: 'success', message: 'Recovery phrase copied to clipboard.' });
+              onClick={async () => {
+                setHasCopiedRecovery(false);
+                const copied = await copyRecoveryPhrase(createdRecoveryPhrase);
+                if (copied) {
+                  setHasCopiedRecovery(true);
+                  addToast({ type: 'success', message: 'Recovery phrase copied to clipboard.' });
+                } else {
+                  addToast({ type: 'error', message: 'Clipboard access failed. Select and copy the recovery phrase manually.' });
+                }
               }}
               className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
             >
               {hasCopiedRecovery ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               <span>{hasCopiedRecovery ? 'Copied to Clipboard' : 'Copy Recovery Phrase'}</span>
             </button>
+            <label className="flex items-start gap-2 text-xs text-slate-200 leading-relaxed cursor-pointer">
+              <input type="checkbox" checked={hasConfirmedRecovery} onChange={(event) => setHasConfirmedRecovery(event.target.checked)} className="mt-0.5 h-4 w-4 accent-indigo-500" />
+              <span>I have written down or securely stored my recovery phrase and understand it is needed if I forget my passphrase.</span>
+            </label>
             <button
               type="button"
+              disabled={!hasConfirmedRecovery}
               onClick={() => {
                 setCreatedRecoveryPhrase(null);
                 useWizardStore.setState({ isAuthenticated: true, isBiometricLocked: false });
               }}
-              className="w-full py-2.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold text-xs transition cursor-pointer"
+              className="w-full py-2.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 font-bold text-xs transition cursor-pointer"
             >
               I Have Saved My Recovery Phrase &rarr; Enter Workspace
             </button>

@@ -13,6 +13,7 @@
  */
 
 import type { CareerApplicationFormState, EmailInteraction } from '../types';
+import { readVaultEnvelopeRecord, writeVaultEnvelopeRecord } from './storagePersistence';
 
 export const VAULT_STORAGE_KEY = 'byoc_secure_vault_envelope';
 export const VAULT_PASSPHRASE_KDF_ITERATIONS = 600_000;
@@ -157,38 +158,95 @@ export function sanitizeVaultMeta(meta: VaultEnvelope['meta']): VaultEnvelope['m
   };
 }
 
-export function readStoredVaultEnvelope(storageKey: string = VAULT_STORAGE_KEY): VaultEnvelope | null {
+const vaultEnvelopeCache = new Map<string, VaultEnvelope | null>();
+let vaultEnvelopeInitialized = false;
+let vaultEnvelopeWriteChain: Promise<unknown> = Promise.resolve();
+
+function parseVaultEnvelopeRecord(raw: string | null): VaultEnvelope | null {
+  if (!raw) return null;
   try {
-    if (typeof window === 'undefined' || !window.localStorage) return null;
-    const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!isValidVaultEnvelope(parsed)) return null;
-    return hasDemoWorkspaceIdentity(parsed.meta)
-      ? { ...parsed, meta: sanitizeVaultMeta(parsed.meta) }
-      : parsed;
-  } catch {
-    return null;
-  }
+    return hasDemoWorkspaceIdentity(parsed.meta) ? { ...parsed, meta: sanitizeVaultMeta(parsed.meta) } : parsed;
+  } catch { return null; }
 }
 
-export function writeStoredVaultEnvelope(
-  envelope: VaultEnvelope,
-  storageKey: string = VAULT_STORAGE_KEY
-): boolean {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    throw new Error('LocalStorage unavailable for persisting encrypted vault.');
+/** Hydrate the synchronous mirror before React/store modules are evaluated. */
+export async function initializeVaultEnvelopeStorage(storageKey: string = VAULT_STORAGE_KEY): Promise<void> {
+  if (vaultEnvelopeInitialized && vaultEnvelopeCache.has(storageKey)) return;
+  let localRaw: string | null = null;
+  try { localRaw = typeof window !== 'undefined' ? window.localStorage?.getItem(storageKey) ?? null : null; } catch { localRaw = null; }
+  const localEnvelope = parseVaultEnvelopeRecord(localRaw);
+  try {
+    const dbRaw = await readVaultEnvelopeRecord(storageKey);
+    const dbEnvelope = parseVaultEnvelopeRecord(dbRaw);
+    // A retained local copy wins if migration was interrupted or IDB previously fell back.
+    if (localEnvelope && localRaw && localRaw !== dbRaw) {
+      await writeVaultEnvelopeRecord(storageKey, localRaw);
+      if (await readVaultEnvelopeRecord(storageKey) !== localRaw) throw new Error('IndexedDB migration read-back mismatch.');
+      vaultEnvelopeCache.set(storageKey, localEnvelope);
+      try { window.localStorage.removeItem(storageKey); } catch { /* verified IDB copy remains */ }
+    } else if (dbEnvelope && dbRaw) {
+      if (await readVaultEnvelopeRecord(storageKey) !== dbRaw) throw new Error('IndexedDB read-back verification failed.');
+      vaultEnvelopeCache.set(storageKey, dbEnvelope);
+      if (localRaw) { try { window.localStorage.removeItem(storageKey); } catch { /* verified IDB copy remains */ } }
+    } else if (localEnvelope && localRaw) {
+      await writeVaultEnvelopeRecord(storageKey, localRaw);
+      if (await readVaultEnvelopeRecord(storageKey) !== localRaw) throw new Error('IndexedDB migration read-back mismatch.');
+      vaultEnvelopeCache.set(storageKey, localEnvelope);
+      try { window.localStorage.removeItem(storageKey); } catch { /* verified IDB copy remains */ }
+    } else {
+      vaultEnvelopeCache.set(storageKey, null);
+    }
+  } catch (error) {
+    // Tests, private contexts and restricted WebViews retain the verified localStorage fallback.
+    vaultEnvelopeCache.set(storageKey, localEnvelope);
+    if (!localEnvelope && localRaw) console.warn('BYOC vault IndexedDB initialization fell back to localStorage:', error);
   }
-  const sanitizedEnvelope: VaultEnvelope = hasDemoWorkspaceIdentity(envelope.meta)
-    ? { ...envelope, meta: sanitizeVaultMeta(envelope.meta) }
-    : envelope;
-  const serialized = JSON.stringify(sanitizedEnvelope);
-  window.localStorage.setItem(storageKey, serialized);
-  const verify = window.localStorage.getItem(storageKey);
-  if (!verify) {
-    throw new Error('Encrypted vault write verification failed.');
-  }
-  return true;
+  vaultEnvelopeInitialized = true;
+}
+
+export function readStoredVaultEnvelope(storageKey: string = VAULT_STORAGE_KEY): VaultEnvelope | null {
+  if (vaultEnvelopeCache.has(storageKey)) return vaultEnvelopeCache.get(storageKey) ?? null;
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    const parsed = parseVaultEnvelopeRecord(window.localStorage.getItem(storageKey));
+    vaultEnvelopeCache.set(storageKey, parsed);
+    return parsed;
+  } catch { return null; }
+}
+
+/** Serialized, awaited persistence. IndexedDB is primary; verified localStorage is fallback. */
+export function writeStoredVaultEnvelope(envelope: VaultEnvelope, storageKey: string = VAULT_STORAGE_KEY): Promise<boolean> {
+  const sanitized = hasDemoWorkspaceIdentity(envelope.meta) ? { ...envelope, meta: sanitizeVaultMeta(envelope.meta) } : envelope;
+  const serialized = JSON.stringify(sanitized);
+  const write = async (): Promise<boolean> => {
+    try {
+      await writeVaultEnvelopeRecord(storageKey, serialized);
+      if (await readVaultEnvelopeRecord(storageKey) !== serialized) throw new Error('IndexedDB encrypted vault read-back verification failed.');
+      vaultEnvelopeCache.set(storageKey, sanitized);
+      try { if (typeof window !== 'undefined' && window.localStorage) window.localStorage.removeItem(storageKey); } catch { /* verified IDB copy remains */ }
+      return true;
+    } catch (idbError) {
+      try {
+        if (typeof window === 'undefined' || !window.localStorage) throw idbError;
+        window.localStorage.setItem(storageKey, serialized);
+        if (window.localStorage.getItem(storageKey) !== serialized) throw new Error('Encrypted vault localStorage fallback verification failed.');
+        vaultEnvelopeCache.set(storageKey, sanitized);
+        return true;
+      } catch (fallbackError) {
+        vaultEnvelopeCache.set(storageKey, null);
+        throw fallbackError instanceof Error ? fallbackError : new Error('Encrypted vault persistence failed.');
+      }
+    }
+  };
+  const pending = vaultEnvelopeWriteChain.then(write, write);
+  vaultEnvelopeWriteChain = pending.catch(() => undefined);
+  return pending;
+}
+
+export function flushVaultEnvelopePersistence(): Promise<unknown> {
+  return vaultEnvelopeWriteChain;
 }
 
 export type VaultEnvelopeMetaCleanResult =
@@ -682,7 +740,7 @@ export async function verifyActiveSessionEnvelopeRestorable(
 ): Promise<DecryptedVaultData> {
   const stored = readStoredVaultEnvelope(storageKey);
   if (!stored) {
-    throw new Error('Encrypted vault envelope could not be read back from local storage.');
+    throw new Error('Encrypted vault envelope could not be read back from persistent storage.');
   }
   const restored = await decryptActiveSessionEnvelope(stored);
   if (predicate && !predicate(restored)) {

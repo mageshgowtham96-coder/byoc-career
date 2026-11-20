@@ -411,3 +411,58 @@ export function subscribeToStorageKey<T>(
   window.addEventListener('storage', handleStorageEvent);
   return () => window.removeEventListener('storage', handleStorageEvent);
 }
+
+
+// IndexedDB backing store for the encrypted vault envelope. cryptoVault owns validation
+// and only removes legacy localStorage after exact read-back verification.
+const BYOC_VAULT_DB_NAME = 'byoc-vault-storage';
+const BYOC_VAULT_DB_VERSION = 1;
+const BYOC_VAULT_OBJECT_STORE = 'envelopes';
+let byocVaultDatabasePromise: Promise<IDBDatabase> | null = null;
+
+function openByocVaultDatabase(): Promise<IDBDatabase> {
+  if (typeof indexedDB === 'undefined') return Promise.reject(new Error('IndexedDB is unavailable.'));
+  if (!byocVaultDatabasePromise) {
+    byocVaultDatabasePromise = new Promise((resolve, reject) => {
+      const request = indexedDB.open(BYOC_VAULT_DB_NAME, BYOC_VAULT_DB_VERSION);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(BYOC_VAULT_OBJECT_STORE)) {
+          request.result.createObjectStore(BYOC_VAULT_OBJECT_STORE, { keyPath: 'key' });
+        }
+      };
+      request.onsuccess = () => {
+        const db = request.result;
+        db.onversionchange = () => { db.close(); byocVaultDatabasePromise = null; };
+        resolve(db);
+      };
+      request.onerror = () => { byocVaultDatabasePromise = null; reject(request.error || new Error('Unable to open BYOC IndexedDB.')); };
+      request.onblocked = () => { byocVaultDatabasePromise = null; reject(new Error('BYOC IndexedDB upgrade is blocked.')); };
+    });
+  }
+  return byocVaultDatabasePromise;
+}
+
+export async function readVaultEnvelopeRecord(key: string): Promise<string | null> {
+  const db = await openByocVaultDatabase();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(BYOC_VAULT_OBJECT_STORE, 'readonly');
+    const request = tx.objectStore(BYOC_VAULT_OBJECT_STORE).get(key);
+    request.onsuccess = () => {
+      const record = request.result as { key: string; value: string } | undefined;
+      resolve(typeof record?.value === 'string' ? record.value : null);
+    };
+    request.onerror = () => reject(request.error || new Error('IndexedDB vault read failed.'));
+    tx.onabort = () => reject(tx.error || new Error('IndexedDB vault read aborted.'));
+  });
+}
+
+export async function writeVaultEnvelopeRecord(key: string, value: string): Promise<void> {
+  const db = await openByocVaultDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(BYOC_VAULT_OBJECT_STORE, 'readwrite');
+    tx.objectStore(BYOC_VAULT_OBJECT_STORE).put({ key, value });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error('IndexedDB vault write failed.'));
+    tx.onabort = () => reject(tx.error || new Error('IndexedDB vault write aborted.'));
+  });
+}

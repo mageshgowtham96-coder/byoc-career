@@ -1227,7 +1227,7 @@ export function syncVaultFromStoreNow(): Promise<boolean> {
         buildVaultDataFromState(state),
         buildVaultMetaFromUser(state.user)
       );
-      const saved = writeStoredVaultEnvelope(envelope);
+      const saved = await writeStoredVaultEnvelope(envelope);
       applyVaultPersistenceTransition(saved);
       return saved;
     })

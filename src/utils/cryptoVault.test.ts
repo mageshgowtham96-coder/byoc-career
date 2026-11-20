@@ -12,6 +12,8 @@ import {
   bufferToBase64,
   sha256Hex,
   sanitizeStoredVaultEnvelopeMetadata,
+  writeStoredVaultEnvelope,
+  readStoredVaultEnvelope,
   isValidVaultEnvelope,
   hasDemoWorkspaceIdentity,
   stripDemoWorkspaceName,
@@ -100,6 +102,21 @@ const mockCrypto = {
 Object.defineProperty(global, 'crypto', { value: mockCrypto, writable: true });
 
 describe('Crypto Vault Core', () => {
+  it('awaits and verifies the localStorage fallback when IndexedDB is unavailable', async () => {
+    const envelope: VaultEnvelope = {
+      version: 5,
+      encrypted: true,
+      kdf: { algorithm: 'PBKDF2', iterations: 100000, salt: 'c2FsdA==', hash: 'SHA-256' },
+      recoveryKdf: { algorithm: 'PBKDF2', iterations: 100000, hash: 'SHA-256' },
+      iv: 'aXY=',
+      ciphertext: 'Y2lwaGVydGV4dA==',
+      meta: { id: 'fallback-user', name: 'Fallback User', email: 'fallback@example.com', biometricEnabled: false, updatedAt: new Date().toISOString() }
+    };
+    await expect(writeStoredVaultEnvelope(envelope, 'byoc-vault-fallback-test')).resolves.toBe(true);
+    expect(readStoredVaultEnvelope('byoc-vault-fallback-test')).toEqual(envelope);
+    expect(localStorageMock.getItem('byoc-vault-fallback-test')).toBe(JSON.stringify(envelope));
+  });
+
   it('continues to accept legacy v3/v4 vault envelopes while requiring separate recovery KDF metadata for v5', () => {
     const base = {
       encrypted: true as const,
