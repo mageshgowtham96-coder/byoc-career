@@ -38,7 +38,8 @@ describe('getRoleSuggestions', () => {
 
   it('tolerates a one-character typo and only treats the final token as partial', () => {
     expect(getRoleSuggestions('Suport').some((item) => /support/i.test(item))).toBe(true);
-    expect(getRoleSuggestions('Data Analysit').some((item) => /data analyst/i.test(item))).toBe(true);\n    expect(getRoleSuggestions('React Eng', null, [cachedJob('Reactive Engineer')])).not.toContain('Reactive Engineer');
+    expect(getRoleSuggestions('Data Analysit').some((item) => /data analyst/i.test(item))).toBe(true);
+    expect(getRoleSuggestions('React Eng', null, [cachedJob('Reactive Engineer')])).not.toContain('Reactive Engineer');
   });
 
   it('does not suggest for one character and keeps unknown searches unrestricted', () => {
