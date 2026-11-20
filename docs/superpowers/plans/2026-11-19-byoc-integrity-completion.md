@@ -65,7 +65,8 @@
 - [x] Audit AI prompts and output types for unsupported claims.
 - [x] Relabel AI estimates and not-assessed fields; no unsupported employer, salary-market, culture or growth assertions are presented as verified facts.
 - [x] Remove or relabel unsupported salary-market, culture, growth and company-risk assertions.
-- [x] Require explicit human factual review before exporting generated summaries, cover letters and interview content; source-map experience bullet replacements. Programmatic evidence mapping for all prose remains open.
+- [x] Require explicit human factual review before exporting generated summaries, cover letters and interview content. Experience bullets are source-mapped; tailored summaries and non-empty cover letters must carry valid Master Profile evidence IDs; interview questions carry per-question evidence references. References are displayed in the UI and cleared when the profile changes or a different variant is selected.
+- [ ] Per-sentence semantic verification is not claimed: evidence links are review aids, not proof that each generated sentence is fully supported. Human review remains mandatory.
 - [x] Keep explicit user-triggered AI calls and no silent provider fallback.
 
 ### Workstream 5: Vault, offline and lifecycle safety
@@ -80,8 +81,8 @@
 
 - [x] Add a whole-product integration journey from structured profile through keyword match, evidence-validated tailoring, reviewed DOCX/PDF export, application tracking and encrypted vault reload. DOCX intake/approval/encrypted-vault round-trip is separately covered.
 - [ ] Complete a full five-phase mobile UI consistency and physical-device accessibility review; current cinematic redesign is not yet applied to every workflow screen.
-- [ ] Run TypeScript, all Vitest tests, production build and Android debug build on the exact final PR head.
-- [ ] Inspect final exact-head CI logs and APK artifact; record SHA-256 and artifact ID.
-- [ ] Complete a final post-implementation conceptual review and fix any Critical/Important issues with regression tests.
+- [x] Run TypeScript, all Vitest tests, production build and Android debug build on the exact PR head; the final documentation sync will be revalidated before handoff.
+- [x] Inspect the exact-head CI logs and APK artifact; record SHA-256 and artifact ID in the handoff.
+- [x] Complete a post-implementation conceptual review of the changed data flows and add regression tests for issues found. A physical-device and full visual UI review remain separate.
 - [ ] Keep PR draft until evidence is complete; do not merge to main.
 
