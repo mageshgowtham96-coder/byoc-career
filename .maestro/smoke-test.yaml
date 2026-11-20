@@ -28,9 +28,15 @@ appId: com.byoc.career
       - extendedWaitUntil:
           visible: "Emergency Recovery Phrase Generated"
           timeout: 30000
+      - scrollUntilVisible:
+          element: "I have written down or securely stored my recovery phrase"
+          direction: DOWN
       - assertVisible: "I have written down or securely stored my recovery phrase"
       - tapOn: "I have written down or securely stored my recovery phrase"
       - assertVisible: "I Have Saved My Recovery Phrase"
+      - scrollUntilVisible:
+          element: "I Have Saved My Recovery Phrase.*"
+          direction: DOWN
       - tapOn:
           text: "I Have Saved My Recovery Phrase.*"
       - extendedWaitUntil:
@@ -46,6 +52,9 @@ appId: com.byoc.career
       - tapOn: "Enter vault passphrase"
       - inputText: "Byoc-E2E-Strong-Passphrase-2026"
       - hideKeyboard
+      - scrollUntilVisible:
+          element: "Unlock local vault"
+          direction: DOWN
       - tapOn: "Unlock local vault"
       - extendedWaitUntil:
           visible: "Master Intake"
@@ -65,8 +74,14 @@ appId: com.byoc.career
     visible: "Mandatory Review Gate.*"
     timeout: 30000
 - assertNotVisible: "Half-Built Resume Detected"
+- scrollUntilVisible:
+    element: "Approve & Save to Master Profile"
+    direction: DOWN
 - tapOn: "Approve & Save to Master Profile"
 - assertVisible: "Saved in Vault"
+- scrollUntilVisible:
+    element: "Proceed to Sourcing"
+    direction: DOWN
 - tapOn: "Proceed to Sourcing"
 - assertVisible: "Opportunity Sourcing & Role Upgrade Engine"
 - tapOn: "Search any role, skill or keyword..."
@@ -88,16 +103,25 @@ appId: com.byoc.career
 - tapOn: "Enter vault passphrase"
 - inputText: "Byoc-E2E-Strong-Passphrase-2026"
 - hideKeyboard
+- scrollUntilVisible:
+    element: "Unlock local vault"
+    direction: DOWN
 - tapOn: "Unlock local vault"
 - extendedWaitUntil:
     visible: "Master Intake"
     timeout: 30000
 - tapOn: "Master Intake"
 - assertVisible: "Saved in Vault"
+- scrollUntilVisible:
+    element: "Export PDF"
+    direction: DOWN
 - tapOn: "Export PDF"
 - extendedWaitUntil:
     visible: "Master Resume Exported"
     timeout: 15000
+- scrollUntilVisible:
+    element: "Export DOCX"
+    direction: DOWN
 - tapOn: "Export DOCX"
 - extendedWaitUntil:
     visible: "Master Resume Exported"
