@@ -68,6 +68,34 @@ describe('job verification evidence persistence', () => {
 });
 
 
+describe('tailored variant evidence references', () => {
+  it('switches summary and cover-letter source references with the selected variant', () => {
+    const firstSummary = [{ id: 'summary', text: 'Original summary evidence.' }];
+    const firstLetter = [{ id: 'skill:0', text: 'Original skill evidence.' }];
+    const secondSummary = [{ id: 'experience:exp-1:bullet:0', text: 'Second variant experience evidence.' }];
+    const secondLetter = [{ id: 'education:edu-1', text: 'Second variant education evidence.' }];
+    const artifact = {
+      id: 'artifact-1', jobId: 'job-1', jobTitle: 'Analyst', company: 'Acme',
+      selectedVariantId: 'variant-1',
+      variants: [
+        { id: 'variant-1', name: 'Role', badge: 'Role', description: '', tailoredSummary: 'First', summaryEvidence: firstSummary, highlightedSkills: [], optimizedBullets: [], coverLetter: 'First letter', coverLetterEvidence: firstLetter, interviewPrepQuestions: [] },
+        { id: 'variant-2', name: 'Evidence', badge: 'Evidence', description: '', tailoredSummary: 'Second', summaryEvidence: secondSummary, highlightedSkills: [], optimizedBullets: [], coverLetter: 'Second letter', coverLetterEvidence: secondLetter, interviewPrepQuestions: [] }
+      ],
+      tailoredSummary: 'First', summaryEvidence: firstSummary, highlightedSkills: [], optimizedBullets: [],
+      coverLetter: 'First letter', coverLetterEvidence: firstLetter, interviewPrepQuestions: [],
+      generationTimestamp: '2026-11-20T00:00:00.000Z', authenticityGuaranteed: false, reviewConfirmed: true
+    } as any;
+    useWizardStore.setState({ tailoredArtifacts: { 'job-1': artifact }, toasts: [] });
+
+    useWizardStore.getState().selectTailoredVariant('job-1', 'variant-2');
+
+    const saved = useWizardStore.getState().tailoredArtifacts['job-1'];
+    expect(saved.summaryEvidence).toEqual(secondSummary);
+    expect(saved.coverLetterEvidence).toEqual(secondLetter);
+    expect(saved.reviewConfirmed).toBe(false);
+  });
+});
+
 describe('interview prep question updates', () => {
   it('refreshes questions without replacing or unreviewing an existing tailored resume', () => {
     const existing = {
