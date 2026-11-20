@@ -5,8 +5,15 @@ const invalidateTailoredArtifacts = (
   Object.entries(artifacts).map(([id, artifact]) => [id, {
     ...artifact,
     reviewConfirmed: false,
+    summaryEvidence: [],
+    coverLetterEvidence: [],
     interviewPrepQuestions: [],
-    variants: (artifact.variants || []).map((variant) => ({ ...variant, interviewPrepQuestions: [] }))
+    variants: (artifact.variants || []).map((variant) => ({
+      ...variant,
+      summaryEvidence: [],
+      coverLetterEvidence: [],
+      interviewPrepQuestions: []
+    }))
   }])
 );
 
