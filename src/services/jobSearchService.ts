@@ -389,9 +389,7 @@ export function calculateHonestMatch(
   }
 
   const calculatedScore = Math.round((matchedKeywords.length / criteriaSkills.length) * 100);
-  const statusText = explicitRequiredSkills.length > 0
-    ? calculatedScore + '% keyword overlap against user-specified required skills — experience and eligibility not assessed'
-    : calculatedScore + '% overlap with feed-listed skills (requirement status unknown) — experience and eligibility not assessed';
+  const statusText = calculatedScore + '% keyword overlap against ' + criteriaLabel + ' — experience and eligibility not assessed';
   return {
     score: calculatedScore,
     statusText,
@@ -617,7 +615,7 @@ function createRemoteFeedJob(item: any, sourceId: string, sourceName: string, fi
     source: sourceName,
     skillsRequired: [],
     skillsListed: tags,
-    fitScore: null;
+    fitScore: null,
     matchedKeywords: [],
     missingKeywords: [],
     experienceLevel: 'Unspecified'
@@ -929,6 +927,7 @@ export class LiveJobSearchEngine {
       return {
         ...job,
         fitScore: honestMatch.score,
+        fitStatusText: honestMatch.statusText,
         matchedKeywords: honestMatch.matchedKeywords,
         missingKeywords: honestMatch.missingKeywords
       };
@@ -937,7 +936,7 @@ export class LiveJobSearchEngine {
     const locLower = (normalizedParams.location || '').toLowerCase().trim();
     const filtered = scoredJobs.filter((job) => {
       if (!matchesJobSearchTerms(normalizedParams.query || normalizedParams.targetRole || normalizedParams.profession,
-        job.title, job.company, job.location, job.skillsRequired, job.jobDescriptionRaw)) return false;
+        job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.jobDescriptionRaw)) return false;
 
       if (locLower) {
         const source = (job.source || '').toLowerCase();

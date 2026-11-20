@@ -146,7 +146,8 @@ export interface JobPosting {
   skillsRequired: string[];
   skillsPreferred?: string[];
   skillsListed?: string[];
-  fitScore: number | null; // 0 - 100, or null when profile/criteria data is insufficient
+  fitScore: number | null;
+  fitStatusText?: string; // 0 - 100, or null when profile/criteria data is insufficient
   matchedKeywords: string[];
   missingKeywords: string[];
   department?: string;
