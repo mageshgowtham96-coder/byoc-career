@@ -133,7 +133,7 @@ describe('interview prep question updates', () => {
     } as any;
     useWizardStore.setState({ masterResume: master, tailoredArtifacts: { 'job-1': existing } });
 
-    useWizardStore.getState().updateMasterResume({ ...master, summary: 'A changed summary.' });
+    useWizardStore.getState().updateMasterResume((previous) => ({ ...previous, summary: 'A changed summary.' }));
 
     const saved = useWizardStore.getState().tailoredArtifacts['job-1'];
     expect(saved.reviewConfirmed).toBe(false);
