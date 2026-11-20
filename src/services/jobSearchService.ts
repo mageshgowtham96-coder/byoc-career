@@ -118,7 +118,7 @@ export function assessRemoteCountryEligibility(
       status: 'not-assessed',
       market: 'GLOBAL',
       evidence: 'No country-specific eligibility filter was applied.',
-      source: 'published-location'
+      source: 'search-scope'
     };
   }
 
