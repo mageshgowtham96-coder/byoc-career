@@ -372,9 +372,30 @@ export function mergeDiscoveredJobs(existingJobs: JobPosting[], discoveredJobs: 
  * forms in job titles and descriptions (e.g. analyst/analysts, company/companies).
  * Skill scoring intentionally continues to use exact token matching.
  */
+function editDistanceAtMostOne(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1 || Math.min(a.length, b.length) < 4) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i += 1; j += 1; continue; }
+    edits += 1;
+    if (edits > 1) return false;
+    if (a.length > b.length) i += 1;
+    else if (b.length > a.length) j += 1;
+    else { i += 1; j += 1; }
+  }
+  if (i < a.length || j < b.length) edits += 1;
+  return edits <= 1;
+}
+
 function matchesSearchTerm(text: string, term: string): boolean {
   if (containsSkillToken(text, term)) return true;
   if (term.length <= 2) return false;
+
+  const tokens = text.split(/[^a-z0-9+#]+/i).filter(Boolean);
+  // Partial tokens support live typeahead searches such as "Supp" -> "Support".
+  if (term.length >= 3 && tokens.some((token) => token.startsWith(term))) return true;
 
   const variants = new Set<string>();
   if (term.endsWith('ies') && term.length > 4) {
@@ -393,7 +414,8 @@ function matchesSearchTerm(text: string, term: string): boolean {
     variants.add(term + 's');
   }
 
-  return Array.from(variants).some((variant) => containsSkillToken(text, variant));
+  if (Array.from(variants).some((variant) => containsSkillToken(text, variant))) return true;
+  return term.length >= 4 && tokens.some((token) => editDistanceAtMostOne(term, token));
 }
 
 /**
@@ -629,7 +651,30 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
       }
 
       const data = await res.json();
-      const rawJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+      let rawJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+
+      // A strict provider-side keyword search can return zero results for a minor
+      // typo or a short partial token. In that case, retry once against the bounded
+      // latest feed and let the shared local typo-tolerant matcher decide relevance.
+      if (rawJobs.length === 0) {
+        const fallbackController = new AbortController();
+        const fallbackTimeout = setTimeout(() => fallbackController.abort(), 15000);
+        try {
+          const fallbackResponse = await fetch(
+            'https://remotive.com/api/remote-jobs?limit=50',
+            { signal: fallbackController.signal }
+          );
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            rawJobs = Array.isArray(fallbackData?.jobs) ? fallbackData.jobs : [];
+          }
+        } catch {
+          // Preserve the empty result from the primary query if the bounded fallback is unavailable.
+        } finally {
+          clearTimeout(fallbackTimeout);
+        }
+      }
+
       const results: JobPosting[] = [];
 
       for (const item of rawJobs) {

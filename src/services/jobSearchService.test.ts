@@ -66,6 +66,26 @@ describe('explicit remote market eligibility evidence', () => {
   });
 });
 
+describe('dynamic typo-tolerant search matching', () => {
+  it('matches partial role tokens without requiring a complete title', () => {
+    expect(matchesJobSearchTerms('Supp', 'Customer Support Specialist')).toBe(true);
+  });
+
+  it('tolerates a one-character typo in a role token', () => {
+    expect(matchesJobSearchTerms('Suport Analyst', 'Support Analyst')).toBe(true);
+    expect(matchesJobSearchTerms('Data Analysit', 'Data Analyst')).toBe(true);
+  });
+
+  it('does not fuzzy-match very short tokens or unrelated roles', () => {
+    expect(matchesJobSearchTerms('QA', 'Customer Support Associate')).toBe(false);
+    expect(matchesJobSearchTerms('Product Manager', 'Customer Support Associate')).toBe(false);
+  });
+
+  it('keeps matching every query token rather than accepting one accidental overlap', () => {
+    expect(matchesJobSearchTerms('Support Finance', 'Customer Support Associate')).toBe(false);
+  });
+});
+
 describe('isLiveDiscoveredJobSource', () => {
   it.each([
     ['Remotive Live', true],
@@ -156,6 +176,30 @@ describe('PublicFeedsJobAdapter', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('falls back to the bounded latest feed when a typo-specific Remotive query returns no hits', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({ jobs: [] })
+      })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        json: async () => ({
+          jobs: [{
+            id: 202, title: 'Customer Support Specialist', company_name: 'Example',
+            candidate_required_location: 'Worldwide', description: 'Support customers and resolve service requests.',
+            url: 'https://remotive.com/remote-jobs/customer-support/support-specialist-202',
+            publication_date: '2026-11-19', tags: ['Customer Support']
+          }]
+        })
+      });
+
+    const jobs = await new PublicFeedsJobAdapter().search({ query: 'Suport', country: 'GLOBAL' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/api/remote-jobs?limit=50');
+    expect(jobs[0].title).toBe('Customer Support Specialist');
   });
 
   it('keeps Remotive provider tags as listed skills rather than required skills', async () => {

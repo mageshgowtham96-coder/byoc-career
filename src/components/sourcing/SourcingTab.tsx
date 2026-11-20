@@ -64,7 +64,7 @@ export const SourcingTab: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isRoleSuggestionsOpen, setIsRoleSuggestionsOpen] = useState(false);
   const [activeRoleSuggestion, setActiveRoleSuggestion] = useState(-1);
-  const roleSuggestions = React.useMemo(() => getRoleSuggestions(searchQuery), [searchQuery]);
+  const roleSuggestions = React.useMemo(() => getRoleSuggestions(searchQuery, masterResume, jobs), [searchQuery, masterResume, jobs]);
   const showRoleSuggestions = isRoleSuggestionsOpen && roleSuggestions.length > 0;
   const liveSearchInFlight = React.useRef(false);
   const [workplaceFilter, setWorkplaceFilter] = useState<'All' | 'Remote' | 'Hybrid' | 'On-site'>('All');
@@ -107,10 +107,11 @@ export const SourcingTab: React.FC = () => {
   const resumeIngested = hasMasterResume();
   const isWorldwide = isWorldwideCountryCode(candidatePreferences?.country || 'IN');
 
-  const handleRunLiveSearch = async () => {
+  const handleRunLiveSearch = async (queryOverride?: string) => {
     if (liveSearchInFlight.current) return;
+    const effectiveQuery = (queryOverride ?? searchQuery).trim();
     const hasSearchTerms = Boolean(
-      searchQuery.trim() ||
+      effectiveQuery ||
         candidatePreferences?.targetRole?.trim() ||
         candidatePreferences?.profession?.trim() ||
         (masterResume?.skills.technical?.length ?? 0) > 0
@@ -130,7 +131,7 @@ export const SourcingTab: React.FC = () => {
     try {
       const res = await jobSearchEngine.executeLiveSearch(
         {
-          query: searchQuery.trim() || undefined,
+          query: effectiveQuery || undefined,
           country: candidatePreferences?.country || 'IN',
           location: isWorldwide ? undefined : optionalLocation.trim() || undefined,
           includeWorldwideRemote: candidatePreferences?.includeWorldwideRemote !== false,
@@ -678,24 +679,24 @@ export const SourcingTab: React.FC = () => {
             aria-controls="byoc-role-suggestions"
             aria-activedescendant={activeRoleSuggestion >= 0 && showRoleSuggestions ? "byoc-role-option-" + activeRoleSuggestion : undefined}
             onFocus={() => setIsRoleSuggestionsOpen(true)}
-            onBlur={() => setIsRoleSuggestionsOpen(false)}
+            onBlur={() => window.setTimeout(() => setIsRoleSuggestionsOpen(false), 120)}
             onChange={(e) => { setSearchQuery(e.target.value); setIsRoleSuggestionsOpen(true); setActiveRoleSuggestion(-1); }}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown' && showRoleSuggestions) { e.preventDefault(); setActiveRoleSuggestion((current) => Math.min(current + 1, roleSuggestions.length - 1)); }
               else if (e.key === 'ArrowUp' && showRoleSuggestions) { e.preventDefault(); setActiveRoleSuggestion((current) => Math.max(current - 1, 0)); }
               else if (e.key === 'Escape') { setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); }
-              else if (e.key === 'Enter') { if (showRoleSuggestions && activeRoleSuggestion >= 0) { e.preventDefault(); setSearchQuery(roleSuggestions[activeRoleSuggestion]); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); } else { setIsRoleSuggestionsOpen(false); void handleRunLiveSearch(); } }
+              else if (e.key === 'Enter') { if (showRoleSuggestions && activeRoleSuggestion >= 0) { e.preventDefault(); setSearchQuery(roleSuggestions[activeRoleSuggestion]); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); void handleRunLiveSearch(roleSuggestions[activeRoleSuggestion]); } else { setIsRoleSuggestionsOpen(false); void handleRunLiveSearch(); } }
             }}
-            placeholder="Search a role (e.g. fraud) or any keyword..."
+            placeholder="Search any role, skill or keyword..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
           />
           {showRoleSuggestions && (
-            <div id="byoc-role-suggestions" role="listbox" aria-label="Suggested job roles" className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-sky-500/30 bg-slate-950/95 shadow-2xl shadow-black/40 backdrop-blur-xl">
+            <div id="byoc-role-suggestions" role="listbox" aria-label="Suggested job roles" className="absolute bottom-full z-[60] mb-2 max-h-[min(42vh,18rem)] w-full overflow-y-auto overscroll-contain rounded-xl border border-sky-500/30 bg-slate-950/95 shadow-2xl shadow-black/40 backdrop-blur-xl">
               <div className="px-3 py-2 border-b border-slate-800 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Suggested roles · custom searches also supported</div>
               {roleSuggestions.map((role, index) => (
                 <button key={role} id={"byoc-role-option-" + index} type="button" role="option" aria-selected={activeRoleSuggestion === index}
                   onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setActiveRoleSuggestion(index)}
-                  onClick={() => { setSearchQuery(role); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); }}
+                  onClick={() => { setSearchQuery(role); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); void handleRunLiveSearch(role); }}
                   className={"block w-full px-3 py-2.5 text-left text-xs transition " + (activeRoleSuggestion === index ? "bg-sky-500/15 text-sky-200" : "text-slate-300 hover:bg-slate-800")}>
                   {role}
                 </button>

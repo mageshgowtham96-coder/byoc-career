@@ -1,0 +1,62 @@
+appId: com.byoc.career
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Your name"
+- tapOn: "Your full name"
+- inputText: "BYOC E2E Candidate"
+- tapOn: "you@domain.com"
+- inputText: "byoc-e2e@example.test"
+- tapOn: "Passphrase for AES-256-GCM key derivation"
+- inputText: "Byoc-E2E-Strong-Passphrase-2026"
+- tapOn: "Create encrypted workspace"
+- extendedWaitUntil:
+    visible: "Emergency Recovery Phrase Generated"
+    timeout: 30000
+- tapOn:
+    text: "I Have Saved My Recovery Phrase.*"
+- extendedWaitUntil:
+    visible: "Master Intake"
+    timeout: 30000
+- tapOn: "Master Intake"
+- assertVisible: "Master Resume Intake & Structural Builder"
+- tapOn: "Tap to Upload or Drag Resume File"
+- extendedWaitUntil:
+    visible: "Downloads"
+    timeout: 15000
+- tapOn: "Downloads"
+- tapOn: "byoc-e2e-resume.docx"
+- extendedWaitUntil:
+    visible: "Mandatory Review Gate.*"
+    timeout: 30000
+- assertNotVisible: "Half-Built Resume Detected"
+- tapOn: "Approve & Save to Master Profile"
+- assertVisible: "Saved in Vault"
+- tapOn: "Proceed to Sourcing"
+- assertVisible: "Opportunity Sourcing & Role Upgrade Engine"
+- tapOn: "Search any role, skill or keyword..."
+- inputText: "Supp"
+- assertVisible: "Customer Support Specialist"
+- takeScreenshot: "artifacts/autocomplete-keyboard-open"
+- tapOn: "Customer Support Specialist"
+- extendedWaitUntil:
+    visible: "Sources Queried:.*"
+    timeout: 45000
+- stopApp
+- launchApp
+- tapOn: "Enter vault passphrase"
+- inputText: "Byoc-E2E-Strong-Passphrase-2026"
+- tapOn: "Unlock local vault"
+- extendedWaitUntil:
+    visible: "Job Sourcing"
+    timeout: 30000
+- tapOn: "Master Intake"
+- assertVisible: "Saved in Vault"
+- tapOn: "Export PDF"
+- extendedWaitUntil:
+    visible: "Master Resume Exported"
+    timeout: 15000
+- tapOn: "Export DOCX"
+- extendedWaitUntil:
+    visible: "Master Resume Exported"
+    timeout: 15000

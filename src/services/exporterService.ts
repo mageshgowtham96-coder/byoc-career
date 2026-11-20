@@ -1,4 +1,21 @@
 import type { MasterResume, TailoredArtifact, TailoredVariant, JobPosting } from '../types';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+interface NativeFileExportPlugin {
+  saveFile(options: { filename: string; mimeType: string; base64Data: string }): Promise<{ uri: string; filename: string }>;
+}
+
+const NativeFileExport = registerPlugin<NativeFileExportPlugin>('FileExport');
+
+async function encodeBlobAsBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const chunks: string[] = [];
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + chunkSize)));
+  }
+  return btoa(chunks.join(''));
+}
 import type { Paragraph } from 'docx';
 import { resolveTailoredResumeForExportAndPreview } from '../utils/tailoredBulletResolver';
 
@@ -65,6 +82,18 @@ export function createMasterResumeExportArtifact(resume: MasterResume): Tailored
  * Checks navigator.canShare() to seamlessly offer iOS / Android Web Share sheet fallback
  */
 export async function dispatchExportFile(blob: Blob, filename: string, mimeType: string): Promise<boolean> {
+  // Capacitor's Android WebView does not guarantee browser-anchor downloads.
+  // Save natively to the public Downloads/BYOC folder so exports survive app restarts.
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+    try {
+      const base64Data = await encodeBlobAsBase64(blob);
+      await NativeFileExport.saveFile({ filename, mimeType, base64Data });
+      return true;
+    } catch (error) {
+      console.warn('Native Android export failed; trying supported browser sharing fallback.', error);
+    }
+  }
+
   // Check if Web Share API is available and can share files (iOS Safari & Android Chrome)
   if (typeof navigator !== 'undefined' && 'canShare' in navigator && 'share' in navigator) {
     try {
