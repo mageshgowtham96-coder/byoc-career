@@ -14,10 +14,16 @@ appId: com.byoc.career
     commands:
       - tapOn: "Your full name"
       - inputText: "BYOC E2E Candidate"
+      - hideKeyboard
       - tapOn: "you@domain.com"
       - inputText: "byoc-e2e@example.test"
+      - hideKeyboard
       - tapOn: "Passphrase for AES-256-GCM key derivation"
       - inputText: "Byoc-E2E-Strong-Passphrase-2026"
+      - hideKeyboard
+      - scrollUntilVisible:
+          element: "Create encrypted workspace"
+          direction: DOWN
       - tapOn: "Create encrypted workspace"
       - extendedWaitUntil:
           visible: "Emergency Recovery Phrase Generated"
@@ -39,6 +45,7 @@ appId: com.byoc.career
     commands:
       - tapOn: "Enter vault passphrase"
       - inputText: "Byoc-E2E-Strong-Passphrase-2026"
+      - hideKeyboard
       - tapOn: "Unlock local vault"
       - extendedWaitUntil:
           visible: "Master Intake"
@@ -64,6 +71,7 @@ appId: com.byoc.career
 - assertVisible: "Opportunity Sourcing & Role Upgrade Engine"
 - tapOn: "Search any role, skill or keyword..."
 - inputText: "Supp"
+- hideKeyboard
 - assertVisible: "Customer Support Specialist"
 - takeScreenshot: "artifacts/autocomplete-keyboard-open"
 - tapOn: "Customer Support Specialist"
@@ -79,6 +87,7 @@ appId: com.byoc.career
     timeout: 30000
 - tapOn: "Enter vault passphrase"
 - inputText: "Byoc-E2E-Strong-Passphrase-2026"
+- hideKeyboard
 - tapOn: "Unlock local vault"
 - extendedWaitUntil:
     visible: "Master Intake"
