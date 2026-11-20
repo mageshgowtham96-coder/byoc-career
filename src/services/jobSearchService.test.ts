@@ -402,6 +402,17 @@ describe('deduplicateJobs location identity', () => {
 });
 
 
+describe('job match criteria disclosure', () => {
+  it('distinguishes explicit requirements from provider tags whose requirement status is unknown', () => {
+    expect(getJobMatchBasisLabel({ skillsRequired: ['SQL'], skillsListed: ['Excel'] }))
+      .toBe('Based on user-specified required skills');
+    expect(getJobMatchBasisLabel({ skillsRequired: [], skillsListed: ['Excel'] }))
+      .toBe('Provider-listed skills; requirement status unknown');
+    expect(getJobMatchBasisLabel({ skillsRequired: [], skillsListed: [] }))
+      .toBe('No job skill criteria specified');
+  });
+});
+
 describe('honest keyword-overlap scoring', () => {
   const job = {
     id: 'job-1', title: 'Developer', company: 'Example', location: 'Remote',
