@@ -75,7 +75,11 @@ jobs:
           script: >-
             bash -euo pipefail -c 'mkdir -p artifacts;
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk;
-            adb push artifacts/byoc-e2e-resume.docx /sdcard/Download/byoc-e2e-resume.docx;
+            adb shell mkdir -p /sdcard/Download;
+            adb shell rm -f /sdcard/Download/byoc-e2e-resume.docx || true;
+            adb push artifacts/byoc-e2e-resume.docx /data/local/tmp/byoc-e2e-resume.docx;
+            adb shell cp /data/local/tmp/byoc-e2e-resume.docx /sdcard/Download/byoc-e2e-resume.docx;
+            adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/byoc-e2e-resume.docx;
             adb shell screenrecord --time-limit 180 /sdcard/byoc-android-e2e.mp4 >/dev/null 2>&1 & sleep 2;
             if maestro test .maestro/smoke-test.yaml; then status=0; else status=$?; adb exec-out screencap -p > artifacts/failure-screenshot.png || true; adb logcat -d -t 5000 > artifacts/logcat-failure.txt || true; fi;
             adb shell pkill -INT screenrecord >/dev/null 2>&1 || true;
