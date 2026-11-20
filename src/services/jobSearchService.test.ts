@@ -11,7 +11,9 @@ describe('explicit remote market eligibility evidence', () => {
     ['Remote — North America', 'IN', 'explicitly-ineligible'],
     ['Remote', 'IN', 'not-stated'],
     ['Worldwide', 'IN', 'explicitly-eligible'],
-    ['Worldwide', 'GLOBAL', 'not-assessed']
+    ['Worldwide', 'GLOBAL', 'not-assessed'],
+    ['Global Remote', 'IN', 'explicitly-eligible'],
+    ['Global HQ, New York', 'IN', 'not-stated']
   ])('classifies published location %s for market %s as %s', (location, market, expected) => {
     expect(assessRemoteCountryEligibility(location, market).status).toBe(expected);
   });
