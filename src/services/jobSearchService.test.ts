@@ -1,7 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ArbeitnowJobAdapter, assessRemoteCountryEligibility, calculateHonestMatch, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, mergeDiscoveredJobs, PublicFeedsJobAdapter } from './jobSearchService';
+import { ArbeitnowJobAdapter, assessRemoteCountryEligibility, calculateHonestMatch, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, matchesRemoteCountryAndLocation, mergeDiscoveredJobs, PublicFeedsJobAdapter } from './jobSearchService';
 
 const fetchMock = vi.fn();
+
+describe('published-location-only eligibility gate', () => {
+  it('does not infer country or city eligibility from job-description mentions', () => {
+    expect(matchesRemoteCountryAndLocation(
+      'Remote',
+      'The company has an office in Chennai, India.',
+      'IN'
+    )).toBe(false);
+    expect(matchesRemoteCountryAndLocation(
+      'Remote',
+      'The role description mentions Chennai, India.',
+      'IN',
+      'Chennai'
+    )).toBe(false);
+  });
+
+  it('accepts a worldwide location only when the search preference allows it', () => {
+    expect(matchesRemoteCountryAndLocation('Worldwide', '', 'IN', undefined, true)).toBe(true);
+    expect(matchesRemoteCountryAndLocation('Worldwide', '', 'IN', undefined, false)).toBe(false);
+  });
+});
 
 describe('explicit remote market eligibility evidence', () => {
   it.each([
