@@ -72,31 +72,19 @@ jobs:
           emulator-boot-timeout: 600
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: |
-            set -uo pipefail
-            mkdir -p artifacts
-            APK="android/app/build/outputs/apk/debug/app-debug.apk"
-            adb install -r "$APK"
-            adb push artifacts/byoc-e2e-resume.docx /sdcard/Download/byoc-e2e-resume.docx
-            adb shell screenrecord --time-limit 180 /sdcard/byoc-android-e2e.mp4 >/dev/null 2>&1 &
-            sleep 2
-            status=0
-            maestro test .maestro/smoke-test.yaml || status=$?
-            if [ "$status" -ne 0 ]; then
-              adb exec-out screencap -p > artifacts/failure-screenshot.png || true
-              adb logcat -d -t 5000 > artifacts/logcat-failure.txt || true
-            fi
-            adb shell pkill -INT screenrecord >/dev/null 2>&1 || true
-            sleep 2
-            adb pull /sdcard/byoc-android-e2e.mp4 artifacts/byoc-android-e2e.mp4 || true
-            adb shell ls -la /sdcard/Download/BYOC > artifacts/android-downloads.txt || true
-            adb pull /sdcard/Download/BYOC artifacts/exports || true
-            if [ "$status" -eq 0 ]; then
-              adb shell test -s /sdcard/Download/BYOC/BYOC_E2E_Candidate_Master_Resume.pdf || status=$?
-              adb shell test -s /sdcard/Download/BYOC/BYOC_E2E_Candidate_Master_Resume.docx || status=$?
-              test -s artifacts/byoc-android-e2e.mp4 || status=1
-            fi
-            exit "$status"
+          script: >-
+            bash -euo pipefail -c 'mkdir -p artifacts;
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk;
+            adb push artifacts/byoc-e2e-resume.docx /sdcard/Download/byoc-e2e-resume.docx;
+            adb shell screenrecord --time-limit 180 /sdcard/byoc-android-e2e.mp4 >/dev/null 2>&1 & sleep 2;
+            if maestro test .maestro/smoke-test.yaml; then status=0; else status=$?; adb exec-out screencap -p > artifacts/failure-screenshot.png || true; adb logcat -d -t 5000 > artifacts/logcat-failure.txt || true; fi;
+            adb shell pkill -INT screenrecord >/dev/null 2>&1 || true;
+            sleep 2;
+            adb pull /sdcard/byoc-android-e2e.mp4 artifacts/byoc-android-e2e.mp4 || true;
+            adb shell ls -la /sdcard/Download/BYOC > artifacts/android-downloads.txt || true;
+            adb pull /sdcard/Download/BYOC artifacts/exports || true;
+            if [ "$status" -eq 0 ]; then adb shell test -s /sdcard/Download/BYOC/BYOC_E2E_Candidate_Master_Resume.pdf || status=$?; adb shell test -s /sdcard/Download/BYOC/BYOC_E2E_Candidate_Master_Resume.docx || status=$?; test -s artifacts/byoc-android-e2e.mp4 || status=1; fi;
+            exit "$status"'
       - name: Upload E2E video, screenshots, logs and exports
         if: always()
         uses: actions/upload-artifact@v4
