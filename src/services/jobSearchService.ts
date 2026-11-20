@@ -374,6 +374,22 @@ function containsSkillToken(text: string, skill: string): boolean {
   return matcher.test(text);
 }
 
+/**
+ * Describes the provenance of the skill criteria behind a keyword-overlap score.
+ * Feed tags are not classified by providers as mandatory or preferred requirements.
+ */
+export function getJobMatchBasisLabel(
+  job: Pick<JobPosting, 'skillsRequired' | 'skillsListed'>
+): string {
+  if ((job.skillsRequired || []).some((skill) => skill.trim())) {
+    return 'Based on user-specified required skills';
+  }
+  if ((job.skillsListed || []).some((skill) => skill.trim())) {
+    return 'Provider-listed skills; requirement status unknown';
+  }
+  return 'No job skill criteria specified';
+}
+
 export function calculateHonestMatch(
   job: JobPosting,
   masterResume: MasterResume | null
