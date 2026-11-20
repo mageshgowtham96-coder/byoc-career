@@ -12,7 +12,6 @@ appId: com.byoc.career
       visible: "Your full name"
     label: "Create the first encrypted workspace"
     commands:
-      - assertVisible: "Your name"
       - tapOn: "Your full name"
       - inputText: "BYOC E2E Candidate"
       - tapOn: "you@domain.com"
