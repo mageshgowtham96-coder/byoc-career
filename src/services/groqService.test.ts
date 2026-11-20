@@ -345,13 +345,47 @@ describe('tailored artifact interview evidence integrity', () => {
     const parsed = {
       variants: strategies.map((strategy) => ({
         name: strategy.name, badge: strategy.badge, description: strategy.description,
-        tailoredSummary: profile.summary, highlightedSkills: ['Excel'], optimizedBullets: [],
-        coverLetter: 'I am interested in this role.', interviewPrepQuestions: questions
+        tailoredSummary: profile.summary, tailoredSummaryEvidenceIds: ['summary'], highlightedSkills: ['Excel'], optimizedBullets: [],
+        coverLetter: 'I am interested in this role.', coverLetterEvidenceIds: ['skill:technical:0'], interviewPrepQuestions: questions
       }))
     };
     const artifact = validateTailoredOutput(parsed, job, profile);
     expect(artifact.interviewPrepQuestions[0].authenticEvidenceRef).toBe(evidence[evidenceId]);
     expect(artifact.variants.every((variant) => variant.interviewPrepQuestions[0].authenticEvidenceRef === evidence[evidenceId])).toBe(true);
+  });
+
+  it('requires valid source evidence references for tailored summaries and non-empty cover letters', async () => {
+    const { getTailoringStrategies, validateTailoredOutput } = await import('./groqService');
+    const profile = {
+      rawText: '', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+      headline: '', summary: 'Commerce graduate with reporting experience.',
+      skills: { technical: ['Excel'], soft: [], tools: [], domains: [] },
+      experiences: [], education: [], projects: [], certifications: [], additionalEvidence: [],
+      stats: { wordCount: 2, pageCount: 1, charCount: 10, lastParsedDate: '2026-11-20T00:00:00.000Z', sourceFileName: '' }
+    } as any;
+    const job = { id: 'job-1', title: 'Analyst', company: 'Acme', skillsRequired: [], jobDescriptionRaw: '' } as any;
+    const strategies = getTailoringStrategies(job, profile);
+    const questions = [0, 1, 2].map(() => ({
+      question: 'How would you explain your approach to this task?',
+      category: 'Behavioral',
+      suggestedTalkingPoints: ['Explain your own contribution.'],
+      evidenceId: 'summary'
+    }));
+    const variants = strategies.map((strategy) => ({
+      name: strategy.name, badge: strategy.badge, description: strategy.description,
+      tailoredSummary: profile.summary, highlightedSkills: ['Excel'], optimizedBullets: [],
+      coverLetter: 'I used Excel for reporting work.', interviewPrepQuestions: questions
+    }));
+    expect(() => validateTailoredOutput({ variants }, job, profile))
+      .toThrowError(/tailored summary must cite source evidence/i);
+
+    const withSummaryEvidence = variants.map((variant) => ({
+      ...variant,
+      tailoredSummaryEvidenceIds: ['summary'],
+      coverLetterEvidenceIds: ['invented-evidence-id']
+    }));
+    expect(() => validateTailoredOutput({ variants: withSummaryEvidence }, job, profile))
+      .toThrowError(/cover letter references candidate evidence that does not exist/i);
   });
 
   it('rejects tailored-kit interview questions that cite invented evidence IDs', async () => {
@@ -373,8 +407,8 @@ describe('tailored artifact interview evidence integrity', () => {
     const parsed = {
       variants: strategies.map((strategy) => ({
         name: strategy.name, badge: strategy.badge, description: strategy.description,
-        tailoredSummary: profile.summary, highlightedSkills: ['Excel'], optimizedBullets: [],
-        coverLetter: '', interviewPrepQuestions: invalidQuestions
+        tailoredSummary: profile.summary, tailoredSummaryEvidenceIds: ['summary'], highlightedSkills: ['Excel'], optimizedBullets: [],
+        coverLetter: '', coverLetterEvidenceIds: [], interviewPrepQuestions: invalidQuestions
       }))
     };
     expect(() => validateTailoredOutput(parsed, job, profile)).toThrowError(/candidate evidence that does not exist/i);
