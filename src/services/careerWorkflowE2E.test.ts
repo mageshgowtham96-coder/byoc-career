@@ -72,6 +72,8 @@ describe('whole career workflow integration', () => {
     useWizardStore.getState().saveTailoredArtifact(job.id, artifact);
     useWizardStore.getState().setTailoredArtifactReviewConfirmed(job.id, true);
     const approved = useWizardStore.getState().tailoredArtifacts[job.id];
+    expect(approved.summaryEvidence).toEqual([{ id: 'summary', text: 'Professional summary: ' + resume.summary }]);
+    expect(approved.coverLetterEvidence).toEqual([{ id: 'experience:exp-1:bullet:0', text: 'Recorded experience (Operations Analyst at Example Co-op): Prepared weekly operational reports using Excel and SQL.' }]);
     const docx = await generateDocxResume(approved, resume);
     const pdf = await generatePdfResume(approved, resume);
     expect(docx.size).toBeGreaterThan(0);
@@ -87,6 +89,8 @@ describe('whole career workflow integration', () => {
     const restored = await decryptVault(envelope, 'unit-test-only-passphrase');
     expect(restored.masterResume?.rawText).toBe('Original source text remains unchanged.');
     expect(restored.tailoredArtifacts[job.id].reviewConfirmed).toBe(true);
+    expect(restored.tailoredArtifacts[job.id].summaryEvidence).toEqual(approved.summaryEvidence);
+    expect(restored.tailoredArtifacts[job.id].coverLetterEvidence).toEqual(approved.coverLetterEvidence);
     expect(restored.applications[0].tailoredResumeSnapshot).toEqual(approved);
     expect(restored.applications[0].eligibilityAssessment).toEqual(job.eligibilityAssessment);
     useWizardStore.setState({ masterResume: null, jobs: [], selectedJobId: null, tailoredArtifacts: {}, applications: [], toasts: [] });
