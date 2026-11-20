@@ -28,6 +28,15 @@ function makeOversizedDocxArchive(): Uint8Array {
   return bytes;
 }
 
+describe('empty resume schema validation', () => {
+  it('describes missing career evidence without making paid work history mandatory', async () => {
+    const { validateExtractedSchema } = await import('./extractionService');
+    const validation = validateExtractedSchema(null);
+    expect(validation.missingMandatoryFields).toContain('Work, project or education evidence');
+    expect(validation.missingMandatoryFields).not.toContain('Work Experience Milestones');
+  });
+});
+
 describe('resume extraction resource limits', () => {
   it('rejects a DOCX whose declared uncompressed document exceeds the safety limit', async () => {
     const archive = makeOversizedDocxArchive();
