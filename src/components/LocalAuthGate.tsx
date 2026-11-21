@@ -13,29 +13,7 @@ import {
   sanitizeUserMetadata
 } from '../store/useWizardStore';
 import { ChakraLogo } from './ChakraLogo';
-
-async function copyRecoveryPhrase(text: string): Promise<boolean> {
-  try {
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch { /* use the WebView-compatible fallback */ }
-  try {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    textarea.style.pointerEvents = 'none';
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-    const copied = typeof document.execCommand === 'function' && document.execCommand('copy');
-    document.body.removeChild(textarea);
-    return copied;
-  } catch { return false; }
-}
+import { copyToClipboardSafely } from '../utils/copyToClipboardSafely';
 import {
   KeyRound,
   ShieldCheck,
@@ -748,7 +726,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
               type="button"
               onClick={async () => {
                 setHasCopiedRecovery(false);
-                const copied = await copyRecoveryPhrase(createdRecoveryPhrase);
+                const copied = await copyToClipboardSafely(createdRecoveryPhrase);
                 if (copied) {
                   setHasCopiedRecovery(true);
                   addToast({ type: 'success', message: 'Recovery phrase copied to clipboard.' });

@@ -15,13 +15,16 @@ const TAMIL_TO_ENGLISH_JOB_TERMS: Record<string, string> = {
   'எக்செல்': 'excel', 'தரவு உள்ளீடு': 'data entry', 'கணினி': 'computer',
   'கணக்கு': 'accounting', 'சந்தைப்படுத்தல்': 'marketing', 'திட்ட மேலாண்மை': 'project management'
 };
-/** Retains Tamil text while adding common English equivalents for English-only feeds. */
+/** Translate known Tamil terms for English-only matching, without changing the portal query. */
+export function translateTamilJobSearchQuery(query: string): string {
+  let translated = query.normalize('NFC');
+  for (const [tamil, english] of Object.entries(TAMIL_TO_ENGLISH_JOB_TERMS)) translated = translated.replaceAll(tamil, english);
+  return translated;
+}
+/** Keep the original Tamil query and append English equivalents for external portals. */
 export function expandTamilJobSearchQuery(query: string): string {
-  let expanded = query.normalize('NFC');
-  for (const [tamil, english] of Object.entries(TAMIL_TO_ENGLISH_JOB_TERMS)) {
-    if (expanded.includes(tamil)) expanded += ' ' + english;
-  }
-  return expanded;
+  const translated = translateTamilJobSearchQuery(query);
+  return translated === query.normalize('NFC') ? translated : query.normalize('NFC') + ' ' + translated;
 }
 
 const COMMON_ROLE_PATTERNS = [
@@ -117,10 +120,13 @@ export function getRoleSuggestions(
   cachedJobs: JobPosting[] = [],
   limit = 7
 ): string[] {
-  const normalized = normalize(expandTamilJobSearchQuery(query));
-  if (normalized.length < 2) return [];
-  const queryTokens = normalized.split(/\s+/).filter((token) => token.length > 1 || token === 'c' || token === 'r');
-  if (!queryTokens.length) return [];
+  const normalized = normalize(query);
+  const englishNormalized = normalize(translateTamilJobSearchQuery(query));
+  if (normalized.length < 2 && englishNormalized.length < 2) return [];
+  const tokens = (value: string) => value.split(/\s+/).filter((token) => token.length > 1 || token === 'c' || token === 'r');
+  const queryTokens = tokens(normalized);
+  const englishQueryTokens = tokens(englishNormalized);
+  if (!queryTokens.length && !englishQueryTokens.length) return [];
 
   const candidates = [
     ...getResumeCandidates(resume),
@@ -135,7 +141,7 @@ export function getRoleSuggestions(
   }
 
   return Array.from(unique.values())
-    .map((label, index) => ({ label, index, score: candidateScore(queryTokens, label) }))
+    .map((label, index) => ({ label, index, score: Math.max(candidateScore(queryTokens, label), candidateScore(englishQueryTokens, label)) }))
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .slice(0, Math.max(1, limit))

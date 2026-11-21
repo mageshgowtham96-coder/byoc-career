@@ -1,5 +1,5 @@
 import type { JobPosting, MasterResume, JobSourcePortal, PortalShortcut } from '../types';
-import { expandTamilJobSearchQuery } from '../utils/roleSuggestions';
+import { expandTamilJobSearchQuery, translateTamilJobSearchQuery } from '../utils/roleSuggestions';
 
 export interface JobSearchQueryParams {
   query?: string;
@@ -332,7 +332,7 @@ export function matchesJobSearchTerms(
   query: string | undefined,
   ...fields: Array<string | string[] | undefined>
 ): boolean {
-  const normalizedQuery = expandTamilJobSearchQuery(query || '').toLocaleLowerCase().normalize('NFC').replace(/[^\p{L}\p{M}\p{N}+#]+/gu, ' ').trim();
+  const normalizedQuery = translateTamilJobSearchQuery(query || '').toLocaleLowerCase().normalize('NFC').replace(/[^\p{L}\p{M}\p{N}+#]+/gu, ' ').trim();
   if (!normalizedQuery) return true;
   // Keep standalone C and R searchable; discard other one-letter noise.
   const terms = Array.from(new Set(normalizedQuery.split(/\s+/).filter((term) =>

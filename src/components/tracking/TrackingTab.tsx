@@ -747,7 +747,7 @@ export const TrackingTab: React.FC = () => {
                       </span>
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           const copied = await copyToClipboardSafely(`${email.subject}\n\n${email.body}`);
                           if (copied) {
                             setCopiedFollowUpModal(true);
