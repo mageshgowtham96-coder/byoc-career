@@ -701,7 +701,7 @@ export const SourcingTab: React.FC = () => {
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
           />
           {showRoleSuggestions && (
-            <div id="byoc-role-suggestions" role="listbox" aria-label="Suggested job roles" className="absolute bottom-full z-[60] mb-2 max-h-[min(42vh,18rem)] w-full overflow-y-auto overscroll-contain rounded-xl border border-sky-500/30 bg-slate-950/95 shadow-2xl shadow-black/40 backdrop-blur-xl">
+            <div id="byoc-role-suggestions" role="listbox" aria-label="Suggested job roles" className="absolute top-full z-[60] mt-2 max-h-[min(42vh,18rem)] w-full overflow-y-auto overscroll-contain rounded-xl border border-sky-500/30 bg-slate-950/95 shadow-2xl shadow-black/40 backdrop-blur-xl">
               <div className="px-3 py-2 border-b border-slate-800 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('Suggested roles · custom searches also supported')}</div>
               {roleSuggestions.map((role, index) => (
                 <button key={role} id={"byoc-role-option-" + index} type="button" role="option" aria-selected={activeRoleSuggestion === index}
