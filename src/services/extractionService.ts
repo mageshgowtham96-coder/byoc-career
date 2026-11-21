@@ -225,7 +225,10 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
     const dictionary = headerMatch[0];
     const streamStart = streamHeaderRegex.lastIndex;
     const streamEnd = binaryString.indexOf('endstream', streamStart);
-    if (streamEnd < 0) continue;
+    if (streamEnd < 0) break;
+    // Advance before decoding so nested byte patterns inside a compressed stream
+    // cannot be mistaken for additional PDF stream headers.
+    streamHeaderRegex.lastIndex = streamEnd + 'endstream'.length;
 
     let endIndex = streamEnd;
     if (endIndex > streamStart && bytes[endIndex - 1] === 0x0a) endIndex--;
@@ -251,8 +254,6 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
     if (!decodedStream) continue;
     const streamText = new TextDecoder('latin1').decode(decodedStream);
     textChunks.push(...collectPdfOperatorText(streamText));
-    // Skip past this stream so binary data cannot masquerade as another header.
-    streamHeaderRegex.lastIndex = streamEnd + 'endstream'.length;
   }
 
   const text = textChunks.filter(Boolean).join('\n').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ' ').trim();
