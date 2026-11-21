@@ -1,9 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { callGroqChat, getGroqRetryDelayMs, getTailoringStrategies, isAbortError, isRetryableGroqStatus, selectGroqChatModel, validateOptimizedMasterResume } from './groqService';
+import { callGroqChat, capGroqResumeText, MAX_GROQ_RESUME_TEXT_CHARS, getGroqRetryDelayMs, getTailoringStrategies, isAbortError, isRetryableGroqStatus, selectGroqChatModel, validateOptimizedMasterResume } from './groqService';
 
 const fetchMock = vi.fn();
 beforeEach(() => { vi.stubGlobal('fetch', fetchMock); fetchMock.mockReset(); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+
+describe('bounded resume structuring input', () => {
+  it('caps the resume text sent for optional Groq structuring at 8,000 characters', () => {
+    const longResume = 'A'.repeat(12000);
+    const bounded = capGroqResumeText(longResume);
+    expect(MAX_GROQ_RESUME_TEXT_CHARS).toBe(8000);
+    expect(bounded).toHaveLength(8000);
+    expect(bounded).toBe(longResume.slice(0, 8000));
+    expect(capGroqResumeText('Short resume')).toBe('Short resume');
+  });
+});
 
 describe('Groq retry policy', () => {
   it.each([408, 425, 429, 500, 502, 503, 504])('classifies %s as potentially transient', (status) => {
