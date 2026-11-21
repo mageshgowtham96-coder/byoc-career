@@ -211,15 +211,15 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
     binaryString += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
   }
 
-  const pageMatches = binaryString.match(/\\/Type\\s*\\/Page\\b/g);
+  const pageMatches = binaryString.match(/\/Type\s*\/Page\b/g);
   const pageCount = Math.max(1, pageMatches?.length || 1);
   const textChunks: string[] = [];
   let totalPdfDecompressedBytes = 0;
 
   // PDF text operators live inside page content streams. Never scan the whole
-  // binary file: doing so lets TJ's permissive array matcher consume object
-  // dictionaries, xref data and unrelated stream bytes as if they were text.
-  const streamHeaderRegex = /<<(?:[\\s\\S]*?)>>\\s*stream(?:\\r\\n|\\n|\\r)/g;
+  // binary file: a TJ array regex can otherwise consume dictionaries, xref data,
+  // and unrelated stream bytes as if they were candidate text.
+  const streamHeaderRegex = /<<(?:[\s\S]*?)>>\s*stream(?:\r\n|\n|\r)/g;
   let headerMatch: RegExpExecArray | null;
   while ((headerMatch = streamHeaderRegex.exec(binaryString)) !== null) {
     const dictionary = headerMatch[0];
@@ -233,7 +233,7 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
     const streamBytes = bytes.subarray(streamStart, endIndex);
     let decodedStream: Uint8Array | null = null;
 
-    if (/\\/FlateDecode\\b/.test(dictionary)) {
+    if (/\/FlateDecode\b/.test(dictionary)) {
       if (typeof DecompressionStream === 'undefined') continue;
       const remainingBudget = MAX_DECOMPRESSED_DOCUMENT_BYTES - totalPdfDecompressedBytes;
       if (remainingBudget <= 0) break;
@@ -244,20 +244,19 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
         // A malformed, encrypted or unsupported stream is not candidate text.
         continue;
       }
-    } else if (!/\\/Filter\\b/.test(dictionary)) {
+    } else if (!/\/Filter\b/.test(dictionary)) {
       decodedStream = streamBytes;
     }
 
     if (!decodedStream) continue;
     const streamText = new TextDecoder('latin1').decode(decodedStream);
     textChunks.push(...collectPdfOperatorText(streamText));
-    // Skip past this stream so a marker inside binary data cannot be treated
-    // as a second stream header.
+    // Skip past this stream so binary data cannot masquerade as another header.
     streamHeaderRegex.lastIndex = streamEnd + 'endstream'.length;
   }
 
-  const text = textChunks.filter(Boolean).join('\\n').replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/g, ' ').trim();
-  const hasImageObjects = /\\/Subtype\\s*\\/Image\\b/.test(binaryString);
+  const text = textChunks.filter(Boolean).join('\n').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ' ').trim();
+  const hasImageObjects = /\/Subtype\s*\/Image\b/.test(binaryString);
   return { text, pageCount, isScannedImage: !text && hasImageObjects };
 }
 function cleanPdfString(raw: string): string {
