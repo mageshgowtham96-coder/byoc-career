@@ -636,7 +636,7 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
 
   async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
     const fallbackSkill = params.skills && params.skills.length > 0 ? params.skills[0] : '';
-    const query = (params.query || params.targetRole || params.profession || fallbackSkill || '').trim().toLowerCase();
+    const query = translateTamilJobSearchQuery((params.query || params.targetRole || params.profession || fallbackSkill || '').trim()).toLowerCase();
 
     if (!query) {
       return [];
