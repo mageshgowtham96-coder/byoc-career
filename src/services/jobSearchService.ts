@@ -341,7 +341,11 @@ export function matchesJobSearchTerms(
   if (terms.length === 0) return true;
   const haystack = fields.flatMap((field) => Array.isArray(field) ? field : [field || ''])
     .join(' ').toLocaleLowerCase().normalize('NFC').replace(/[^\p{L}\p{M}\p{N}+#]+/gu, ' ');
-  return terms.every((term, index) => matchesSearchTerm(haystack, term, index === terms.length - 1));
+  const matchedTerms = terms.filter((term, index) => matchesSearchTerm(haystack, term, index === terms.length - 1)).length;
+  // A long role phrase is a bundle of search hints, not an exact-phrase requirement.
+  // Two meaningful overlapping terms are enough for multi-word queries; one-token
+  // searches remain useful for broad discovery and live typeahead.
+  return matchedTerms >= Math.min(2, terms.length);
 }
 
 export function normalizeLocation(rawLocation?: string): string {
@@ -1128,13 +1132,16 @@ export class LiveJobSearchEngine {
           }
         };
       } catch (error: unknown) {
+        const detail = error instanceof Error ? error.message : `${provider.name} request failed.`;
+        const rateLimited = /HTTP 429|rate limit exceeded/i.test(detail);
         return {
           jobs: [] as JobPosting[],
           queried: false,
-          error: error instanceof Error ? error.message : `${provider.name} request failed.`,
+          // One feed's rate limit is a provider-status detail, not a failed search.
+          error: rateLimited ? undefined : detail,
           status: {
-            id: provider.id, name: provider.name, status: 'error' as const, count: 0,
-            detail: error instanceof Error ? error.message : `${provider.name} request failed.`
+            id: provider.id, name: provider.name, status: rateLimited ? 'skipped' as const : 'error' as const, count: 0,
+            detail: rateLimited ? `${provider.name} is temporarily rate-limited; results from other feeds and saved jobs are unaffected.` : detail
           }
         };
       }
