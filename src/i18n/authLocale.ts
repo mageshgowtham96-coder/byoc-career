@@ -180,6 +180,8 @@ const UI_COPY: Partial<Record<AuthLocale, Record<string, string>>> = {
     'Prepare Offline Baseline Kit': 'இணையமற்ற அடிப்படைத் தொகுப்பைத் தயாரிக்கவும்',
     'Prepare the offline baseline kit (AI needs an optional Groq key)': 'இணையமற்ற அடிப்படைத் தொகுப்பைத் தயாரிக்கவும் (AI-க்கு விருப்பமான Groq திறவுகோல் தேவை)',
     'Each line is a separate item. Edit its wording or category, or delete the line if it does not describe your experience.': 'ஒவ்வொரு வரியும் தனித்தனி பதிவு. உங்கள் அனுபவத்துக்கு ஏற்றபடி உரை அல்லது வகையை மாற்றவும்; பொருந்தாத வரியை நீக்கவும்.',
+    'Some characters in your resume are not supported by the built-in PDF fonts. Choose DOCX to preserve every character. PDF export is paused to prevent text loss.': 'உங்கள் சுயவிவரத்தில் உள்ள சில எழுத்துகளை PDF எழுத்துருக்கள் ஆதரிக்கவில்லை. எல்லா எழுத்துகளையும் பாதுகாக்க DOCX-ஐத் தேர்ந்தெடுக்கவும். உரை இழப்பைத் தவிர்க்க PDF ஏற்றுமதி நிறுத்தப்பட்டுள்ளது.',
+    'I have saved these backup words somewhere safe. I understand I will need them if I forget my passphrase.': 'இந்தக் காப்புச் சொற்களைப் பாதுகாப்பான இடத்தில் சேமித்துள்ளேன். கடவுச்சொற்றொடரை மறந்தால் இவை தேவைப்படும் என்பதைப் புரிந்துகொண்டேன்.',
     'Frozen Tailored Summary': 'சேமிக்கப்பட்ட தனிப்பயன் சுருக்கம்',
     'Copy Summary': 'சுருக்கத்தை நகலெடுக்கவும்',
     'Frozen Cover Letter': 'சேமிக்கப்பட்ட அறிமுகக் கடிதம்',
