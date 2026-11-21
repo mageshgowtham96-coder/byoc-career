@@ -231,6 +231,13 @@ export const DEFAULT_PORTAL_SHORTCUTS: PortalShortcut[] = [
     searchUrlTemplate: 'https://www.instahyre.com/candidate/opportunities/',
     note: 'External curated board shortcut — paste copied JD & URL into BYOC.',
     isBuiltIn: true
+  },
+  {
+    id: 'portal-google-jobs',
+    name: 'Google Jobs',
+    searchUrlTemplate: 'https://www.google.com/search?q={query}+jobs&ibp=htl;jobs',
+    note: 'External Google Jobs search shortcut — paste copied JD & URL into BYOC.',
+    isBuiltIn: true
   }
 ];
 

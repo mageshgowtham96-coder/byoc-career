@@ -878,7 +878,13 @@ export const IntakeTab: React.FC = () => {
               accept=".pdf,.docx,.txt,.md"
               className="hidden"
               disabled={isProcessing}
-              onChange={(e) => handleFileDrop(e.target.files)}
+              onChange={(e) => {
+                const input = e.currentTarget;
+                // handleFileDrop reads the file synchronously before its first await,
+                // so clearing the input afterwards lets the same file be picked again.
+                void handleFileDrop(input.files);
+                input.value = '';
+              }}
             />
 
             {isProcessing ? (

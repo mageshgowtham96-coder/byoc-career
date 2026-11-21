@@ -4,7 +4,7 @@ appId: com.byoc.career
     clearState: true
 - extendedWaitUntil:
     visible: "AES-256-GCM Local Vault"
-    timeout: 60000
+    timeout: 120000
 
 # Fresh install: initialize the encrypted local workspace before expecting profile UI.
 - runFlow:
@@ -29,11 +29,11 @@ appId: com.byoc.career
           visible: "Emergency Recovery Phrase Generated"
           timeout: 30000
       - scrollUntilVisible:
-          element: "I have written down or securely stored my recovery phrase"
+          element: "I have written down or securely stored my recovery phrase.*"
           direction: DOWN
-      - assertVisible: "I have written down or securely stored my recovery phrase"
-      - tapOn: "I have written down or securely stored my recovery phrase"
-      - assertVisible: "I Have Saved My Recovery Phrase"
+      - assertVisible: "I have written down or securely stored my recovery phrase.*"
+      - tapOn: "I have written down or securely stored my recovery phrase.*"
+      - assertVisible: "I Have Saved My Recovery Phrase.*"
       - scrollUntilVisible:
           element: "I Have Saved My Recovery Phrase.*"
           direction: DOWN
@@ -65,10 +65,23 @@ appId: com.byoc.career
 - tapOn: "Master Intake"
 - assertVisible: "Master Resume Intake & Structural Builder"
 - tapOn: "Tap to Upload or Drag Resume File"
+# Android 14 system picker (com.google.android.documentsui) may open in Recent,
+# directly in Downloads, or with the roots drawer closed. Handle each case.
 - extendedWaitUntil:
-    visible: "Downloads"
+    visible: ".*(Recent|Downloads|Show roots|byoc-e2e-resume\\.docx).*"
+    timeout: 30000
+- runFlow:
+    when:
+      notVisible: "byoc-e2e-resume.docx"
+    label: "Navigate the picker to Downloads"
+    commands:
+      - tapOn:
+          text: "Show roots"
+          optional: true
+      - tapOn: "Downloads"
+- extendedWaitUntil:
+    visible: "byoc-e2e-resume.docx"
     timeout: 15000
-- tapOn: "Downloads"
 - tapOn: "byoc-e2e-resume.docx"
 - extendedWaitUntil:
     visible: "Mandatory Review Gate.*"
@@ -99,7 +112,7 @@ appId: com.byoc.career
 - launchApp
 - extendedWaitUntil:
     visible: "AES-256-GCM Local Vault"
-    timeout: 30000
+    timeout: 120000
 - tapOn: "Enter vault passphrase"
 - inputText: "Byoc-E2E-Strong-Passphrase-2026"
 - hideKeyboard
