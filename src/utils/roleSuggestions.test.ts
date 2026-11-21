@@ -31,6 +31,16 @@ describe('getRoleSuggestions', () => {
     expect(getRoleSuggestions('SRE', resume)).toContain('Site Reliability Engineer');
   });
 
+  it('includes common Indian non-technical occupations in local suggestions', () => {
+    expect(getRoleSuggestions('acc')).toContain('Accountant');
+    expect(getRoleSuggestions('office')).toContain('Office Admin');
+    expect(getRoleSuggestions('customer supp')).toContain('Customer Support');
+    expect(getRoleSuggestions('retail')).toContain('Retail');
+    expect(getRoleSuggestions('operations')).toContain('Operations');
+    expect(getRoleSuggestions('logistics')).toContain('Logistics');
+    expect(getRoleSuggestions('sales')).toContain('Sales');
+  });
+
   it('uses cached portal job titles and tags', () => {
     const suggestions = getRoleSuggestions('Supp', null, [cachedJob('Customer Support Associate')]);
     expect(suggestions).toContain('Customer Support Associate');
