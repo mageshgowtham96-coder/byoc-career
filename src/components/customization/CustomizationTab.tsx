@@ -456,7 +456,7 @@ export const CustomizationTab: React.FC = () => {
                   : !hasJob
                   ? 'Pick a target position in Sourcing to tailor your kit against'
                    : !groqApiKey.trim()
-                  ? 'Prepare the offline baseline kit (AI needs an optional Groq key)'
+                  ? t('Prepare the offline baseline kit (AI needs an optional Groq key)')
                   : 'Generate role-relevant resume variations'
               }
               className={`flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-white font-bold text-sm shadow-xl transition active:scale-95 cursor-pointer ${
@@ -466,10 +466,10 @@ export const CustomizationTab: React.FC = () => {
               }`}
             >
               <Sparkles className={`w-4 h-4 ${!hasResume || !hasJob ? 'text-amber-400' : 'text-sky-300'} ${isGenerating ? 'animate-spin' : ''}`} />
-              <span>{isGenerating ? 'Generating role-relevant variations...' : !groqApiKey.trim() ? 'Prepare Offline Baseline Kit' : currentArtifact ? 'Regenerate role-relevant variations' : 'Generate role-relevant resume variations'}</span>
+              <span>{isGenerating ? 'Generating role-relevant variations...' : !groqApiKey.trim() ? t('Prepare Offline Baseline Kit') : currentArtifact ? 'Regenerate role-relevant variations' : 'Generate role-relevant resume variations'}</span>
             </button>
             {!groqApiKey.trim() && hasResume && hasJob && (
-              <span className="text-[11px] text-sky-300 font-medium">AI tailoring needs an optional Groq key. Choose this button to prepare the offline baseline kit without one.</span>
+              <span className="text-[11px] text-sky-300 font-medium">{t('AI tailoring needs an optional Groq key. Choose the offline baseline kit to continue without one.')}</span>
             )}
             {!hasResume && (
               <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
