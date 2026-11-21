@@ -9,11 +9,13 @@ export interface ResumeReadiness {
 export function getCandidateDiscoverySignals(resume: MasterResume | null | undefined): string[] {
   if (!resume) return [];
   const values = [
+    resume.headline, resume.currentRole, resume.roleFamily,
+    ...(resume.experiences || []).map((item) => item.role),
     ...(resume.skills?.technical || []), ...(resume.skills?.soft || []),
     ...(resume.skills?.tools || []), ...(resume.skills?.domains || []),
-    ...(resume.education || []).flatMap((item) => [item.degree, item.field, item.institution]),
-    ...(resume.projects || []).flatMap((item) => [item.title, item.description, ...(item.technologies || [])]),
-    ...(resume.certifications || []).flatMap((item) => [item.name, item.issuer]),
+    ...(resume.education || []).flatMap((item) => [item.degree, item.field]),
+    ...(resume.projects || []).flatMap((item) => [item.title, ...(item.technologies || [])]),
+    ...(resume.certifications || []).map((item) => item.name),
     ...(resume.additionalEvidence || [])
   ];
   const seen = new Set<string>();
