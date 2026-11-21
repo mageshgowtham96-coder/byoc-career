@@ -219,16 +219,20 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
   // PDF text operators live inside page content streams. Never scan the whole
   // binary file: a TJ array regex can otherwise consume dictionaries, xref data,
   // and unrelated stream bytes as if they were candidate text.
-  const streamHeaderRegex = /<<(?:[\s\S]*?)>>\s*stream(?:\r\n|\n|\r)/g;
-  let headerMatch: RegExpExecArray | null;
-  while ((headerMatch = streamHeaderRegex.exec(binaryString)) !== null) {
-    const dictionary = headerMatch[0];
-    const streamStart = streamHeaderRegex.lastIndex;
+  const streamMarkerRegex = /\bstream(?:\r\n|\n|\r)/g;
+  let streamMatch: RegExpExecArray | null;
+  while ((streamMatch = streamMarkerRegex.exec(binaryString)) !== null) {
+    const streamStart = streamMarkerRegex.lastIndex;
+    const previousObjectEnd = binaryString.lastIndexOf('endobj', streamMatch.index);
+    const dictionaryStart = binaryString.indexOf('<<', previousObjectEnd + 'endobj'.length);
+    const dictionaryEnd = binaryString.lastIndexOf('>>', streamMatch.index);
+    if (dictionaryStart < 0 || dictionaryEnd < dictionaryStart) continue;
+    const dictionary = binaryString.slice(dictionaryStart, dictionaryEnd + 2);
     const streamEnd = binaryString.indexOf('endstream', streamStart);
     if (streamEnd < 0) break;
     // Advance before decoding so nested byte patterns inside a compressed stream
     // cannot be mistaken for additional PDF stream headers.
-    streamHeaderRegex.lastIndex = streamEnd + 'endstream'.length;
+    streamMarkerRegex.lastIndex = streamEnd + 'endstream'.length;
 
     let endIndex = streamEnd;
     if (endIndex > streamStart && bytes[endIndex - 1] === 0x0a) endIndex--;
