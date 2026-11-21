@@ -180,7 +180,16 @@ const UI_COPY: Partial<Record<AuthLocale, Record<string, string>>> = {
     'I Have Saved My Recovery Phrase → Enter Workspace': 'மீட்பு சொற்றொடரைச் சேமித்துவிட்டேன் → பணியிடத்திற்குச் செல்லவும்',
     'AI tailoring needs an optional Groq key. Choose the offline baseline kit to continue without one.': 'AI மூலம் தனிப்பயனாக்க விரும்பினால் விருப்பமாக Groq திறவுகோலைச் சேர்க்கவும். அது இல்லாமலும் தொடர, இணையமற்ற அடிப்படைத் தொகுப்பைத் தேர்ந்தெடுக்கவும்.',
     'Prepare Offline Baseline Kit': 'இணையமற்ற அடிப்படைத் தொகுப்பைத் தயாரிக்கவும்',
-    'Prepare the offline baseline kit (AI needs an optional Groq key)': 'இணையமற்ற அடிப்படைத் தொகுப்பைத் தயாரிக்கவும் (AI-க்கு விருப்பமான Groq திறவுகோல் தேவை)'
+    'Prepare the offline baseline kit (AI needs an optional Groq key)': 'இணையமற்ற அடிப்படைத் தொகுப்பைத் தயாரிக்கவும் (AI-க்கு விருப்பமான Groq திறவுகோல் தேவை)',
+    'Each line is a separate item. Edit its wording or category, or delete the line if it does not describe your experience.': 'ஒவ்வொரு வரியும் தனித்தனி பதிவு. உங்கள் அனுபவத்துக்கு ஏற்றபடி உரை அல்லது வகையை மாற்றவும்; பொருந்தாத வரியை நீக்கவும்.',
+    'Frozen Tailored Summary': 'சேமிக்கப்பட்ட தனிப்பயன் சுருக்கம்',
+    'Copy Summary': 'சுருக்கத்தை நகலெடுக்கவும்',
+    'Frozen Cover Letter': 'சேமிக்கப்பட்ட அறிமுகக் கடிதம்',
+    'Copy Cover Letter': 'அறிமுகக் கடிதத்தை நகலெடுக்கவும்',
+    'Copied frozen summary.': 'சேமிக்கப்பட்ட சுருக்கம் நகலெடுக்கப்பட்டது.',
+    'Copied frozen cover letter.': 'சேமிக்கப்பட்ட அறிமுகக் கடிதம் நகலெடுக்கப்பட்டது.',
+    'Could not copy. Select the summary and copy it manually.': 'நகலெடுக்க முடியவில்லை. சுருக்கத்தைத் தேர்ந்தெடுத்து கைமுறையாக நகலெடுக்கவும்.',
+    'Could not copy. Select the letter and copy it manually.': 'நகலெடுக்க முடியவில்லை. கடிதத்தைத் தேர்ந்தெடுத்து கைமுறையாக நகலெடுக்கவும்.'
   },
   bn: {
     'Dashboard': 'ড্যাশবোর্ড', 'Home': 'হোম', 'Master Intake': 'মূল প্রোফাইল',
