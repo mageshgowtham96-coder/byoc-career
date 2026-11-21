@@ -90,11 +90,17 @@ appId: com.byoc.career
 - scrollUntilVisible:
     element: "Approve & Save to Master Profile"
     direction: DOWN
+    timeout: 90000
+    speed: 85
+    centerElement: true
 - tapOn: "Approve & Save to Master Profile"
 - assertVisible: "Saved in Vault"
 - scrollUntilVisible:
     element: "Proceed to Sourcing"
     direction: DOWN
+    timeout: 90000
+    speed: 85
+    centerElement: true
 - tapOn: "Proceed to Sourcing"
 - assertVisible: "Opportunity Sourcing & Role Upgrade Engine"
 - tapOn: "Search any role, skill or keyword..."
@@ -128,6 +134,9 @@ appId: com.byoc.career
 - scrollUntilVisible:
     element: "Export PDF"
     direction: DOWN
+    timeout: 90000
+    speed: 85
+    centerElement: true
 - tapOn: "Export PDF"
 - extendedWaitUntil:
     visible: "Master Resume Exported"
@@ -135,6 +144,9 @@ appId: com.byoc.career
 - scrollUntilVisible:
     element: "Export DOCX"
     direction: DOWN
+    timeout: 90000
+    speed: 85
+    centerElement: true
 - tapOn: "Export DOCX"
 - extendedWaitUntil:
     visible: "Master Resume Exported"
