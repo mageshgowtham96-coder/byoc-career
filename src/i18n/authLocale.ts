@@ -21,3 +21,216 @@ export const AUTH_LANGUAGES = [
   { code: "ml", native: "മലയാളം" }, { code: "pa", native: "ਪੰਜਾਬੀ" }, { code: "or", native: "ଓଡ଼ିଆ" },
   { code: "as", native: "অসমীয়া" }
 ] as const;
+
+
+import { createContext, useContext } from 'react';
+
+export const AUTH_LOCALE_STORAGE_KEY = 'byoc_ui_language';
+
+type StorageReader = Pick<Storage, 'getItem'>;
+type StorageWriter = Pick<Storage, 'setItem'>;
+
+/** Read the language selected on the local welcome/unlock screen. */
+export function readStoredAuthLocale(storage?: StorageReader): AuthLocale {
+  try {
+    const target = storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
+    const saved = target?.getItem(AUTH_LOCALE_STORAGE_KEY);
+    return saved && Object.prototype.hasOwnProperty.call(AUTH_COPY, saved)
+      ? saved as AuthLocale
+      : 'en';
+  } catch {
+    return 'en';
+  }
+}
+
+/** Keep the language preference on this device; no account or network is needed. */
+export function persistStoredAuthLocale(locale: AuthLocale, storage?: StorageWriter): void {
+  try {
+    const target = storage ?? (typeof window !== 'undefined' ? window.localStorage : undefined);
+    target?.setItem(AUTH_LOCALE_STORAGE_KEY, locale);
+  } catch {
+    // Language persistence is a convenience and must never block workspace access.
+  }
+}
+
+/**
+ * App-wide UI translations are deliberately keyed by the existing English label.
+ * Any label not translated yet stays readable in English instead of disappearing.
+ */
+const UI_COPY: Partial<Record<AuthLocale, Record<string, string>>> = {
+  hi: {
+    'Dashboard': 'डैशबोर्ड', 'Home': 'होम', 'Master Intake': 'मास्टर प्रोफ़ाइल',
+    'Intake': 'प्रोफ़ाइल', 'Job Sourcing': 'नौकरी खोज', 'Jobs': 'नौकरियाँ',
+    'Role Vetting': 'भूमिका समीक्षा', 'Vet': 'समीक्षा', 'Tailor Kit': 'रिज़्यूमे अनुकूलन',
+    'Tailor': 'अनुकूलित करें', 'Applications': 'आवेदन', 'Track': 'ट्रैकिंग',
+    'Prep-Zone': 'तैयारी क्षेत्र', 'Prep': 'तैयारी', 'PDF Workspace': 'PDF कार्यक्षेत्र',
+    'PDF': 'PDF', 'Settings & Docs': 'सेटिंग और दस्तावेज़', 'Setup': 'सेटअप',
+    'Career Pipeline': 'करियर यात्रा', 'Workspace navigation': 'कार्यस्थान नेविगेशन',
+    'Mobile navigation': 'मोबाइल नेविगेशन', 'Local Encrypted Session': 'स्थानीय एन्क्रिप्टेड सत्र',
+    'Save': 'सहेजें', 'Cancel': 'रद्द करें', 'Continue': 'जारी रखें', 'Back': 'वापस',
+    'Next': 'आगे', 'Search': 'खोजें', 'Export': 'निर्यात करें',
+    'Loading workspace…': 'कार्यस्थान लोड हो रहा है…', 'No jobs saved yet': 'अभी कोई नौकरी सहेजी नहीं गई है',
+    'No applications yet': 'अभी कोई आवेदन नहीं है', 'No resume yet': 'अभी कोई रिज़्यूमे नहीं है',
+    'Start your Master Resume': 'अपना मास्टर रिज़्यूमे शुरू करें',
+    'Retry Save': 'फिर से सहेजें', 'Settings': 'सेटिंग', 'Workspace': 'कार्यस्थान',
+    'Groq Connected': 'Groq जुड़ा हुआ है', 'API Key Required': 'API कुंजी आवश्यक है',
+    'Configure Groq BYOK in Settings': 'सेटिंग में Groq BYOK सेट करें',
+    'Open Workspace Settings': 'कार्यस्थान सेटिंग खोलें'
+  },
+  ta: {
+    'Dashboard': 'முகப்பு', 'Home': 'முகப்பு', 'Master Intake': 'முதன்மை விவரங்கள்',
+    'Intake': 'விவரங்கள்', 'Job Sourcing': 'வேலை தேடல்', 'Jobs': 'வேலைகள்',
+    'Role Vetting': 'வேலை மதிப்பீடு', 'Vet': 'மதிப்பீடு', 'Tailor Kit': 'விண்ணப்பத் தொகுப்பு',
+    'Tailor': 'தனிப்பயனாக்கு', 'Applications': 'விண்ணப்பங்கள்', 'Track': 'கண்காணிப்பு',
+    'Prep-Zone': 'தயாரிப்பு பகுதி', 'Prep': 'பயிற்சி', 'PDF Workspace': 'PDF பணியிடம்',
+    'PDF': 'PDF', 'Settings & Docs': 'அமைப்புகள் மற்றும் ஆவணங்கள்', 'Setup': 'அமைப்பு',
+    'Career Pipeline': 'தொழில் பயணம்', 'Workspace navigation': 'பணியிட வழிசெலுத்தல்',
+    'Mobile navigation': 'கைப்பேசி வழிசெலுத்தல்', 'Local Encrypted Session': 'உள்ளூர் மறைகுறியாக்கப்பட்ட அமர்வு',
+    'AES-256-GCM Vault': 'மறைகுறியாக்கப்பட்ட பெட்டகம்', 'Save': 'சேமி',
+    'Cancel': 'ரத்து செய்', 'Continue': 'தொடரவும்', 'Back': 'பின்செல்',
+    'Next': 'அடுத்து', 'Search': 'தேடு', 'Export': 'ஏற்றுமதி செய்',
+    'Loading workspace…': 'பணியிடம் ஏற்றப்படுகிறது…',
+    'No jobs saved yet': 'இன்னும் வேலைகள் சேமிக்கப்படவில்லை',
+    'No applications yet': 'இன்னும் விண்ணப்பங்கள் இல்லை',
+    'No resume yet': 'இன்னும் சுயவிவரம் இல்லை',
+    'Start your Master Resume': 'உங்கள் முதன்மை சுயவிவரத்தைத் தொடங்குங்கள்',
+    'Add your skills in Intake or target role in Settings to discover live openings.': 'புதிய வேலை வாய்ப்புகளைக் காண உங்கள் திறன்களை விவரங்களில் அல்லது இலக்கு வேலையை அமைப்புகளில் சேர்க்கவும்.',
+    'Offline Mode Active — Running strictly from local vault storage': 'இணையமின்றி செயல்படுகிறது — உள்ளூர் பாதுகாப்புப் பெட்டகத்திலிருந்து மட்டும் இயங்குகிறது',
+    'Retry Save': 'மீண்டும் சேமி', 'Settings': 'அமைப்புகள்', 'Workspace': 'பணியிடம்',
+    'Groq Connected': 'Groq இணைக்கப்பட்டது', 'API Key Required': 'API திறவுகோல் தேவை',
+    'Configure Groq BYOK in Settings': 'அமைப்புகளில் Groq BYOK அமைக்கவும்',
+    'Open Workspace Settings': 'பணியிட அமைப்புகளைத் திற',
+    'Export .DOCX': '.DOCX ஏற்றுமதி செய்', 'Export .PDF': '.PDF ஏற்றுமதி செய்',
+    'Export .TXT': '.TXT ஏற்றுமதி செய்',
+    'Your resume includes Tamil or other non-Latin characters. Choose DOCX to preserve the text. PDF export is paused because its built-in fonts cannot safely display every script.': 'உங்கள் சுயவிவரத்தில் தமிழ் அல்லது பிற லத்தீன் அல்லாத எழுத்துகள் உள்ளன. உரையை முழுமையாகப் பாதுகாக்க DOCX-ஐத் தேர்ந்தெடுக்கவும். எல்லா எழுத்துமுறைகளையும் PDF எழுத்துருக்கள் பாதுகாப்பாகக் காட்ட முடியாததால் PDF ஏற்றுமதி நிறுத்தப்பட்டுள்ளது.',
+    'Recommended for Tamil and other scripts': 'தமிழ் மற்றும் பிற எழுத்துமுறைகளுக்கு பரிந்துரைக்கப்படுகிறது'
+  },
+  bn: {
+    'Dashboard': 'ড্যাশবোর্ড', 'Home': 'হোম', 'Master Intake': 'মূল প্রোফাইল',
+    'Intake': 'প্রোফাইল', 'Job Sourcing': 'চাকরি খোঁজা', 'Jobs': 'চাকরি',
+    'Role Vetting': 'পদের যাচাই', 'Vet': 'যাচাই', 'Tailor Kit': 'রিজিউমে সাজান',
+    'Tailor': 'সাজান', 'Applications': 'আবেদন', 'Track': 'ট্র্যাক',
+    'Prep-Zone': 'প্রস্তুতি অঞ্চল', 'Prep': 'প্রস্তুতি', 'PDF Workspace': 'PDF কর্মক্ষেত্র',
+    'PDF': 'PDF', 'Settings & Docs': 'সেটিংস ও নথি', 'Setup': 'সেটআপ',
+    'Career Pipeline': 'ক্যারিয়ার যাত্রা', 'Workspace navigation': 'কর্মক্ষেত্র নেভিগেশন',
+    'Mobile navigation': 'মোবাইল নেভিগেশন', 'Save': 'সংরক্ষণ', 'Cancel': 'বাতিল',
+    'Continue': 'চালিয়ে যান', 'Back': 'ফিরে যান', 'Next': 'পরবর্তী', 'Search': 'খুঁজুন'
+  },
+  te: {
+    'Dashboard': 'డాష్‌బోర్డ్', 'Home': 'హోమ్', 'Master Intake': 'మాస్టర్ ప్రొఫైల్',
+    'Intake': 'ప్రొఫైల్', 'Job Sourcing': 'ఉద్యోగాల శోధన', 'Jobs': 'ఉద్యోగాలు',
+    'Role Vetting': 'పాత్ర పరిశీలన', 'Vet': 'పరిశీలన', 'Tailor Kit': 'రెజ్యూమే అనుకూలీకరణ',
+    'Tailor': 'అనుకూలీకరించు', 'Applications': 'దరఖాస్తులు', 'Track': 'ట్రాకింగ్',
+    'Prep-Zone': 'సన్నద్ధత ప్రాంతం', 'Prep': 'సన్నద్ధత', 'PDF Workspace': 'PDF కార్యస్థలం',
+    'PDF': 'PDF', 'Settings & Docs': 'సెట్టింగ్‌లు మరియు పత్రాలు', 'Setup': 'సెటప్',
+    'Career Pipeline': 'కెరీర్ ప్రయాణం', 'Workspace navigation': 'కార్యస్థల నావిగేషన్',
+    'Mobile navigation': 'మొబైల్ నావిగేషన్', 'Save': 'సేవ్ చేయండి', 'Cancel': 'రద్దు',
+    'Continue': 'కొనసాగించండి', 'Back': 'వెనక్కి', 'Next': 'తదుపరి', 'Search': 'శోధించండి'
+  },
+  mr: {
+    'Dashboard': 'डॅशबोर्ड', 'Home': 'मुख्यपृष्ठ', 'Master Intake': 'मुख्य प्रोफाइल',
+    'Intake': 'प्रोफाइल', 'Job Sourcing': 'नोकरी शोध', 'Jobs': 'नोकऱ्या',
+    'Role Vetting': 'भूमिका तपासणी', 'Vet': 'तपासणी', 'Tailor Kit': 'रेझ्युमे जुळवा',
+    'Tailor': 'जुळवा', 'Applications': 'अर्ज', 'Track': 'मागोवा',
+    'Prep-Zone': 'तयारी विभाग', 'Prep': 'तयारी', 'PDF Workspace': 'PDF कार्यक्षेत्र',
+    'PDF': 'PDF', 'Settings & Docs': 'सेटिंग्ज आणि कागदपत्रे', 'Setup': 'सेटअप',
+    'Career Pipeline': 'करिअर प्रवास', 'Workspace navigation': 'कार्यक्षेत्र नेव्हिगेशन',
+    'Mobile navigation': 'मोबाइल नेव्हिगेशन', 'Save': 'जतन करा', 'Cancel': 'रद्द करा',
+    'Continue': 'पुढे चला', 'Back': 'मागे', 'Next': 'पुढील', 'Search': 'शोधा'
+  },
+  ur: {
+    'Dashboard': 'ڈیش بورڈ', 'Home': 'ہوم', 'Master Intake': 'ماسٹر پروفائل',
+    'Intake': 'پروفائل', 'Job Sourcing': 'ملازمت تلاش', 'Jobs': 'ملازمتیں',
+    'Role Vetting': 'عہدے کی جانچ', 'Vet': 'جانچ', 'Tailor Kit': 'ریزیومے کی تخصیص',
+    'Tailor': 'تخصیص', 'Applications': 'درخواستیں', 'Track': 'ٹریکنگ',
+    'Prep-Zone': 'تیاری کا حصہ', 'Prep': 'تیاری', 'PDF Workspace': 'PDF ورک اسپیس',
+    'PDF': 'PDF', 'Settings & Docs': 'ترتیبات اور دستاویزات', 'Setup': 'سیٹ اپ',
+    'Career Pipeline': 'کیریئر کا سفر', 'Workspace navigation': 'ورک اسپیس نیویگیشن',
+    'Mobile navigation': 'موبائل نیویگیشن', 'Save': 'محفوظ کریں', 'Cancel': 'منسوخ',
+    'Continue': 'جاری رکھیں', 'Back': 'واپس', 'Next': 'اگلا', 'Search': 'تلاش'
+  },
+  gu: {
+    'Dashboard': 'ડેશબોર્ડ', 'Home': 'હોમ', 'Master Intake': 'મુખ્ય પ્રોફાઇલ',
+    'Intake': 'પ્રોફાઇલ', 'Job Sourcing': 'નોકરી શોધ', 'Jobs': 'નોકરીઓ',
+    'Role Vetting': 'ભૂમિકાની ચકાસણી', 'Vet': 'ચકાસણી', 'Tailor Kit': 'રિઝ્યૂમે અનુકૂલન',
+    'Tailor': 'અનુકૂલન', 'Applications': 'અરજીઓ', 'Track': 'ટ્રેકિંગ',
+    'Prep-Zone': 'તૈયારી વિભાગ', 'Prep': 'તૈયારી', 'PDF Workspace': 'PDF કાર્યસ્થળ',
+    'PDF': 'PDF', 'Settings & Docs': 'સેટિંગ્સ અને દસ્તાવેજો', 'Setup': 'સેટઅપ',
+    'Career Pipeline': 'કારકિર્દીનો માર્ગ', 'Workspace navigation': 'કાર્યસ્થળ નેવિગેશન',
+    'Mobile navigation': 'મોબાઇલ નેવિગેશન', 'Save': 'સાચવો', 'Cancel': 'રદ કરો',
+    'Continue': 'ચાલુ રાખો', 'Back': 'પાછા', 'Next': 'આગળ', 'Search': 'શોધો'
+  },
+  kn: {
+    'Dashboard': 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್', 'Home': 'ಮುಖಪುಟ', 'Master Intake': 'ಮಾಸ್ಟರ್ ಪ್ರೊಫೈಲ್',
+    'Intake': 'ಪ್ರೊಫೈಲ್', 'Job Sourcing': 'ಉದ್ಯೋಗ ಹುಡುಕಾಟ', 'Jobs': 'ಉದ್ಯೋಗಗಳು',
+    'Role Vetting': 'ಹುದ್ದೆ ಪರಿಶೀಲನೆ', 'Vet': 'ಪರಿಶೀಲನೆ', 'Tailor Kit': 'ರೆಸ್ಯೂಮ್ ಹೊಂದಿಕೆ',
+    'Tailor': 'ಹೊಂದಿಸಿ', 'Applications': 'ಅರ್ಜಿಗಳು', 'Track': 'ಟ್ರ್ಯಾಕ್',
+    'Prep-Zone': 'ಸಿದ್ಧತಾ ವಲಯ', 'Prep': 'ಸಿದ್ಧತೆ', 'PDF Workspace': 'PDF ಕಾರ್ಯಸ್ಥಳ',
+    'PDF': 'PDF', 'Settings & Docs': 'ಸೆಟ್ಟಿಂಗ್‌ಗಳು ಮತ್ತು ದಾಖಲೆಗಳು', 'Setup': 'ಸೆಟಪ್',
+    'Career Pipeline': 'ವೃತ್ತಿ ಪಯಣ', 'Workspace navigation': 'ಕಾರ್ಯಸ್ಥಳ ನ್ಯಾವಿಗೇಶನ್',
+    'Mobile navigation': 'ಮೊಬೈಲ್ ನ್ಯಾವಿಗೇಶನ್', 'Save': 'ಉಳಿಸಿ', 'Cancel': 'ರದ್ದುಮಾಡಿ',
+    'Continue': 'ಮುಂದುವರಿಸಿ', 'Back': 'ಹಿಂದೆ', 'Next': 'ಮುಂದೆ', 'Search': 'ಹುಡುಕಿ'
+  },
+  ml: {
+    'Dashboard': 'ഡാഷ്ബോർഡ്', 'Home': 'ഹോം', 'Master Intake': 'മാസ്റ്റർ പ്രൊഫൈൽ',
+    'Intake': 'പ്രൊഫൈൽ', 'Job Sourcing': 'ജോലി തിരയൽ', 'Jobs': 'ജോലികൾ',
+    'Role Vetting': 'പദവി പരിശോധന', 'Vet': 'പരിശോധന', 'Tailor Kit': 'റെസ്യൂമെ ക്രമീകരണം',
+    'Tailor': 'ക്രമീകരിക്കുക', 'Applications': 'അപേക്ഷകൾ', 'Track': 'ട്രാക്ക്',
+    'Prep-Zone': 'തയ്യാറെടുപ്പ് മേഖല', 'Prep': 'തയ്യാറെടുപ്പ്', 'PDF Workspace': 'PDF പ്രവർത്തനസ്ഥലം',
+    'PDF': 'PDF', 'Settings & Docs': 'ക്രമീകരണങ്ങളും രേഖകളും', 'Setup': 'സജ്ജീകരണം',
+    'Career Pipeline': 'കരിയർ യാത്ര', 'Workspace navigation': 'പ്രവർത്തനസ്ഥല നാവിഗേഷൻ',
+    'Mobile navigation': 'മൊബൈൽ നാവിഗേഷൻ', 'Save': 'സേവ് ചെയ്യുക', 'Cancel': 'റദ്ദാക്കുക',
+    'Continue': 'തുടരുക', 'Back': 'പിന്നോട്ട്', 'Next': 'അടുത്തത്', 'Search': 'തിരയുക'
+  },
+  pa: {
+    'Dashboard': 'ਡੈਸ਼ਬੋਰਡ', 'Home': 'ਘਰ', 'Master Intake': 'ਮੁੱਖ ਪ੍ਰੋਫ਼ਾਈਲ',
+    'Intake': 'ਪ੍ਰੋਫ਼ਾਈਲ', 'Job Sourcing': 'ਨੌਕਰੀ ਖੋਜ', 'Jobs': 'ਨੌਕਰੀਆਂ',
+    'Role Vetting': 'ਭੂਮਿਕਾ ਜਾਂਚ', 'Vet': 'ਜਾਂਚ', 'Tailor Kit': 'ਰਿਜ਼ਿਊਮੇ ਅਨੁਕੂਲਨ',
+    'Tailor': 'ਅਨੁਕੂਲਨ', 'Applications': 'ਅਰਜ਼ੀਆਂ', 'Track': 'ਟ੍ਰੈਕ',
+    'Prep-Zone': 'ਤਿਆਰੀ ਖੇਤਰ', 'Prep': 'ਤਿਆਰੀ', 'PDF Workspace': 'PDF ਕਾਰਜ-ਸਥਾਨ',
+    'PDF': 'PDF', 'Settings & Docs': 'ਸੈਟਿੰਗਾਂ ਅਤੇ ਦਸਤਾਵੇਜ਼', 'Setup': 'ਸੈੱਟਅੱਪ',
+    'Career Pipeline': 'ਕਰੀਅਰ ਯਾਤਰਾ', 'Workspace navigation': 'ਕਾਰਜ-ਸਥਾਨ ਨੇਵੀਗੇਸ਼ਨ',
+    'Mobile navigation': 'ਮੋਬਾਈਲ ਨੇਵੀਗੇਸ਼ਨ', 'Save': 'ਸੰਭਾਲੋ', 'Cancel': 'ਰੱਦ ਕਰੋ',
+    'Continue': 'ਜਾਰੀ ਰੱਖੋ', 'Back': 'ਪਿੱਛੇ', 'Next': 'ਅੱਗੇ', 'Search': 'ਖੋਜੋ'
+  },
+  or: {
+    'Dashboard': 'ଡ୍ୟାସବୋର୍ଡ', 'Home': 'ମୂଳପୃଷ୍ଠା', 'Master Intake': 'ମୁଖ୍ୟ ପ୍ରୋଫାଇଲ୍',
+    'Intake': 'ପ୍ରୋଫାଇଲ୍', 'Job Sourcing': 'ଚାକିରି ଖୋଜ', 'Jobs': 'ଚାକିରି',
+    'Role Vetting': 'ପଦବୀ ଯାଞ୍ଚ', 'Vet': 'ଯାଞ୍ଚ', 'Tailor Kit': 'ରେଜ୍ୟୁମେ ସଜାନ୍ତୁ',
+    'Tailor': 'ସଜାନ୍ତୁ', 'Applications': 'ଆବେଦନ', 'Track': 'ଟ୍ରାକ୍',
+    'Prep-Zone': 'ପ୍ରସ୍ତୁତି କ୍ଷେତ୍ର', 'Prep': 'ପ୍ରସ୍ତୁତି', 'PDF Workspace': 'PDF କାର୍ଯ୍ୟକ୍ଷେତ୍ର',
+    'PDF': 'PDF', 'Settings & Docs': 'ସେଟିଂ ଏବଂ ଦଲିଲ', 'Setup': 'ସେଟଅପ୍',
+    'Career Pipeline': 'କ୍ୟାରିୟର ଯାତ୍ରା', 'Workspace navigation': 'କାର୍ଯ୍ୟକ୍ଷେତ୍ର ନାଭିଗେସନ୍',
+    'Mobile navigation': 'ମୋବାଇଲ୍ ନାଭିଗେସନ୍', 'Save': 'ସଞ୍ଚୟ', 'Cancel': 'ବାତିଲ୍',
+    'Continue': 'ଜାରି ରଖନ୍ତୁ', 'Back': 'ପଛକୁ', 'Next': 'ପରବର୍ତ୍ତୀ', 'Search': 'ଖୋଜନ୍ତୁ'
+  },
+  as: {
+    'Dashboard': 'ডেশ্বব’ৰ্ড', 'Home': 'ঘৰ', 'Master Intake': 'মুখ্য প্ৰ’ফাইল',
+    'Intake': 'প্ৰ’ফাইল', 'Job Sourcing': 'চাকৰি সন্ধান', 'Jobs': 'চাকৰি',
+    'Role Vetting': 'পদৰ পৰীক্ষা', 'Vet': 'পৰীক্ষা', 'Tailor Kit': 'ৰিজিউমে সাজু কৰক',
+    'Tailor': 'সাজু কৰক', 'Applications': 'আবেদন', 'Track': 'ট্ৰেক',
+    'Prep-Zone': 'প্ৰস্তুতি ক্ষেত্ৰ', 'Prep': 'প্ৰস্তুতি', 'PDF Workspace': 'PDF কৰ্মক্ষেত্ৰ',
+    'PDF': 'PDF', 'Settings & Docs': 'ছেটিংছ আৰু নথি', 'Setup': 'ছেটআপ',
+    'Career Pipeline': 'কেৰিয়াৰ যাত্ৰা', 'Workspace navigation': 'কৰ্মক্ষেত্ৰ নেভিগেশ্বন',
+    'Mobile navigation': 'ম’বাইল নেভিগেশ্বন', 'Save': 'সংৰক্ষণ', 'Cancel': 'বাতিল',
+    'Continue': 'আগবাঢ়ক', 'Back': 'উভতি যাওক', 'Next': 'পৰৱৰ্তী', 'Search': 'সন্ধান'
+  }
+};
+
+export function translateUiText(locale: AuthLocale, source: string): string {
+  return UI_COPY[locale]?.[source] ?? source;
+}
+
+export interface AuthLocaleContextValue {
+  locale: AuthLocale;
+  t: (source: string) => string;
+}
+
+export const AuthLocaleContext = createContext<AuthLocaleContextValue>({
+  locale: 'en',
+  t: (source) => source
+});
+
+export function useAuthLocale(): AuthLocaleContextValue {
+  return useContext(AuthLocaleContext);
+}
