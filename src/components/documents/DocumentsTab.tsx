@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import {
   FileText, Upload, Download, RotateCw, Scissors, ArrowUpDown,
   MessageCircle, Send, Trash2, ShieldCheck, AlertTriangle, Loader2, ExternalLink
@@ -7,6 +8,7 @@ import { useWizardStore } from '../../store/useWizardStore';
 import { useAuthLocale } from '../../i18n/authLocale';
 import { extractResumeFile } from '../../services/extractionService';
 import { askPdfQuestion } from '../../services/pdfQuestionService';
+import { openSavedFileExternally, saveBlobToDownloads } from '../../services/exporterService';
 import {
   createPdfBlob, extractPdfPages, inspectPdf, mergePdfs, reorderPdfPages, rotatePdfPage,
   type PdfInspection,
@@ -21,6 +23,7 @@ export const DocumentsTab: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [inspection, setInspection] = useState<PdfInspection | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [nativeSavedUri, setNativeSavedUri] = useState('');
   const [extractedText, setExtractedText] = useState('');
   const [extractionMessage, setExtractionMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -29,6 +32,7 @@ export const DocumentsTab: React.FC = () => {
   const [pageList, setPageList] = useState('1');
   const [question, setQuestion] = useState('');
   const [chat, setChat] = useState<ChatEntry[]>([]);
+  const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -42,6 +46,7 @@ export const DocumentsTab: React.FC = () => {
       return url;
     });
     setFile(nextFile);
+    setNativeSavedUri('');
     setInspection(metadata);
     setExtractedText(nextText ?? '');
     setExtractionMessage(nextText ? 'Selectable text extracted locally. Nothing has been sent to an AI provider.' : 'No readable text was extracted. This may be a scanned or complex PDF; OCR is not included yet.');
@@ -109,6 +114,45 @@ export const DocumentsTab: React.FC = () => {
     await applyPdfBytes(bytes, 'BYOC_Reordered.pdf');
   });
 
+  const savePdfToDownloads = async (): Promise<string> => {
+    if (!file) throw new Error('Choose a PDF before saving.');
+    const saved = await saveBlobToDownloads(file, inspection?.fileName || 'BYOC_Document.pdf', 'application/pdf');
+    setNativeSavedUri(saved.uri);
+    return saved.uri;
+  };
+
+  const handleSaveToDownloads = async () => {
+    if (!file || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await savePdfToDownloads();
+      addToast({ type: 'success', message: 'PDF saved to Downloads/BYOC on this device.' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the PDF to Downloads/BYOC.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleOpenSeparately = async () => {
+    if (!file || busy) return;
+    if (!isAndroidNative) {
+      window.open(previewUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const uri = nativeSavedUri || await savePdfToDownloads();
+      await openSavedFileExternally(uri, 'application/pdf');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not open the saved PDF in another app.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleAsk = async () => {
     if (!file || busy || !question.trim()) return;
     if (!groqApiKey.trim()) {
@@ -135,6 +179,7 @@ export const DocumentsTab: React.FC = () => {
 
   const handleRemove = () => {
     setFile(null);
+    setNativeSavedUri('');
     setInspection(null);
     setPreviewUrl((previous) => { if (previous) URL.revokeObjectURL(previous); return ''; });
     setExtractedText('');
@@ -183,12 +228,31 @@ export const DocumentsTab: React.FC = () => {
               <button type="button" onClick={handleRemove} disabled={busy} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-xs text-slate-300 hover:bg-slate-800"><Trash2 className="h-4 w-4" />Remove</button>
             </div>
             <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
-              <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2 text-xs text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-3 py-2 text-xs text-slate-400">
                 <span>Document preview</span>
-                {previewUrl && <a href={previewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sky-300">Open separately <ExternalLink className="h-3 w-3" /></a>}
+                {isAndroidNative ? (
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => void handleOpenSeparately()} disabled={busy} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-sky-500 px-3 font-semibold text-white disabled:opacity-50">
+                      <ExternalLink className="h-4 w-4" />Open Separately
+                    </button>
+                    <button type="button" onClick={() => void handleSaveToDownloads()} disabled={busy} className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-600 px-3 font-semibold text-slate-100 disabled:opacity-50">
+                      <Download className="h-4 w-4" />Save to Downloads/BYOC
+                    </button>
+                  </div>
+                ) : previewUrl && <button type="button" onClick={() => void handleOpenSeparately()} className="inline-flex items-center gap-1 text-sky-300">Open separately <ExternalLink className="h-3 w-3" /></button>}
               </div>
-              <iframe title="PDF document preview" src={previewUrl} className="h-[min(68vh,760px)] min-h-[360px] w-full bg-white" />
-              <p className="border-t border-slate-800 px-3 py-2 text-[11px] text-slate-500">PDF preview support depends on the browser. If this panel is blank in Android, use Open separately or Download.</p>
+              {isAndroidNative ? (
+                <div className="h-[min(68vh,760px)] min-h-[360px] overflow-y-auto bg-slate-950 p-4">
+                  {extractedText ? (
+                    <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-100">{extractedText}</pre>
+                  ) : (
+                    <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm leading-6 text-amber-100">{extractionMessage || 'No selectable text is available in this PDF. A scanned document needs OCR before text preview is possible.'}</p>
+                  )}
+                </div>
+              ) : (
+                <iframe title="PDF document preview" src={previewUrl} className="h-[min(68vh,760px)] min-h-[360px] w-full bg-white" />
+              )}
+              <p className="border-t border-slate-800 px-3 py-2 text-[11px] text-slate-500">{isAndroidNative ? 'Text preview is extracted locally. Open Separately saves a copy first, then opens it in an installed PDF viewer.' : 'PDF preview support depends on the browser.'}</p>
             </div>
             <p className="rounded-lg bg-slate-900/60 p-3 text-xs text-slate-400">{extractionMessage}</p>
           </div>
