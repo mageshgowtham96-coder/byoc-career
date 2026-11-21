@@ -41,6 +41,7 @@ const COMMON_ROLE_PATTERNS = [
   'Financial Analyst', 'Human Resources Generalist', 'Recruiter',
   'Cybersecurity Analyst', 'DevOps Engineer', 'Cloud Engineer',
   'Technical Writer', 'Research Associate', 'Content Specialist',
+  'Excel', 'Data Entry', 'Computer Operator', 'Accounting', 'Typist',
   'கணக்காளர்', 'ஆசிரியர்', 'விற்பனையாளர்', 'வாடிக்கையாளர் சேவை',
   'தரவு பகுப்பாய்வாளர்', 'மென்பொருள் பொறியாளர்', 'அலுவலக உதவியாளர்',
   'தட்டச்சர்', 'ஓட்டுநர்', 'செவிலியர்', 'தையல்காரர்'
