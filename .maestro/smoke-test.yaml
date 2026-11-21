@@ -1,10 +1,16 @@
 appId: com.byoc.career
 ---
-- launchApp:
-    clearState: true
-- extendedWaitUntil:
-    visible: "AES-256-GCM Local Vault"
-    timeout: 120000
+# CI emulators occasionally drop back to the launcher right after launch
+# (BYOC is not in the foreground). Relaunch with a clean state if the vault
+# screen does not appear.
+- retry:
+    maxRetries: 3
+    commands:
+      - launchApp:
+          clearState: true
+      - extendedWaitUntil:
+          visible: "AES-256-GCM Local Vault"
+          timeout: 60000
 
 # Fresh install: initialize the encrypted local workspace before expecting profile UI.
 - runFlow:
@@ -115,10 +121,13 @@ appId: com.byoc.career
 
 # Cold restart proves the encrypted vault and imported profile survive process death.
 - stopApp
-- launchApp
-- extendedWaitUntil:
-    visible: "AES-256-GCM Local Vault"
-    timeout: 120000
+- retry:
+    maxRetries: 3
+    commands:
+      - launchApp
+      - extendedWaitUntil:
+          visible: "AES-256-GCM Local Vault"
+          timeout: 60000
 - tapOn: "Enter vault passphrase"
 - inputText: "Byoc-E2E-Strong-Passphrase-2026"
 - hideKeyboard
