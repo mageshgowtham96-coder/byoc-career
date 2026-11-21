@@ -248,8 +248,8 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         setError('Please provide your full name.');
         return;
       }
-      if (!cleanEmail || !cleanEmail.includes('@')) {
-        setError('Please provide a valid contact email.');
+      if (cleanEmail && !cleanEmail.includes('@')) {
+        setError('Please provide a valid email address or leave it blank.');
         return;
       }
     } else if (cleanEmail && !cleanEmail.includes('@')) {
@@ -258,7 +258,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     if (passphrase.length < 8) {
-      setError('Vault Passphrase must be at least 8 characters for AES-256-GCM encryption.');
+      setError('Your Secret Passphrase must be at least 8 characters.');
       return;
     }
 
@@ -422,7 +422,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
     setError('');
 
     if (!passphrase.trim()) {
-      setError('Enter your Vault Passphrase to unlock.');
+      setError('Enter your Secret Passphrase to unlock.');
       return;
     }
 
@@ -523,7 +523,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       setPassphrase('');
       addToast({
         type: 'success',
-        title: 'Vault Unlocked (AES-256-GCM)',
+        title: 'Private Device Lock Unlocked',
         message: restoredUser.name ? `Welcome back, ${restoredUser.name}.` : 'Welcome back.'
       });
     } catch (err: unknown) {
@@ -545,7 +545,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       const parsed = JSON.parse(rawText);
       const candidateEnvelope = parsed?.envelope ? parsed.envelope : parsed;
       if (!isValidVaultEnvelope(candidateEnvelope)) {
-        setError('Invalid encrypted vault backup file. Expecting a valid BYOC AES-256-GCM envelope.');
+        setError('Invalid encrypted backup file. Choose a valid BYOC vault backup.');
         return;
       }
       const sanitizedEnvelope: VaultEnvelope = {
@@ -572,7 +572,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       addToast({
         type: 'success',
         title: 'Encrypted Vault Imported',
-        message: 'Enter your Vault Passphrase or Emergency Recovery Phrase to decrypt.'
+        message: 'Enter your Secret Passphrase or Emergency Recovery Phrase to unlock.'
       });
     } catch {
       setError('Unable to parse backup file. Ensure it is a valid BYOC encrypted envelope JSON.');
@@ -591,7 +591,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
     if (newPassphraseInput.length < 8) {
-      setError('New Vault Passphrase must be at least 8 characters.');
+      setError('Your new Secret Passphrase must be at least 8 characters.');
       return;
     }
 
@@ -719,7 +719,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         <div className="mb-6">
           <p className="text-[11px] font-mono text-sky-400 tracking-wider uppercase mb-1.5 flex items-center justify-center gap-1.5">
             <Shield className="w-3.5 h-3.5" />
-            <span>AES-256-GCM Local Vault</span>
+            <span>Private Device Lock</span>
           </p>
           <h1 className="text-2xl font-bold text-white tracking-tight">
             BYOC
@@ -739,7 +739,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
               </h3>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Store this recovery phrase safely. Because BYOC uses zero-server encryption, it is the <strong>only way</strong> to recover your workspace if you forget your Vault Passphrase.
+              Store this recovery phrase safely. Because BYOC uses zero-server encryption, it is the <strong>only way</strong> to recover your workspace if you forget your Secret Passphrase.
             </p>
             <div className="p-3 rounded-xl bg-slate-950 border border-indigo-500/30 font-mono text-sm text-center text-sky-300 select-all font-bold tracking-wider">
               {createdRecoveryPhrase}
@@ -868,7 +868,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                   <span>Encrypt Existing Workspace Data</span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
-                  Unencrypted workspace data is ready to be sealed inside an AES-256-GCM encrypted vault with zero data loss:
+                  Your existing workspace data is ready to be protected on this device with zero data loss:
                   {legacyCapture?.sensitiveData.masterResume ? ' Master Resume' : ''}
                   {hasLegacyDraft ? ' · Intake Form Draft' : ''}
                   {hasLegacyEmails ? ' · Email Records' : ''}
@@ -898,15 +898,15 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    {t('email')} {step === 'details' ? '*' : '(Optional)'}
+                    {t('email')} (Optional)
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={step === 'migrate' ? 'Optional — you@domain.com' : 'you@domain.com'}
+                    placeholder="Optional — you@domain.com"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-sky-500"
-                    required={step === 'details'}
+                    required={false}
                   />
                 </div>
 
@@ -919,7 +919,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       type={showPassphrase ? 'text' : 'password'}
                       value={passphrase}
                       onChange={(e) => setPassphrase(e.target.value)}
-                      placeholder="Passphrase for AES-256-GCM key derivation"
+                      placeholder="Create a Secret Passphrase"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-sky-500 pr-10"
                       required
                     />
@@ -933,7 +933,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                     </button>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-1">
-                    Derived via PBKDF2-SHA256 (100,000 iterations). Never stored on disk.
+                    Your passphrase protects this private workspace and is never stored on this device.
                   </p>
                 </div>
 
@@ -995,7 +995,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                   {isProcessing ? (
                     <>
                       <RefreshCw className="w-4 h-4 text-sky-200 animate-spin" />
-                      <span>Encrypting AES-256-GCM Vault...</span>
+                      <span>Securing your private workspace...</span>
                     </>
                   ) : (
                     <>
@@ -1062,7 +1062,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       <p className="text-[11px] text-slate-400 bg-slate-950/70 border border-slate-800 rounded-xl px-3 py-2 flex items-center gap-2">
                         <Fingerprint className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                         <span>
-                          Session biometrics enabled. Cold start requires Vault Passphrase to unwrap AES-256-GCM key.
+                          Session biometrics enabled. A Secret Passphrase is still required when reopening BYOC.
                         </span>
                       </p>
                     )}
@@ -1070,7 +1070,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="block text-xs font-semibold text-slate-300">
-                          Vault Passphrase
+                          Secret Passphrase
                         </label>
                         <button
                           type="button"
@@ -1112,7 +1112,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       {isProcessing ? (
                         <>
                           <RefreshCw className="w-4 h-4 text-sky-300 animate-spin" />
-                          <span>Decrypting AES-256-GCM Vault...</span>
+                          <span>Unlocking your private workspace...</span>
                         </>
                       ) : (
                         <>
