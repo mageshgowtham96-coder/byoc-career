@@ -28,6 +28,55 @@ function makeOversizedDocxArchive(): Uint8Array {
   return bytes;
 }
 
+describe('PDF text extraction', () => {
+  const makePdf = (body: string) => {
+    const bytes = new TextEncoder().encode(body);
+    return {
+      name: 'renuka-resume.pdf',
+      size: bytes.byteLength,
+      arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+    } as unknown as File;
+  };
+
+  it('extracts text only from PDF content streams and counts two pages', async () => {
+    const pdf = [
+      '%PDF-1.4',
+      '1 0 obj << /Type /Page /Contents 3 0 R >> endobj',
+      '2 0 obj << /Type /Page /Contents 4 0 R >> endobj',
+      '3 0 obj << /Length 58 >> stream',
+      'BT (Renuka Resume) Tj (Financial Accounts Analyst) Tj ET',
+      'endstream endobj',
+      '4 0 obj << /Length 36 >> stream',
+      'BT (Reviewed fraud reports) Tj ET',
+      'endstream endobj',
+      '%%EOF'
+    ].join('\n');
+    const result = await extractResumeFile(makePdf(pdf));
+    expect(result.success).toBe(true);
+    expect(result.pageCount).toBe(2);
+    expect(result.rawText).toContain('Renuka Resume');
+    expect(result.rawText).toContain('Financial Accounts Analyst');
+    expect(result.rawText).toContain('Reviewed fraud reports');
+    expect(result.rawText).not.toContain('/Contents');
+    expect(result.rawText).not.toContain('endstream');
+  });
+
+  it('clearly identifies image-only scanned PDFs and explains that OCR is unavailable', async () => {
+    const result = await extractResumeFile(makePdf([
+      '%PDF-1.4',
+      '1 0 obj << /Type /Page /Resources << /XObject << /Im1 2 0 R >> >> >> endobj',
+      '2 0 obj << /Type /XObject /Subtype /Image /Width 1200 /Height 1600 >> stream',
+      'binary-image-data',
+      'endstream endobj',
+      '%%EOF'
+    ].join('\n')));
+    expect(result.success).toBe(false);
+    expect(result.isScannedImage).toBe(true);
+    expect(result.error).toMatch(/image-only or scanned/i);
+    expect(result.error).toMatch(/does not perform OCR/i);
+  });
+});
+
 describe('empty resume schema validation', () => {
   it('describes missing career evidence without making paid work history mandatory', async () => {
     const { validateExtractedSchema } = await import('./extractionService');
