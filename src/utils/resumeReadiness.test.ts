@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assessResumeReadiness, hasCareerEvidence, hasStructuredCareerEvidence } from './resumeReadiness';
+import { assessResumeReadiness, getCandidateDiscoverySignals, hasCareerEvidence, hasStructuredCareerEvidence } from './resumeReadiness';
 
 const baseProfile = {
   rawText: '',
@@ -14,6 +14,24 @@ const baseProfile = {
   additionalEvidence: [],
   stats: { wordCount: 0, pageCount: 0, charCount: 0, lastParsedDate: '', sourceFileName: '' }
 } as any;
+
+describe('shared candidate discovery signals', () => {
+  it('includes skills, role, education, projects, certifications and additional evidence', () => {
+    const signals = getCandidateDiscoverySignals({
+      ...baseProfile,
+      headline: 'Junior Analyst',
+      currentRole: 'Accounts Assistant',
+      experiences: [{ role: 'Office Assistant' }],
+      education: [{ degree: 'B.Com', field: 'Accounting', institution: 'City College' }],
+      projects: [{ title: 'Sales Dashboard', description: 'Ignored narrative', technologies: ['Excel'] }],
+      certifications: [{ name: 'Tally Prime', issuer: 'Training Centre' }],
+      additionalEvidence: ['Volunteered as a tutor'],
+      skills: { technical: ['SQL'], soft: ['Communication'], tools: [], domains: [] }
+    });
+    expect(signals).toEqual(expect.arrayContaining(['Junior Analyst', 'Accounts Assistant', 'Office Assistant', 'B.Com', 'Accounting', 'Sales Dashboard', 'Excel', 'Tally Prime', 'Volunteered as a tutor']));
+    expect(signals).not.toContain('Ignored narrative');
+  });
+});
 
 describe('career evidence gating', () => {
   it('does not treat raw text or a headline alone as structured candidate evidence', () => {
