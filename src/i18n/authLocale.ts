@@ -162,7 +162,22 @@ const UI_COPY: Partial<Record<AuthLocale, Record<string, string>>> = {
     'Optional English translation': 'விருப்பமான ஆங்கில மொழிபெயர்ப்பு',
     'Emergency Recovery Phrase Generated': 'மீட்பு சொற்றொடர் உருவாக்கப்பட்டது',
     'Copy Recovery Phrase': 'மீட்பு சொற்றொடரை நகலெடுக்கவும்',
-    'Copied to Clipboard': 'நகலெடுக்கப்பட்டது'
+    'Copied to Clipboard': 'நகலெடுக்கப்பட்டது',
+    'Choose PDF': 'PDF-ஐத் தேர்ந்தெடுக்கவும்',
+    'Open / merge PDFs': 'PDF-ஐத் திறக்கவும் / இணைக்கவும்',
+    'Local by default.': 'இயல்பாகவே இந்தச் சாதனத்தில் செயல்படும்.',
+    'Your document workspace': 'உங்கள் ஆவணப் பணியிடம்',
+    'Page tools': 'பக்கக் கருவிகள்',
+    'Ask this PDF': 'இந்த PDF-ஐப் பற்றி கேளுங்கள்',
+    'Download current PDF': 'தற்போதைய PDF-ஐப் பதிவிறக்கவும்',
+    'Private Device Lock': 'தனிப்பட்ட சாதனப் பாதுகாப்பு',
+    'Build Your Own Career': 'உங்கள் தொழில் பயணத்தை நீங்களே உருவாக்குங்கள்',
+    'Write these words down and keep them somewhere private and safe. They are your backup key. If you forget your passphrase, these words are the only way to open your saved career information again. BYOC cannot reset it for you.': 'இந்தச் சொற்களை எழுதி, பாதுகாப்பான தனியிடத்தில் வையுங்கள். இவை உங்கள் காப்பு விசை. கடவுச்சொற்றொடரை மறந்துவிட்டால், சேமித்த தொழில் விவரங்களை மீண்டும் திறக்க இந்தச் சொற்களே ஒரே வழி. BYOC இதை மீட்டமைக்க முடியாது.',
+    'Emergency Recovery Phrase Generated': 'மீட்பு சொற்றொடர் உருவாக்கப்பட்டது',
+    'Copy Recovery Phrase': 'மீட்பு சொற்றொடரை நகலெடுக்கவும்',
+    'Recovery phrase copied to clipboard.': 'மீட்பு சொற்றொடர் நகலெடுக்கப்பட்டது.',
+    'Clipboard access failed. Select and copy the recovery phrase manually.': 'நகலெடுக்க முடியவில்லை. மீட்பு சொற்றொடரைத் தேர்ந்தெடுத்து கைமுறையாக நகலெடுக்கவும்.',
+    'I Have Saved My Recovery Phrase → Enter Workspace': 'மீட்பு சொற்றொடரைச் சேமித்துவிட்டேன் → பணியிடத்திற்குச் செல்லவும்'
   },
   bn: {
     'Dashboard': 'ড্যাশবোর্ড', 'Home': 'হোম', 'Master Intake': 'মূল প্রোফাইল',
