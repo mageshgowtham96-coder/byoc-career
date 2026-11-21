@@ -3,6 +3,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 
 interface NativeFileExportPlugin {
   saveFile(options: { filename: string; mimeType: string; base64Data: string }): Promise<{ uri: string; filename: string }>;
+  openFile(options: { uri: string; mimeType: string }): Promise<void>;
 }
 
 const NativeFileExport = registerPlugin<NativeFileExportPlugin>('FileExport');
@@ -77,6 +78,23 @@ export function createMasterResumeExportArtifact(resume: MasterResume): Tailored
   };
 }
 
+/** Save a document through Android MediaStore into Downloads/BYOC. */
+export async function saveBlobToDownloads(blob: Blob, filename: string, mimeType: string): Promise<{ uri: string; filename: string }> {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+    throw new Error('Direct Downloads export is available in the Android app.');
+  }
+  const base64Data = await encodeBlobAsBase64(blob);
+  const saved = await NativeFileExport.saveFile({ filename, mimeType, base64Data });
+  if (!saved?.uri || !saved?.filename) throw new Error('Android did not confirm the saved file.');
+  return saved;
+}
+
+/** Open a MediaStore content URI in an installed Android document/PDF viewer. */
+export async function openSavedFileExternally(uri: string, mimeType = 'application/pdf'): Promise<void> {
+  if (!uri.startsWith('content://')) throw new Error('A saved Android document URI is required.');
+  await NativeFileExport.openFile({ uri, mimeType });
+}
+
 /**
  * Universal Mobile-Aware File Dispatcher
  * Checks navigator.canShare() to seamlessly offer iOS / Android Web Share sheet fallback
@@ -86,9 +104,7 @@ export async function dispatchExportFile(blob: Blob, filename: string, mimeType:
   // Save natively to the public Downloads/BYOC folder so exports survive app restarts.
   if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
     try {
-      const base64Data = await encodeBlobAsBase64(blob);
-      const saved = await NativeFileExport.saveFile({ filename, mimeType, base64Data });
-      if (!saved?.uri || !saved?.filename) throw new Error('Android did not confirm the saved MediaStore file.');
+      await saveBlobToDownloads(blob, filename, mimeType);
       return true;
     } catch (error) {
       // Do not claim a Downloads save when Android MediaStore did not confirm it.
