@@ -156,6 +156,8 @@ interface RejectionCollisionCheck {
   pastRecord?: ApplicationRecord;
 }
 
+type VaultDataWithPreviousResume = DecryptedVaultData & { previousMasterResume?: MasterResume | null };
+
 interface WizardState {
   // Navigation & Tabs
   activeTab: ActiveTab;
@@ -184,6 +186,8 @@ interface WizardState {
 
   // Master Resume Profile & Half-Built Builder
   masterResume: MasterResume | null;
+  previousMasterResume: MasterResume | null;
+  restorePreviousMasterResume: () => void;
   stagedParsedResume: MasterResume | null;
   careerFormDraft: CareerApplicationFormState | null;
   setCareerFormDraft: (draft: CareerApplicationFormState | null) => void;
@@ -256,11 +260,12 @@ interface WizardState {
   checkActionGate: (action: 'tailor' | 'apply' | 'vet') => ActionGateResult;
 }
 
-export function buildVaultDataFromState(state: WizardState): DecryptedVaultData {
+export function buildVaultDataFromState(state: WizardState): VaultDataWithPreviousResume {
   return {
     groqApiKey: state.groqApiKey || '',
     geminiApiKey: state.geminiApiKey || '',
     masterResume: state.masterResume || null,
+    previousMasterResume: state.previousMasterResume || null,
     careerFormDraft: state.careerFormDraft || null,
     emailInteractions: Array.isArray(state.emailInteractions) ? state.emailInteractions : [],
     jobs: state.jobs || [],
@@ -430,6 +435,7 @@ export const useWizardStore = create<WizardState>()(
           groqApiKey: '',
           geminiApiKey: '',
           masterResume: null,
+          previousMasterResume: null,
           stagedParsedResume: null,
           careerFormDraft: null,
           emailInteractions: [],
@@ -452,6 +458,14 @@ export const useWizardStore = create<WizardState>()(
 
       // Resume
       masterResume: null,
+      previousMasterResume: null,
+      restorePreviousMasterResume: () => {
+        const previous = get().previousMasterResume;
+        if (!previous) return;
+        const current = get().masterResume;
+        set({ masterResume: previous, previousMasterResume: current, tailoredArtifacts: invalidateTailoredArtifacts(get().tailoredArtifacts) });
+        get().addToast({ type: 'success', title: 'Previous Resume Restored', message: 'Your previous Master Resume is active again. The replaced profile remains available as the next rollback snapshot.' });
+      },
       stagedParsedResume: null,
       careerFormDraft: null,
       setCareerFormDraft: (draft) => set({ careerFormDraft: draft ? sanitizeCareerFormState(draft) : null }),
@@ -460,6 +474,7 @@ export const useWizardStore = create<WizardState>()(
         const staged = get().stagedParsedResume;
         if (staged) {
           set({
+            previousMasterResume: get().masterResume || null,
             masterResume: staged,
             stagedParsedResume: null,
             tailoredArtifacts: invalidateTailoredArtifacts(get().tailoredArtifacts)
@@ -1249,6 +1264,7 @@ export function restoreVaultDataToStore(
     groqApiKey: data.groqApiKey || '',
     geminiApiKey: data.geminiApiKey || '',
     masterResume: data.masterResume || null,
+    previousMasterResume: (data as VaultDataWithPreviousResume).previousMasterResume || null,
     careerFormDraft: data.careerFormDraft ? sanitizeCareerFormState(data.careerFormDraft) : null,
     emailInteractions: Array.isArray(data.emailInteractions) ? data.emailInteractions : [],
     jobs: Array.isArray(data.jobs) ? data.jobs : [],
@@ -1289,6 +1305,7 @@ useWizardStore.subscribe((state, prevState) => {
     state.groqApiKey !== prevState.groqApiKey ||
     state.geminiApiKey !== prevState.geminiApiKey ||
     state.masterResume !== prevState.masterResume ||
+    state.previousMasterResume !== prevState.previousMasterResume ||
     state.careerFormDraft !== prevState.careerFormDraft ||
     state.emailInteractions !== prevState.emailInteractions ||
     state.jobs !== prevState.jobs ||
