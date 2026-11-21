@@ -374,6 +374,14 @@ describe('multi-term role matching', () => {
     expect(matchesJobSearchTerms('company', 'Companies')).toBe(true);
     expect(matchesJobSearchTerms('react engineer', 'Reactive Engineers')).toBe(false);
   });
+  it('matches long role searches by meaningful keyword overlap instead of the whole phrase', () => {
+    const query = 'Senior Financial Planning & Accounts Analysts';
+    expect(matchesJobSearchTerms(query, 'Financial Analyst')).toBe(true);
+    expect(matchesJobSearchTerms(query, 'Accounts Payable Analyst')).toBe(true);
+    expect(matchesJobSearchTerms(query, 'Fraud Prevention Analyst')).toBe(false);
+    expect(matchesJobSearchTerms('Fraud', 'Fraud Operations Specialist')).toBe(true);
+  });
+
 });
 
 describe('LiveJobSearchEngine provider isolation', () => {
@@ -413,6 +421,37 @@ describe('LiveJobSearchEngine provider isolation', () => {
     expect(result.providerStatuses.find((status) => status.id === 'slow-feed')?.status).toBe('error');
     expect(result.providerStatuses.find((status) => status.id === 'working-feed')?.count).toBe(1);
     expect(result.error).toContain('Slow Feed timed out');
+  });
+});
+
+describe('non-blocking feed rate limits', () => {
+  it('keeps feed and saved-job results without promoting a single HTTP 429 to a search error', async () => {
+    const savedJob = {
+      id: 'saved-fraud', title: 'Fraud & Risk Analyst', company: 'Saved Finance',
+      location: 'Worldwide', workplaceType: 'Remote' as const, salary: 'Undisclosed',
+      postedDate: '2026-11-19', jobDescriptionRaw: 'Investigate fraud alerts.',
+      url: 'https://example.com/saved-fraud', source: 'User Import',
+      skillsRequired: [], fitScore: null, matchedKeywords: [], missingKeywords: [],
+      experienceLevel: 'Unspecified' as const
+    };
+    const rateLimited = {
+      id: 'jobicy', name: 'Jobicy Live', isConfigured: true, requiresAuth: false,
+      search: vi.fn(async () => { throw new Error('Jobicy Live rate limit exceeded (HTTP 429).'); })
+    };
+    const working = {
+      id: 'remotive', name: 'Remotive Live', isConfigured: true, requiresAuth: false,
+      search: vi.fn(async () => [{
+        ...savedJob, id: 'live-fraud', company: 'Live Finance', source: 'Remotive Live',
+        url: 'https://example.com/live-fraud'
+      }])
+    };
+    const result = await new LiveJobSearchEngine([rateLimited, working]).executeLiveSearch(
+      { query: 'fraud analyst', country: 'GLOBAL' }, null, [savedJob]
+    );
+    expect(result.jobs.map((job) => job.id)).toEqual(['saved-fraud', 'live-fraud']);
+    expect(result.error).toBeUndefined();
+    expect(result.providerStatuses.find((status) => status.id === 'jobicy')?.status).toBe('skipped');
+    expect(result.providerStatuses.find((status) => status.id === 'jobicy')?.detail).toMatch(/other feeds and saved jobs are unaffected/i);
   });
 });
 
