@@ -20,6 +20,9 @@ describe('app-wide language preference', () => {
   });
   it('translates mapped Tamil labels and leaves unmapped labels readable in English', () => {
     expect(translateUiText('ta', 'Dashboard')).toBe('முகப்பு');
+    expect(translateUiText('ta', 'Other career evidence')).toBe('பிற தொழில் ஆதாரங்கள்');
+    expect(translateUiText('ta', 'Choose PDF')).toBe('PDF-ஐத் தேர்ந்தெடுக்கவும்');
+    expect(translateUiText('ta', 'Emergency Recovery Phrase Generated')).toBe('மீட்பு சொற்றொடர் உருவாக்கப்பட்டது');
     expect(translateUiText('ta', 'A label not translated yet')).toBe('A label not translated yet');
   });
 });
