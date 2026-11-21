@@ -94,6 +94,7 @@ export async function extractResumeFile(file?: File | null): Promise<ExtractionR
   try {
     let rawText = '';
     let detectedPages = 1;
+    let isScannedImage = false;
 
     if (fileExt === 'txt' || fileExt === 'md' || !fileExt) {
       rawText = await file.text();
@@ -103,6 +104,7 @@ export async function extractResumeFile(file?: File | null): Promise<ExtractionR
       const pdfExtraction = await extractPdfText(file);
       rawText = pdfExtraction.text;
       detectedPages = pdfExtraction.pageCount;
+      isScannedImage = pdfExtraction.isScannedImage;
     } else if (fileExt === 'docx') {
       rawText = await extractDocxText(file);
       const words = rawText.split(/\s+/).filter(Boolean);
@@ -120,14 +122,16 @@ export async function extractResumeFile(file?: File | null): Promise<ExtractionR
     if (wordCount === 0) {
       return {
         success: false,
-        isScannedImage: false,
+        isScannedImage,
         rawText: cleanedText,
         wordCount,
         pageCount: detectedPages || 1,
         charCount,
         fileName,
         error:
-          'No readable text could be extracted. The document may be image-based, encrypted, or use an unsupported encoding. The original file is not modified; try another export or use Manual Paste.'
+          isScannedImage
+            ? 'This PDF appears to be image-only or scanned. No selectable text was found, and BYOC does not perform OCR. Use a searchable PDF or DOCX, or paste the resume text manually.'
+            : 'No readable text could be extracted. The PDF may be encrypted or use an unsupported text encoding. Try a searchable PDF or paste the resume text manually.'
       };
     }
 
@@ -135,6 +139,7 @@ export async function extractResumeFile(file?: File | null): Promise<ExtractionR
 
     return {
       success: true,
+      isScannedImage,
       rawText: cleanedText,
       parsedProfile,
       wordCount,
@@ -197,69 +202,64 @@ function collectPdfOperatorText(content: string): string[] {
  * Client-side PDF stream extractor for basic uncompressed or FlateDecode ASCII text-operator PDFs.
  * Does not OCR raster pages or decode encrypted / complex CID glyph-mapped PDFs.
  */
-async function extractPdfText(file: File): Promise<{ text: string; pageCount: number }> {
+async function extractPdfText(file: File): Promise<{ text: string; pageCount: number; isScannedImage: boolean }> {
   const arrayBuffer = await file.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
-
-  // Convert buffer to Latin-1 / byte-safe binary string
   let binaryString = '';
   const chunkSize = 8192;
   for (let i = 0; i < bytes.length; i += chunkSize) {
     binaryString += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
   }
 
-  // Determine actual page count from PDF catalog
-  const pageMatches = binaryString.match(/\/Type\s*\/Page\b/g);
-  let pageCount = pageMatches ? pageMatches.length : 1;
-
-  const textChunks = collectPdfOperatorText(binaryString);
+  const pageMatches = binaryString.match(/\\/Type\\s*\\/Page\\b/g);
+  const pageCount = Math.max(1, pageMatches?.length || 1);
+  const textChunks: string[] = [];
   let totalPdfDecompressedBytes = 0;
 
-  // Safely attempt FlateDecode decompression on streams to inspect Tj/TJ operators when uncompressed scan is sparse
-  if (textChunks.join(' ').split(/\s+/).filter(Boolean).length < 15 && typeof DecompressionStream !== 'undefined') {
-    const streamHeaderRegex = /<<([\s\S]*?)>>\s*stream\r?\n/g;
-    let headerMatch: RegExpExecArray | null;
-    while ((headerMatch = streamHeaderRegex.exec(binaryString)) !== null) {
-      const dict = headerMatch[1];
-      if (!/\/FlateDecode\b/.test(dict)) continue;
+  // PDF text operators live inside page content streams. Never scan the whole
+  // binary file: doing so lets TJ's permissive array matcher consume object
+  // dictionaries, xref data and unrelated stream bytes as if they were text.
+  const streamHeaderRegex = /<<(?:[\\s\\S]*?)>>\\s*stream(?:\\r\\n|\\n|\\r)/g;
+  let headerMatch: RegExpExecArray | null;
+  while ((headerMatch = streamHeaderRegex.exec(binaryString)) !== null) {
+    const dictionary = headerMatch[0];
+    const streamStart = streamHeaderRegex.lastIndex;
+    const streamEnd = binaryString.indexOf('endstream', streamStart);
+    if (streamEnd < 0) continue;
 
-      const streamStart = headerMatch.index + headerMatch[0].length;
-      const streamEnd = binaryString.indexOf('endstream', streamStart);
-      if (streamEnd === -1 || streamEnd <= streamStart) continue;
+    let endIndex = streamEnd;
+    if (endIndex > streamStart && bytes[endIndex - 1] === 0x0a) endIndex--;
+    if (endIndex > streamStart && bytes[endIndex - 1] === 0x0d) endIndex--;
+    const streamBytes = bytes.subarray(streamStart, endIndex);
+    let decodedStream: Uint8Array | null = null;
 
-      // Trim trailing CRLF / LF before endstream
-      let endIdx = streamEnd;
-      if (endIdx > streamStart && bytes[endIdx - 1] === 0x0a) endIdx--;
-      if (endIdx > streamStart && bytes[endIdx - 1] === 0x0d) endIdx--;
-
+    if (/\\/FlateDecode\\b/.test(dictionary)) {
+      if (typeof DecompressionStream === 'undefined') continue;
+      const remainingBudget = MAX_DECOMPRESSED_DOCUMENT_BYTES - totalPdfDecompressedBytes;
+      if (remainingBudget <= 0) break;
       try {
-        const compressedSlice = bytes.slice(streamStart, endIdx);
-        const remainingBudget = MAX_DECOMPRESSED_DOCUMENT_BYTES - totalPdfDecompressedBytes;
-        if (remainingBudget <= 0) break;
-        const decompressed = await decompressBytes(compressedSlice, 'deflate', remainingBudget);
-        totalPdfDecompressedBytes += decompressed.byteLength;
-        const streamText = new TextDecoder('latin1').decode(decompressed);
-        const decompressedChunks = collectPdfOperatorText(streamText);
-        if (decompressedChunks.length > 0) {
-          textChunks.push(...decompressedChunks);
-        }
+        decodedStream = await decompressBytes(streamBytes, 'deflate', remainingBudget);
+        totalPdfDecompressedBytes += decodedStream.byteLength;
       } catch {
-        // Ignore non-zlib or encrypted streams cleanly
+        // A malformed, encrypted or unsupported stream is not candidate text.
+        continue;
       }
+    } else if (!/\\/Filter\\b/.test(dictionary)) {
+      decodedStream = streamBytes;
     }
+
+    if (!decodedStream) continue;
+    const streamText = new TextDecoder('latin1').decode(decodedStream);
+    textChunks.push(...collectPdfOperatorText(streamText));
+    // Skip past this stream so a marker inside binary data cannot be treated
+    // as a second stream header.
+    streamHeaderRegex.lastIndex = streamEnd + 'endstream'.length;
   }
 
-  let fullText = textChunks.join('\n');
-
-  // Normalize page count if 0
-  if (pageCount < 1) {
-    const words = fullText.split(/\s+/).filter(Boolean).length;
-    pageCount = Math.max(1, Math.ceil(words / 450));
-  }
-
-  return { text: fullText, pageCount };
+  const text = textChunks.filter(Boolean).join('\\n').replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/g, ' ').trim();
+  const hasImageObjects = /\\/Subtype\\s*\\/Image\\b/.test(binaryString);
+  return { text, pageCount, isScannedImage: !text && hasImageObjects };
 }
-
 function cleanPdfString(raw: string): string {
   return raw
     .replace(/\\n/g, '\n')
