@@ -640,13 +640,13 @@ export const TrackingTab: React.FC = () => {
 
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <h4 className="text-xs font-bold text-slate-300">Frozen Tailored Summary</h4>
+                        <h4 className="text-xs font-bold text-slate-300">{t('Frozen Tailored Summary')}</h4>
                         {snapshotSummary && (
                           <button
                             type="button"
                             onClick={async () => {
                               const copied = await copyToClipboardSafely(snapshotSummary);
-                              addToast(copied ? { type: 'success', message: 'Copied frozen summary.' } : { type: 'error', message: 'Could not copy. Select the summary and copy it manually.' });
+                              addToast(copied ? { type: 'success', message: t('Copied frozen summary.') } : { type: 'error', message: t('Could not copy. Select the summary and copy it manually.') });
                             }}
                             className="text-[11px] text-sky-400 hover:text-sky-300 font-mono cursor-pointer"
                           >
@@ -677,12 +677,12 @@ export const TrackingTab: React.FC = () => {
                     {snapshotCover && (
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <h4 className="text-xs font-bold text-slate-300">Frozen Cover Letter</h4>
+                          <h4 className="text-xs font-bold text-slate-300">{t('Frozen Cover Letter')}</h4>
                           <button
                             type="button"
                             onClick={async () => {
                               const copied = await copyToClipboardSafely(snapshotCover);
-                              addToast(copied ? { type: 'success', message: 'Copied frozen cover letter.' } : { type: 'error', message: 'Could not copy. Select the letter and copy it manually.' });
+                              addToast(copied ? { type: 'success', message: t('Copied frozen cover letter.') } : { type: 'error', message: t('Could not copy. Select the letter and copy it manually.') });
                             }}
                             className="text-[11px] text-sky-400 hover:text-sky-300 font-mono cursor-pointer"
                           >
