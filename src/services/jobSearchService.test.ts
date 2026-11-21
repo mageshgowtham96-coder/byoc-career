@@ -67,6 +67,13 @@ describe('explicit remote market eligibility evidence', () => {
 });
 
 describe('dynamic typo-tolerant search matching', () => {
+  it('maps Tamil occupation and skill searches to English listing terms while retaining Tamil portal text', () => {
+    expect(matchesJobSearchTerms('கணக்காளர்', 'Accountant')).toBe(true);
+    expect(matchesJobSearchTerms('வாடிக்கையாளர் சேவை', 'Customer Support Associate')).toBe(true);
+    expect(matchesJobSearchTerms('தரவு உள்ளீடு', 'Data Entry Operator')).toBe(true);
+    expect(matchesJobSearchTerms('எக்செல்', 'Excel Specialist')).toBe(true);
+  });
+
   it('matches partial role tokens without requiring a complete title', () => {
     expect(matchesJobSearchTerms('Supp', 'Customer Support Specialist')).toBe(true);
   });
