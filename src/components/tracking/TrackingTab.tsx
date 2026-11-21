@@ -710,7 +710,7 @@ export const TrackingTab: React.FC = () => {
                 </div>
               )}
 
-              {/* Automated Outreach / 7-Day Follow-Up Tab */}
+              {/* Follow-Up Email Draft Tab */}
               {activeModalTab === 'followup' && (() => {
                 const email = generateFollowUpEmailContent(selectedApp);
                 return (
@@ -718,7 +718,7 @@ export const TrackingTab: React.FC = () => {
                     <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-                        <span>7-Day Automated Outreach: Grounded in your Notice Period & CTC preferences</span>
+                        <span>Follow-Up Email Draft — review and send it yourself</span>
                       </div>
                     </div>
                     <div>
