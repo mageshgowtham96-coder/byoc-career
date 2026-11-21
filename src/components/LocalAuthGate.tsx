@@ -709,7 +709,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
     >
       <div className="auth-ambient auth-ambient-one" /><div className="auth-ambient auth-ambient-two" /><div className="auth-scanline" />
       <div className="auth-language"><span>{t("language")}</span><select aria-label="Choose language" value={locale} onChange={(e) => setLocale(e.target.value as AuthLocale)}>{AUTH_LANGUAGES.map((language) => <option key={language.code} value={language.code}>{language.native}</option>)}</select></div>
-      <div className="auth-layout"><section className="auth-hero" aria-label="BYOC introduction"><div className="auth-eyebrow"><span className="auth-live-dot" />PRIVATE CAREER COMMAND CENTER</div><div className="auth-hero-logo"><ChakraLogo size={104} spin={false} glow={true} /></div><p className="auth-kicker">BYOC <span>// CAREER OS</span></p><h1>{t("title")}</h1><p className="auth-hero-subtitle">{t("subtitle")}</p><div className="auth-phase-rail"><span>01 INGEST</span><i /><span>02 SOURCE</span><i /><span>03 TAILOR</span><i /><span>04 APPLY</span><i /><span>05 GROW</span></div><div className="auth-privacy"><ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" /><span>{t("privacy")}</span></div></section>
+      <div className="auth-layout"><section className="auth-hero" aria-label="BYOC introduction"><div className="auth-eyebrow"><span className="auth-live-dot" />YOUR CAREER, YOUR NEXT STEP</div><div className="auth-hero-logo"><ChakraLogo size={104} spin={false} glow={true} /></div><p className="auth-kicker">BYOC <span>// BUILD YOUR OWN CAREER</span></p><h1>{t("title")}</h1><p className="auth-hero-subtitle">{t("subtitle")}</p><div className="auth-phase-rail"><span>01 INGEST</span><i /><span>02 SOURCE</span><i /><span>03 TAILOR</span><i /><span>04 APPLY</span><i /><span>05 GROW</span></div><div className="auth-privacy"><ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" /><span>{t("privacy")}</span></div></section>
 
       <div className="auth-panel w-full max-w-md bg-[#0F172A]/90 border border-sky-400/20 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 text-center">
         <div className="flex justify-center mb-4">
@@ -739,7 +739,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
               </h3>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Store this recovery phrase safely. Because BYOC uses zero-server encryption, it is the <strong>only way</strong> to recover your workspace if you forget your Secret Passphrase.
+              Write these words down and keep them somewhere private and safe. They are your backup key. If you forget your passphrase, these words are the only way to open your saved career information again. BYOC cannot reset it for you.
             </p>
             <div className="p-3 rounded-xl bg-slate-950 border border-indigo-500/30 font-mono text-sm text-center text-sky-300 select-all font-bold tracking-wider">
               {createdRecoveryPhrase}
@@ -763,7 +763,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
             </button>
             <label className="flex items-start gap-2 text-xs text-slate-200 leading-relaxed cursor-pointer">
               <input type="checkbox" checked={hasConfirmedRecovery} onChange={(event) => setHasConfirmedRecovery(event.target.checked)} className="mt-0.5 h-4 w-4 accent-indigo-500" />
-              <span>I have written down or securely stored my recovery phrase and understand it is needed if I forget my passphrase.</span>
+              <span>I have saved these backup words somewhere safe. I understand I will need them if I forget my passphrase.</span>
             </label>
             <button
               type="button"

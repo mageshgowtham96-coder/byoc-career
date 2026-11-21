@@ -150,7 +150,19 @@ const UI_COPY: Partial<Record<AuthLocale, Record<string, string>>> = {
     'Browse Opportunities in Sourcing': 'வேலை தேடல் பகுதிக்குச் செல்லவும்',
     'Pipeline Empty': 'விண்ணப்பப் பட்டியல் காலியாக உள்ளது',
     'Move jobs from Sourcing or Tailoring by clicking "Mark as Applied" to record your first immutable snapshot.': 'வேலை தேடல் அல்லது விண்ணப்பத் தயாரிப்பு பகுதியில் "விண்ணப்பித்தேன்" என்பதைத் தேர்ந்தெடுத்து உங்கள் முதல் விண்ணப்பத்தைப் பதிவு செய்யுங்கள்.',
-    'Master Resume Intake & Structural Builder': 'முதன்மை சுயவிவரம் மற்றும் உருவாக்கி'
+    'Master Resume Intake & Structural Builder': 'முதன்மை சுயவிவரம் மற்றும் உருவாக்கி',
+    'Other career evidence': 'பிற தொழில் ஆதாரங்கள்',
+    'Review each line': 'ஒவ்வொரு வரியையும் மதிப்பாய்வு செய்யவும்',
+    'What I Have Done': 'நான் செய்தவை', 'My Contributions': 'எனது பங்களிப்புகள்',
+    'Personal Achievements': 'தனிப்பட்ட சாதனைகள்', 'My Journey': 'எனது பயணம்',
+    'Name': 'பெயர்', 'Target role': 'இலக்கு பணி', 'Summary': 'சுருக்கம்',
+    'Experience': 'அனுபவம்', 'Skills': 'திறன்கள்', 'Projects': 'திட்டங்கள்',
+    'Education': 'கல்வி', 'Certifications': 'சான்றிதழ்கள்',
+    'Review your information': 'உங்கள் விவரங்களை மதிப்பாய்வு செய்யவும்',
+    'Optional English translation': 'விருப்பமான ஆங்கில மொழிபெயர்ப்பு',
+    'Emergency Recovery Phrase Generated': 'மீட்பு சொற்றொடர் உருவாக்கப்பட்டது',
+    'Copy Recovery Phrase': 'மீட்பு சொற்றொடரை நகலெடுக்கவும்',
+    'Copied to Clipboard': 'நகலெடுக்கப்பட்டது'
   },
   bn: {
     'Dashboard': 'ড্যাশবোর্ড', 'Home': 'হোম', 'Master Intake': 'মূল প্রোফাইল',

@@ -354,14 +354,15 @@ export const IntakeTab: React.FC = () => {
     if (!stagedParsedResume) return;
 
     const finalStaged: MasterResume = {
-      ...stagedParsedResume,
+      ...(localStagedProfile || stagedParsedResume),
       contactInfo: {
         ...stagedParsedResume.contactInfo,
         name: editableName.trim(),
         email: editableEmail.trim()
       },
       headline: editableHeadline.trim(),
-      summary: editableStagedSummary.trim()
+      summary: editableStagedSummary.trim(),
+      additionalEvidence: [...((localStagedProfile || stagedParsedResume).additionalEvidence || [])]
     };
 
     useWizardStore.setState({ stagedParsedResume: finalStaged });
@@ -754,6 +755,19 @@ export const IntakeTab: React.FC = () => {
               </div>
             </div>
 
+            <div className="mt-4">
+              <label htmlFor="review-additional-evidence" className="block text-xs font-semibold text-slate-300 mb-1">
+                Other career evidence — review each line
+              </label>
+              <p className="mb-2 text-[11px] text-slate-400">Each line is a separate item. Edit its wording or category, or delete the line if it does not describe your experience.</p>
+              <textarea id="review-additional-evidence" rows={Math.max(3, Math.min(10, (localStagedProfile || stagedParsedResume).additionalEvidence?.length || 3))}
+                value={((localStagedProfile || stagedParsedResume).additionalEvidence || []).join('\n')}
+                onChange={(event) => {
+                  const additionalEvidence = event.target.value.split('\n').map((item) => item.trim()).filter(Boolean);
+                  setLocalStagedProfile((current) => current ? { ...current, additionalEvidence } : current);
+                }}
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs leading-relaxed" />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
                 Headline / Title

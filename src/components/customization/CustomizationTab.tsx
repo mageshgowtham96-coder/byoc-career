@@ -11,6 +11,7 @@ import {
 } from '../../utils/tailoredBulletResolver';
 import type { TailoredArtifact, TailoredVariant } from '../../types';
 import { hasStructuredCareerEvidence } from '../../utils/resumeReadiness';
+import { copyToClipboardSafely } from '../../utils/copyToClipboardSafely';
 import {
   Wand2,
   Sparkles,
@@ -88,31 +89,13 @@ export const CustomizationTab: React.FC = () => {
   const [draftListingUrl, setDraftListingUrl] = useState('');
   const [humanReviewedConfirmed, setHumanReviewedConfirmed] = useState(false);
 
-  const writeClipboardText = async (value: string): Promise<boolean> => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      try { await navigator.clipboard.writeText(value); return true; }
-      catch { /* Continue to the local document-copy fallback. */ }
-    }
-    const textarea = document.createElement('textarea');
-    textarea.value = value;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    let copied = false;
-    try { copied = document.execCommand('copy'); } catch { copied = false; }
-    finally { textarea.remove(); }
-    return copied;
-  };
-
   const handleCopyChip = async (key: string, value: string) => {
     if (!value.trim()) return;
     if (currentArtifact?.variants.length && !currentArtifact.reviewConfirmed) {
       addToast({ type: 'warning', title: 'Factual Review Required', message: 'Review the AI-generated wording and confirm its claims against your Master Resume and the supplied job description before copying.' });
       return;
     }
-    const copied = await writeClipboardText(value);
+    const copied = await copyToClipboardSafely(value);
     if (!copied) {
       setCopiedField(null);
       addToast({ type: 'error', title: 'Copy Failed', message: 'Clipboard access was unavailable. Please select and copy the text manually.' });
@@ -180,6 +163,13 @@ export const CustomizationTab: React.FC = () => {
       return;
     }
 
+    if (!groqApiKey.trim()) {
+      setTailoringError('AI tailoring uses an optional Groq key. The offline baseline kit uses only your saved evidence and can be exported without an API key.');
+      setActiveSubTab('resume');
+      handleCreateOfflineBaselineKit();
+      addToast({ type: 'info', title: 'Offline Baseline Kit Ready', message: 'No AI key is needed. Review your saved evidence and export the baseline kit below.' });
+      return;
+    }
     setIsGenerating(true);
     setTailoringError(null);
     try {

@@ -5,6 +5,27 @@ export interface ResumeReadiness {
   missingSections: string[];
 }
 
+/** Shared, de-duplicated signals from all structured candidate evidence sources. */
+export function getCandidateDiscoverySignals(resume: MasterResume | null | undefined): string[] {
+  if (!resume) return [];
+  const values = [
+    ...(resume.skills?.technical || []), ...(resume.skills?.soft || []),
+    ...(resume.skills?.tools || []), ...(resume.skills?.domains || []),
+    ...(resume.education || []).flatMap((item) => [item.degree, item.field, item.institution]),
+    ...(resume.projects || []).flatMap((item) => [item.title, item.description, ...(item.technologies || [])]),
+    ...(resume.certifications || []).flatMap((item) => [item.name, item.issuer]),
+    ...(resume.additionalEvidence || [])
+  ];
+  const seen = new Set<string>();
+  return values.filter((value): value is string => {
+    if (typeof value !== 'string' || !value.trim()) return false;
+    const key = value.trim().toLocaleLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).map((value) => value.trim());
+}
+
 /** Returns true when the profile contains any user-provided career evidence. */
 export function hasCareerEvidence(resume: MasterResume | null | undefined): boolean {
   if (!resume) return false;

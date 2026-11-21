@@ -55,6 +55,12 @@ describe('getRoleSuggestions', () => {
     expect(getRoleSuggestions('தமிழ்', null, [cachedJob('தமிழ் வாடிக்கையாளர் ஆதரவு')])).toContain('தமிழ் வாடிக்கையாளர் ஆதரவு');
   });
 
+  it('maps common Tamil occupation terms to English role suggestions', () => {
+    expect(getRoleSuggestions('கணக்காளர்')).toContain('Accountant');
+    expect(getRoleSuggestions('வாடிக்கையாளர் சேவை').some((item) => /customer support/i.test(item))).toBe(true);
+    expect(getRoleSuggestions('தரவு பகுப்பாய்வாளர்').some((item) => /data analyst/i.test(item))).toBe(true);
+  });
+
   it('normalizes combining marks without discarding accented letters', () => {
     const decomposedQuery = 'Cafe\u0301';
     expect(getRoleSuggestions(decomposedQuery, null, [cachedJob('Café Analyst')])).toContain('Café Analyst');

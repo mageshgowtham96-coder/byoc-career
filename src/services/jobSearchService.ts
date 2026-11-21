@@ -1,4 +1,5 @@
 import type { JobPosting, MasterResume, JobSourcePortal, PortalShortcut } from '../types';
+import { expandTamilJobSearchQuery } from '../utils/roleSuggestions';
 
 export interface JobSearchQueryParams {
   query?: string;
@@ -263,7 +264,8 @@ export function mergePortalShortcuts(saved?: PortalShortcut[]): PortalShortcut[]
 }
 
 export function buildPortalShortcutUrl(template: string, query?: string): string | null {
-  const cleanQuery = (query || '').trim() || 'software engineer';
+  const originalQuery = (query || '').trim() || 'software engineer';
+  const cleanQuery = expandTamilJobSearchQuery(originalQuery);
   const usesSlug = /\/\{query\}-jobs/i.test(template);
   const replacement = usesSlug
     ? encodeURIComponent(cleanQuery.toLowerCase().replace(/\s+/g, '-'))
@@ -330,7 +332,7 @@ export function matchesJobSearchTerms(
   query: string | undefined,
   ...fields: Array<string | string[] | undefined>
 ): boolean {
-  const normalizedQuery = (query || '').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ').trim();
+  const normalizedQuery = expandTamilJobSearchQuery(query || '').toLocaleLowerCase().normalize('NFC').replace(/[^\p{L}\p{M}\p{N}+#]+/gu, ' ').trim();
   if (!normalizedQuery) return true;
   // Keep standalone C and R searchable; discard other one-letter noise.
   const terms = Array.from(new Set(normalizedQuery.split(/\s+/).filter((term) =>
@@ -338,7 +340,7 @@ export function matchesJobSearchTerms(
   )));
   if (terms.length === 0) return true;
   const haystack = fields.flatMap((field) => Array.isArray(field) ? field : [field || ''])
-    .join(' ').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ');
+    .join(' ').toLocaleLowerCase().normalize('NFC').replace(/[^\p{L}\p{M}\p{N}+#]+/gu, ' ');
   return terms.every((term, index) => matchesSearchTerm(haystack, term, index === terms.length - 1));
 }
 
@@ -400,7 +402,7 @@ function matchesSearchTerm(text: string, term: string, allowPartial = false): bo
   if (containsSkillToken(text, term)) return true;
   if (term.length <= 2) return false;
 
-  const tokens = text.split(/[^a-z0-9+#]+/i).filter(Boolean);
+  const tokens = text.split(/[^\p{L}\p{M}\p{N}+#]+/u).filter(Boolean);
   // Partial tokens support live typeahead searches such as "Supp" -> "Support".
   if (allowPartial && term.length >= 3 && tokens.some((token) => token.startsWith(term))) return true;
 
@@ -435,7 +437,7 @@ function containsSkillToken(text: string, skill: string): boolean {
   const normalizedSkill = skill.trim().toLowerCase().replace(/\s+/g, ' ');
   if (!normalizedSkill) return false;
   const escaped = normalizedSkill.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
-  const matcher = new RegExp('(^|[^a-z0-9])' + escaped + '(?=$|[^a-z0-9])', 'i');
+  const matcher = new RegExp('(^|[^\\p{L}\\p{M}\\p{N}])' + escaped + '(?=$|[^\\p{L}\\p{M}\\p{N}])', 'iu');
   return matcher.test(text);
 }
 

@@ -545,6 +545,7 @@ export const useWizardStore = create<WizardState>()(
       clearMasterResume: () => {
         set({
           masterResume: null,
+          previousMasterResume: null,
           stagedParsedResume: null,
           careerFormDraft: null,
           tailoredArtifacts: {}

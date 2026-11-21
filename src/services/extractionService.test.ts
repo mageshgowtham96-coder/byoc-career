@@ -239,6 +239,26 @@ Bachelor of Commerce - City University - 2019`);
   });
 });
 
+describe('unfamiliar personal evidence section headings', () => {
+  it('captures one editable evidence item per line under unfamiliar headings', () => {
+    const parsed = parseRawResumeToStructured(`Asha Rao
+My Journey
+Started as a volunteer tutor in 2022.
+What I Have Done
+Created a monthly sales report for a family business.
+My Contributions
+Helped coordinate a community event.
+Personal Achievements
+Won second place in a district-level competition.`);
+    expect(parsed.additionalEvidence).toEqual([
+      'My Journey: Started as a volunteer tutor in 2022.',
+      'What I Have Done: Created a monthly sales report for a family business.',
+      'My Contributions: Helped coordinate a community event.',
+      'Personal Achievements: Won second place in a district-level competition.'
+    ]);
+  });
+});
+
 describe('additional resume section boundaries', () => {
   it('captures training while keeping references out of AI-ready additional evidence', () => {
     const parsed = parseRawResumeToStructured(`Asha Rao

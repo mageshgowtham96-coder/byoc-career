@@ -3,6 +3,7 @@ import { openExternalPortalUrl, shouldUseNativeExternalBrowser } from '../../ser
 import { useWizardStore } from '../../store/useWizardStore';
 import { useAuthLocale } from '../../i18n/authLocale';
 import { getRoleSuggestions } from '../../utils/roleSuggestions';
+import { getCandidateDiscoverySignals } from '../../utils/resumeReadiness';
 import {
   jobSearchEngine,
   calculateHonestMatch,
@@ -117,7 +118,7 @@ export const SourcingTab: React.FC = () => {
       effectiveQuery ||
         candidatePreferences?.targetRole?.trim() ||
         candidatePreferences?.profession?.trim() ||
-        (masterResume?.skills.technical?.length ?? 0) > 0
+        getCandidateDiscoverySignals(masterResume).length > 0
     );
     if (!hasSearchTerms) {
       addToast({
@@ -142,7 +143,7 @@ export const SourcingTab: React.FC = () => {
           portal: portalFilter,
           profession: candidatePreferences?.profession,
           targetRole: candidatePreferences?.targetRole,
-          skills: masterResume?.skills.technical
+          skills: getCandidateDiscoverySignals(masterResume)
         },
         masterResume,
         jobs

@@ -6,6 +6,24 @@ import type { JobPosting, MasterResume } from '../types';
  * They are prompts only: arbitrary text remains searchable and is never gated
  * by this list.
  */
+const TAMIL_TO_ENGLISH_JOB_TERMS: Record<string, string> = {
+  'கணக்காளர்': 'accountant', 'ஆசிரியர்': 'teacher', 'விற்பனையாளர்': 'sales representative',
+  'விற்பனை': 'sales', 'வாடிக்கையாளர் சேவை': 'customer support', 'வாடிக்கையாளர் ஆதரவு': 'customer support',
+  'தரவு பகுப்பாய்வாளர்': 'data analyst', 'மென்பொருள் பொறியாளர்': 'software engineer',
+  'மென்பொருள் உருவாக்குநர்': 'software developer', 'அலுவலக உதவியாளர்': 'office assistant',
+  'தட்டச்சர்': 'typist', 'ஓட்டுநர்': 'driver', 'செவிலியர்': 'nurse', 'தையல்காரர்': 'tailor',
+  'எக்செல்': 'excel', 'தரவு உள்ளீடு': 'data entry', 'கணினி': 'computer',
+  'கணக்கு': 'accounting', 'சந்தைப்படுத்தல்': 'marketing', 'திட்ட மேலாண்மை': 'project management'
+};
+/** Retains Tamil text while adding common English equivalents for English-only feeds. */
+export function expandTamilJobSearchQuery(query: string): string {
+  let expanded = query.normalize('NFC');
+  for (const [tamil, english] of Object.entries(TAMIL_TO_ENGLISH_JOB_TERMS)) {
+    if (expanded.includes(tamil)) expanded += ' ' + english;
+  }
+  return expanded;
+}
+
 const COMMON_ROLE_PATTERNS = [
   'Software Engineer', 'Frontend Developer', 'Backend Developer',
   'Full Stack Developer', 'Mobile Developer', 'Data Analyst',
@@ -19,7 +37,10 @@ const COMMON_ROLE_PATTERNS = [
   'Sales Representative', 'Account Manager', 'Finance Analyst',
   'Financial Analyst', 'Human Resources Generalist', 'Recruiter',
   'Cybersecurity Analyst', 'DevOps Engineer', 'Cloud Engineer',
-  'Technical Writer', 'Research Associate', 'Content Specialist'
+  'Technical Writer', 'Research Associate', 'Content Specialist',
+  'கணக்காளர்', 'ஆசிரியர்', 'விற்பனையாளர்', 'வாடிக்கையாளர் சேவை',
+  'தரவு பகுப்பாய்வாளர்', 'மென்பொருள் பொறியாளர்', 'அலுவலக உதவியாளர்',
+  'தட்டச்சர்', 'ஓட்டுநர்', 'செவிலியர்', 'தையல்காரர்'
 ] as const;
 
 function normalize(value: string): string {
@@ -96,7 +117,7 @@ export function getRoleSuggestions(
   cachedJobs: JobPosting[] = [],
   limit = 7
 ): string[] {
-  const normalized = normalize(query);
+  const normalized = normalize(expandTamilJobSearchQuery(query));
   if (normalized.length < 2) return [];
   const queryTokens = normalized.split(/\s+/).filter((token) => token.length > 1 || token === 'c' || token === 'r');
   if (!queryTokens.length) return [];

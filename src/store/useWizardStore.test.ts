@@ -34,6 +34,19 @@ const evidence: JobVerificationEvidence = {
   employerIdentityVerified: false
 };
 
+describe('clear Master Resume cleanup', () => {
+  it('clears the rollback snapshot as well as the active and staged profiles', () => {
+    const saved = { rawText: 'Previous resume', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' }, headline: '', summary: '', skills: { technical: [], soft: [], tools: [], domains: [] }, experiences: [], education: [], projects: [], certifications: [], additionalEvidence: [], stats: { wordCount: 2, pageCount: 1, charCount: 15, lastParsedDate: '', sourceFileName: '' } } as any;
+    useWizardStore.setState({ masterResume: saved, previousMasterResume: saved, stagedParsedResume: saved, careerFormDraft: {} as any, tailoredArtifacts: { old: {} as any } });
+    useWizardStore.getState().clearMasterResume();
+    expect(useWizardStore.getState().masterResume).toBeNull();
+    expect(useWizardStore.getState().previousMasterResume).toBeNull();
+    expect(useWizardStore.getState().stagedParsedResume).toBeNull();
+    expect(useWizardStore.getState().careerFormDraft).toBeNull();
+    expect(useWizardStore.getState().tailoredArtifacts).toEqual({});
+  });
+});
+
 describe('job verification evidence persistence', () => {
   beforeEach(() => {
     localStorage.clear();

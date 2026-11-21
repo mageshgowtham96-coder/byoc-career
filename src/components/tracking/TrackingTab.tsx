@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
 import { useAuthLocale } from '../../i18n/authLocale';
 import { sanitizeExternalHttpUrl } from '../../services/jobSearchService';
+import { copyToClipboardSafely } from '../../utils/copyToClipboardSafely';
 import type { ApplicationRecord, ApplicationStatus } from '../../types';
 import {
   KanbanSquare,
@@ -643,9 +644,9 @@ export const TrackingTab: React.FC = () => {
                         {snapshotSummary && (
                           <button
                             type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(snapshotSummary);
-                              addToast({ type: 'success', message: 'Copied frozen summary.' });
+                            onClick={async () => {
+                              const copied = await copyToClipboardSafely(snapshotSummary);
+                              addToast(copied ? { type: 'success', message: 'Copied frozen summary.' } : { type: 'error', message: 'Could not copy. Select the summary and copy it manually.' });
                             }}
                             className="text-[11px] text-sky-400 hover:text-sky-300 font-mono cursor-pointer"
                           >
@@ -679,9 +680,9 @@ export const TrackingTab: React.FC = () => {
                           <h4 className="text-xs font-bold text-slate-300">Frozen Cover Letter</h4>
                           <button
                             type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(snapshotCover);
-                              addToast({ type: 'success', message: 'Copied frozen cover letter.' });
+                            onClick={async () => {
+                              const copied = await copyToClipboardSafely(snapshotCover);
+                              addToast(copied ? { type: 'success', message: 'Copied frozen cover letter.' } : { type: 'error', message: 'Could not copy. Select the letter and copy it manually.' });
                             }}
                             className="text-[11px] text-sky-400 hover:text-sky-300 font-mono cursor-pointer"
                           >
@@ -747,10 +748,12 @@ export const TrackingTab: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          navigator.clipboard.writeText(`${email.subject}\n\n${email.body}`);
-                          setCopiedFollowUpModal(true);
-                          setTimeout(() => setCopiedFollowUpModal(false), 2000);
-                          addToast({ type: 'success', message: 'Follow-up email copied to clipboard!' });
+                          const copied = await copyToClipboardSafely(`${email.subject}\n\n${email.body}`);
+                          if (copied) {
+                            setCopiedFollowUpModal(true);
+                            setTimeout(() => setCopiedFollowUpModal(false), 2000);
+                          }
+                          addToast(copied ? { type: 'success', message: 'Follow-up email copied to clipboard!' } : { type: 'error', message: 'Could not copy. Select the email and copy it manually.' });
                         }}
                         className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-slate-950 font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-md"
                       >

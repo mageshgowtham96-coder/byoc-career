@@ -19,6 +19,7 @@ import {
 import type { ApplicationRecord } from '../../types';
 import { calculateHonestMatch } from '../../services/jobSearchService';
 import { hasActiveVaultKey, readStoredVaultEnvelope } from '../../utils/cryptoVault';
+import { getCandidateDiscoverySignals } from '../../utils/resumeReadiness';
 
 export const DashboardTab: React.FC = () => {
   const { t } = useAuthLocale();
@@ -45,14 +46,7 @@ export const DashboardTab: React.FC = () => {
   const [isRefreshingJobs, setIsRefreshingJobs] = React.useState(false);
 
   const handleLiveJobRefresh = async (manual = false) => {
-    const resumeDiscoverySignals = [
-      ...(masterResume?.skills.technical || []),
-      ...(masterResume?.skills.soft || []),
-      ...(masterResume?.skills.tools || []),
-      ...(masterResume?.skills.domains || []),
-      ...(masterResume?.education || []).flatMap((item) => [item.degree, item.field].filter(Boolean)),
-      ...(masterResume?.projects || []).flatMap((item) => [item.title, ...(item.technologies || [])])
-    ].filter((signal): signal is string => typeof signal === 'string' && signal.trim().length > 0);
+    const resumeDiscoverySignals = getCandidateDiscoverySignals(masterResume);
     const hasSearchSignals = Boolean(
       candidatePreferences.targetRole?.trim() ||
         candidatePreferences.profession?.trim() ||
