@@ -87,7 +87,7 @@ export const SettingsTab: React.FC = () => {
         type: 'success',
         title: 'Groq API Key Saved',
         message: synced
-          ? 'Encrypted in your AES-256-GCM vault. Live Groq inference active.'
+          ? 'Encrypted in your private device vault. Live Groq inference active.'
           : 'Groq key active for this session.'
       });
     } else {
@@ -239,7 +239,7 @@ export const SettingsTab: React.FC = () => {
           <span>System &amp; Workspace Settings</span>
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-          Manage your Groq BYOK credentials, AES-256-GCM vault backups, biometric screen shield, and documentation.
+          Manage your Groq BYOK credentials, private device backups, biometric screen shield, and documentation.
         </p>
       </div>
 
@@ -369,7 +369,7 @@ export const SettingsTab: React.FC = () => {
           <div>
             <span className="text-xs font-bold text-white block">Session Hardware Lock</span>
             <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-              Locks quick physical screen access during an active session. Cold starts still require your Vault Passphrase to unwrap the AES-256-GCM Master Vault Key.
+              Locks quick screen access during an active session. Reopening BYOC still requires your Secret Passphrase.
             </p>
           </div>
 
@@ -420,7 +420,7 @@ export const SettingsTab: React.FC = () => {
             <div>
               <h3 className="text-sm font-bold text-white">Local Email Interaction Vault</h3>
               <p className="text-xs text-slate-400">
-                AES-256-GCM encrypted vault storage ({emailInteractions.length} stored) · OAuth external inbox sync is not connected
+                Private device vault storage ({emailInteractions.length} stored) · OAuth external inbox sync is not connected
               </p>
             </div>
           </div>
@@ -466,9 +466,9 @@ export const SettingsTab: React.FC = () => {
           </div>
 
           <div className="p-3.5 rounded-xl bg-[#070B14] border border-slate-800">
-            <span className="text-[11px] text-slate-400 font-mono block">Cipher &amp; Key Derivation</span>
+            <span className="text-[11px] text-slate-400 font-mono block">Device Privacy</span>
             <span className="font-bold text-emerald-400 mt-1 block">
-              {user?.hasEncryptedVault ? 'AES-256-GCM · PBKDF2-SHA256 (100k)' : 'Vault Protected'}
+              {user?.hasEncryptedVault ? 'Private Device Lock · Protected' : 'Vault Protected'}
             </span>
             <span className="text-slate-500 text-[11px] tabular-nums">
               Created {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
@@ -586,10 +586,10 @@ export const SettingsTab: React.FC = () => {
 
           {activeDocSection === 'security' && (
             <>
-              <p className="font-semibold text-white">AES-256-GCM Master Vault Key &amp; Recovery Architecture</p>
+              <p className="font-semibold text-white">Private Device Lock &amp; Recovery</p>
               <ul className="space-y-1.5 text-slate-400">
-                <li>• <strong className="text-slate-200">Encrypted At Rest:</strong> Your master resume, intake drafts, email interaction records, saved jobs, tailored kits, applications, preferences, and API keys are stored solely inside <span className="font-mono text-sky-400">byoc_secure_vault_envelope</span> using a random 256-bit Master Vault Key (AES-256-GCM).</li>
-                <li>• <strong className="text-slate-200">Key Wrapping:</strong> Your Vault Passphrase and Emergency Recovery Phrase (<span className="font-mono text-sky-400">BYOC-XXXX-...</span>) the passphrase derives a 256-bit PBKDF2-SHA256 key using 600,000 iterations. The random recovery phrase uses its separately recorded 100,000-iteration KDF.</li>
+                <li>• <strong className="text-slate-200">Encrypted At Rest:</strong> Your Master Resume, intake drafts, email records, saved jobs, tailored kits, applications, preferences, and API keys are stored only inside BYOC's encrypted on-device vault.</li>
+                <li>• <strong className="text-slate-200">Key Wrapping:</strong> Your Secret Passphrase and Emergency Recovery Phrase (<span className="font-mono text-sky-400">BYOC-XXXX-...</span>) protect access to your encrypted workspace. Keep both private and store your recovery phrase somewhere safe.</li>
                 <li>• <strong className="text-slate-200">Offline Recovery:</strong> If you forget your passphrase, switch to Emergency Recovery on the unlock screen, verify your recovery phrase, and set a new passphrase without losing any stored data.</li>
                 <li>• <strong className="text-slate-200">Portable Backups:</strong> Export your encrypted vault envelope above to back up your ciphertext offline or import it onto another browser.</li>
               </ul>
