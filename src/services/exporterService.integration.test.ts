@@ -89,7 +89,7 @@ describe('Master Resume document export integration', () => {
   it('refuses lossy PDF export for unsupported scripts while leaving DOCX export available', async () => {
     const resume = createApprovedMasterResume('தமிழ் வேட்பாளர்');
     const artifact = createMasterResumeExportArtifact(resume);
-    await expect(generatePdfResume(artifact, resume)).rejects.toThrow(/DOCX to preserve every character/i);
+    await expect(generatePdfResume(artifact, resume)).rejects.toThrow(/Export as DOCX to preserve every character/i);
     const docx = await generateDocxResume(artifact, resume);
     expect(docx.size).toBeGreaterThan(0);
   });
