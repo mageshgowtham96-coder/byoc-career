@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ArbeitnowJobAdapter, assessRemoteCountryEligibility, calculateHonestMatch, getJobMatchBasisLabel, getJobMatchCriteria, mergePortalShortcuts, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, matchesRemoteCountryAndLocation, mergeDiscoveredJobs, PublicFeedsJobAdapter } from './jobSearchService';
+import { ArbeitnowJobAdapter, assessRemoteCountryEligibility, calculateHonestMatch, getJobMatchBasisLabel, getJobMatchCriteria, mergePortalShortcuts, buildPortalShortcutUrl, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, matchesRemoteCountryAndLocation, mergeDiscoveredJobs, PublicFeedsJobAdapter } from './jobSearchService';
 
 const fetchMock = vi.fn();
 
@@ -72,6 +72,8 @@ describe('dynamic typo-tolerant search matching', () => {
     expect(matchesJobSearchTerms('வாடிக்கையாளர் சேவை', 'Customer Support Associate')).toBe(true);
     expect(matchesJobSearchTerms('தரவு உள்ளீடு', 'Data Entry Operator')).toBe(true);
     expect(matchesJobSearchTerms('எக்செல்', 'Excel Specialist')).toBe(true);
+    const portalUrl = buildPortalShortcutUrl('https://www.naukri.com/{query}-jobs', 'கணக்காளர்');
+    expect(portalUrl).toContain(encodeURIComponent('கணக்காளர்-accountant'));
   });
 
   it('matches partial role tokens without requiring a complete title', () => {
