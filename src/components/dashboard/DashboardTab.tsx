@@ -45,10 +45,18 @@ export const DashboardTab: React.FC = () => {
   const [isRefreshingJobs, setIsRefreshingJobs] = React.useState(false);
 
   const handleLiveJobRefresh = async (manual = false) => {
+    const resumeDiscoverySignals = [
+      ...(masterResume?.skills.technical || []),
+      ...(masterResume?.skills.soft || []),
+      ...(masterResume?.skills.tools || []),
+      ...(masterResume?.skills.domains || []),
+      ...(masterResume?.education || []).flatMap((item) => [item.degree, item.field].filter(Boolean)),
+      ...(masterResume?.projects || []).flatMap((item) => [item.title, ...(item.technologies || [])])
+    ].filter((signal): signal is string => typeof signal === 'string' && signal.trim().length > 0);
     const hasSearchSignals = Boolean(
       candidatePreferences.targetRole?.trim() ||
         candidatePreferences.profession?.trim() ||
-        (masterResume?.skills.technical && masterResume.skills.technical.length > 0)
+        resumeDiscoverySignals.length > 0
     );
 
     if (!hasSearchSignals) {
@@ -74,7 +82,7 @@ export const DashboardTab: React.FC = () => {
           location: optionalLocation,
           profession: candidatePreferences.profession,
           targetRole: candidatePreferences.targetRole,
-          skills: masterResume?.skills.technical,
+          skills: resumeDiscoverySignals,
           workplaceType: candidatePreferences.workplaceTypePreference
         },
         masterResume,
@@ -128,7 +136,7 @@ export const DashboardTab: React.FC = () => {
 
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || null;
   const selectedJobMatch = selectedJob ? calculateHonestMatch(selectedJob, masterResume) : null;
-  const hasResume = Boolean(masterResume && (masterResume.rawText.length > 20 || masterResume.experiences.length > 0));
+  const hasResume = Boolean(masterResume && (masterResume.rawText.length > 20 || masterResume.experiences.length > 0 || masterResume.education.length > 0 || masterResume.projects.length > 0 || masterResume.skills.technical.length > 0 || masterResume.skills.soft.length > 0 || masterResume.skills.tools.length > 0));
   const hasJob = Boolean(selectedJob);
   const hasTailored = Boolean(selectedJobId && tailoredArtifacts[selectedJobId]);
   const storedVaultEnvelope = readStoredVaultEnvelope();
