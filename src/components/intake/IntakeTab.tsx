@@ -759,7 +759,7 @@ export const IntakeTab: React.FC = () => {
               <label htmlFor="review-additional-evidence" className="block text-xs font-semibold text-slate-300 mb-1">
                 {t('Other career evidence')}
               </label>
-              <p className="mb-2 text-[11px] text-slate-400">Each line is a separate item. Edit its wording or category, or delete the line if it does not describe your experience.</p>
+              <p className="mb-2 text-[11px] text-slate-400">{t('Each line is a separate item. Edit its wording or category, or delete the line if it does not describe your experience.')}</p>
               <textarea id="review-additional-evidence" rows={Math.max(3, Math.min(10, (localStagedProfile || stagedParsedResume).additionalEvidence?.length || 3))}
                 value={((localStagedProfile || stagedParsedResume).additionalEvidence || []).join('\n')}
                 onChange={(event) => {
