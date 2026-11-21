@@ -59,6 +59,8 @@ describe('getRoleSuggestions', () => {
     expect(getRoleSuggestions('கணக்காளர்')).toContain('Accountant');
     expect(getRoleSuggestions('வாடிக்கையாளர் சேவை').some((item) => /customer support/i.test(item))).toBe(true);
     expect(getRoleSuggestions('தரவு பகுப்பாய்வாளர்').some((item) => /data analyst/i.test(item))).toBe(true);
+    expect(getRoleSuggestions('எக்செல்')).toContain('Excel');
+    expect(getRoleSuggestions('தரவு உள்ளீடு')).toContain('Data Entry');
   });
 
   it('normalizes combining marks without discarding accented letters', () => {
