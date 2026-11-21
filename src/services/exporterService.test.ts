@@ -323,7 +323,7 @@ describe('Export Service', () => {
       const resume = createMockResume();
       resume.contactInfo.name = 'தமிழ் வேட்பாளர்';
       await expect(generatePdfResume(artifact, resume))
-        .rejects.toThrow(/cannot safely render.*Unicode|Unicode.*DOCX/i);
+        .rejects.toThrow(/Export as DOCX to preserve every character/i);
     });
 
     it('recommends DOCX before export when the visible resume contains Tamil', () => {
