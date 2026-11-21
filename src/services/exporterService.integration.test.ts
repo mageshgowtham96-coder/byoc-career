@@ -49,6 +49,7 @@ describe('Master Resume document export integration', () => {
     expect(imported.rawText).toContain('தமிழ் மொழியில் வாடிக்கையாளர் சேவை');
     expect(imported.rawText).toContain('தமிழில் வாடிக்கையாளர் கேள்விகளுக்கு');
     expect(imported.rawText).toContain('தமிழ் விற்பனை பகுப்பாய்வு');
+    expect(imported.rawText).toContain('Reviewed monthly sales trends using Excel and SQL.');
     await expect(generatePdfResume(artifact, resume)).rejects.toThrow(/Export as DOCX to preserve every character/i);
     expect(imported.rawText).toContain('PROFESSIONAL SUMMARY');
     expect(imported.rawText).not.toContain('EXECUTIVE SUMMARY');
