@@ -67,7 +67,7 @@ describe('explicit remote market eligibility evidence', () => {
 });
 
 describe('dynamic typo-tolerant search matching', () => {
-  it('maps Tamil occupation and skill searches to English listing terms while retaining Tamil portal text', () => {
+  it('maps Tamil occupation and skill searches to English listing terms', () => {
     expect(matchesJobSearchTerms('கணக்காளர்', 'Accountant')).toBe(true);
     expect(matchesJobSearchTerms('வாடிக்கையாளர் சேவை', 'Customer Support Associate')).toBe(true);
     expect(matchesJobSearchTerms('தரவு உள்ளீடு', 'Data Entry Operator')).toBe(true);
