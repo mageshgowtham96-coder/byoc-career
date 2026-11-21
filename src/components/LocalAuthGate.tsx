@@ -742,7 +742,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
             </button>
             <label className="flex items-start gap-2 text-xs text-slate-200 leading-relaxed cursor-pointer">
               <input type="checkbox" checked={hasConfirmedRecovery} onChange={(event) => setHasConfirmedRecovery(event.target.checked)} className="mt-0.5 h-4 w-4 accent-indigo-500" />
-              <span>{ui('I have saved these backup words somewhere safe. I understand I will need them if I forget my passphrase.')}</span>
+              <span>{ui('{ui('I have saved these backup words somewhere safe. I understand I will need them if I forget my passphrase.')}')}</span>
             </label>
             <button
               type="button"
