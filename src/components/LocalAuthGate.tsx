@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { AUTH_COPY, AUTH_LANGUAGES, type AuthLocale, useAuthLocale } from '../i18n/authLocale';
+import { AUTH_COPY, AUTH_LANGUAGES, type AuthLocale, useAuthLocale, translateUiText } from '../i18n/authLocale';
 import {
   useWizardStore,
   DEFAULT_CANDIDATE_PREFERENCES,
@@ -64,6 +64,7 @@ import {
 export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { locale, setLocale } = useAuthLocale();
   const t = (key: keyof typeof AUTH_COPY.en) => AUTH_COPY[locale][key] || AUTH_COPY.en[key];
+  const ui = (source: string) => translateUiText(locale, source);
   const {
     user,
     isAuthenticated,
@@ -697,13 +698,13 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         <div className="mb-6">
           <p className="text-[11px] font-mono text-sky-400 tracking-wider uppercase mb-1.5 flex items-center justify-center gap-1.5">
             <Shield className="w-3.5 h-3.5" />
-            <span>Private Device Lock</span>
+            <span>{ui('Private Device Lock')}</span>
           </p>
           <h1 className="text-2xl font-bold text-white tracking-tight">
             BYOC
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Build Your Own Career
+            {ui('Build Your Own Career')}
           </p>
         </div>
 
@@ -713,11 +714,11 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
             <div className="flex items-center gap-2 text-amber-300">
               <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
               <h3 className="text-xs font-bold uppercase tracking-wider">
-                Emergency Recovery Phrase Generated
+                {ui('Emergency Recovery Phrase Generated')}
               </h3>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Write these words down and keep them somewhere private and safe. They are your backup key. If you forget your passphrase, these words are the only way to open your saved career information again. BYOC cannot reset it for you.
+              {ui('Write these words down and keep them somewhere private and safe. They are your backup key. If you forget your passphrase, these words are the only way to open your saved career information again. BYOC cannot reset it for you.')}
             </p>
             <div className="p-3 rounded-xl bg-slate-950 border border-indigo-500/30 font-mono text-sm text-center text-sky-300 select-all font-bold tracking-wider">
               {createdRecoveryPhrase}
@@ -729,19 +730,19 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                 const copied = await copyToClipboardSafely(createdRecoveryPhrase);
                 if (copied) {
                   setHasCopiedRecovery(true);
-                  addToast({ type: 'success', message: 'Recovery phrase copied to clipboard.' });
+                  addToast({ type: 'success', message: ui('Recovery phrase copied to clipboard.') });
                 } else {
-                  addToast({ type: 'error', message: 'Clipboard access failed. Select and copy the recovery phrase manually.' });
+                  addToast({ type: 'error', message: ui('Clipboard access failed. Select and copy the recovery phrase manually.') });
                 }
               }}
               className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
             >
               {hasCopiedRecovery ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-              <span>{hasCopiedRecovery ? 'Copied to Clipboard' : 'Copy Recovery Phrase'}</span>
+              <span>{hasCopiedRecovery ? ui('Copied to Clipboard') : ui('Copy Recovery Phrase')}</span>
             </button>
             <label className="flex items-start gap-2 text-xs text-slate-200 leading-relaxed cursor-pointer">
               <input type="checkbox" checked={hasConfirmedRecovery} onChange={(event) => setHasConfirmedRecovery(event.target.checked)} className="mt-0.5 h-4 w-4 accent-indigo-500" />
-              <span>I have saved these backup words somewhere safe. I understand I will need them if I forget my passphrase.</span>
+              <span>{ui('I have saved these backup words somewhere safe. I understand I will need them if I forget my passphrase.')}</span>
             </label>
             <button
               type="button"
@@ -752,7 +753,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
               }}
               className="w-full py-2.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 font-bold text-xs transition cursor-pointer"
             >
-              I Have Saved My Recovery Phrase &rarr; Enter Workspace
+              {ui('I Have Saved My Recovery Phrase → Enter Workspace')}
             </button>
           </div>
         )}
