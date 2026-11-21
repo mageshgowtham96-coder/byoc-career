@@ -8,6 +8,12 @@ appId: com.byoc.career
     commands:
       - launchApp:
           clearState: true
+      # A slow CI emulator can show "<system app> isn't responding" over BYOC.
+      - runFlow:
+          when:
+            visible: ".*isn't responding.*"
+          commands:
+            - tapOn: "Wait"
       - extendedWaitUntil:
           visible: "AES-256-GCM Local Vault"
           timeout: 60000
@@ -125,6 +131,11 @@ appId: com.byoc.career
     maxRetries: 3
     commands:
       - launchApp
+      - runFlow:
+          when:
+            visible: ".*isn't responding.*"
+          commands:
+            - tapOn: "Wait"
       - extendedWaitUntil:
           visible: "AES-256-GCM Local Vault"
           timeout: 60000

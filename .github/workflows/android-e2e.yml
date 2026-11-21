@@ -75,7 +75,7 @@ jobs:
           script: >-
             bash -euo pipefail -c 'mkdir -p artifacts;
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk;
-            adb shell mkdir -p /sdcard/Download;
+            adb shell settings put global hide_error_dialogs 1; adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true; adb shell mkdir -p /sdcard/Download;
             adb shell rm -f /sdcard/Download/byoc-e2e-resume.docx || true;
             adb push artifacts/byoc-e2e-resume.docx /data/local/tmp/byoc-e2e-resume.docx;
             for attempt in 1 2 3 4 5 6 7 8 9 10; do adb shell cp /data/local/tmp/byoc-e2e-resume.docx /sdcard/Download/byoc-e2e-resume.docx && break; echo "Downloads not writable yet (attempt $attempt); waiting"; sleep 6; done; adb shell test -s /sdcard/Download/byoc-e2e-resume.docx;
