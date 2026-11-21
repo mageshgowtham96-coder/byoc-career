@@ -354,7 +354,7 @@ export const IntakeTab: React.FC = () => {
     if (!stagedParsedResume) return;
 
     const finalStaged: MasterResume = {
-      ...(localStagedProfile || stagedParsedResume),
+      ...stagedParsedResume,
       contactInfo: {
         ...stagedParsedResume.contactInfo,
         name: editableName.trim(),
@@ -362,7 +362,7 @@ export const IntakeTab: React.FC = () => {
       },
       headline: editableHeadline.trim(),
       summary: editableStagedSummary.trim(),
-      additionalEvidence: [...((localStagedProfile || stagedParsedResume).additionalEvidence || [])]
+      additionalEvidence: [...(stagedParsedResume.additionalEvidence || [])]
     };
 
     useWizardStore.setState({ stagedParsedResume: finalStaged });
@@ -760,11 +760,11 @@ export const IntakeTab: React.FC = () => {
                 {t('Other career evidence')}
               </label>
               <p className="mb-2 text-[11px] text-slate-400">{t('Each line is a separate item. Edit its wording or category, or delete the line if it does not describe your experience.')}</p>
-              <textarea id="review-additional-evidence" rows={Math.max(3, Math.min(10, (localStagedProfile || stagedParsedResume).additionalEvidence?.length || 3))}
-                value={((localStagedProfile || stagedParsedResume).additionalEvidence || []).join('\n')}
+              <textarea id="review-additional-evidence" rows={Math.max(3, Math.min(10, stagedParsedResume.additionalEvidence?.length || 3))}
+                value={(stagedParsedResume.additionalEvidence || []).join('\n')}
                 onChange={(event) => {
                   const additionalEvidence = event.target.value.split('\n').map((item) => item.trim()).filter(Boolean);
-                  setLocalStagedProfile((current) => current ? { ...current, additionalEvidence } : current);
+                  setStagedParsedResume((current) => current ? { ...current, additionalEvidence } : current);
                 }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs leading-relaxed" />
             </div>
