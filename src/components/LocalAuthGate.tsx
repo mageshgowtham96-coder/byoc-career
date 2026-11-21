@@ -1085,7 +1085,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                           type={showPassphrase ? 'text' : 'password'}
                           value={passphrase}
                           onChange={(e) => setPassphrase(e.target.value)}
-                          placeholder="Enter vault passphrase"
+                          placeholder="Enter your Secret Passphrase"
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-sky-500 pr-10"
                           autoFocus
                           required
@@ -1166,7 +1166,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    New Vault Passphrase (Min 8 Chars)
+                    New Secret Passphrase (Min 8 Characters)
                   </label>
                   <div className="relative">
                     <input
