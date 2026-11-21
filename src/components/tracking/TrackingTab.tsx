@@ -650,7 +650,7 @@ export const TrackingTab: React.FC = () => {
                             }}
                             className="text-[11px] text-sky-400 hover:text-sky-300 font-mono cursor-pointer"
                           >
-                            Copy Summary
+                            {t('Copy Summary')}
                           </button>
                         )}
                       </div>
@@ -686,7 +686,7 @@ export const TrackingTab: React.FC = () => {
                             }}
                             className="text-[11px] text-sky-400 hover:text-sky-300 font-mono cursor-pointer"
                           >
-                            Copy Cover Letter
+                            {t('Copy Cover Letter')}
                           </button>
                         </div>
                         <p className="text-xs text-slate-300 bg-slate-900 p-3 rounded-xl border border-slate-800 whitespace-pre-line leading-relaxed">
