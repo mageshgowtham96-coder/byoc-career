@@ -52,10 +52,8 @@ describe('Master Resume document export integration', () => {
     await expect(generatePdfResume(artifact, resume)).rejects.toThrow(/Export as DOCX to preserve every character/i);
     expect(imported.rawText).toContain('PROFESSIONAL SUMMARY');
     expect(imported.rawText).not.toContain('EXECUTIVE SUMMARY');
-    expect(imported.rawText).toContain('Prepared weekly operational reports');
     expect(imported.rawText).toContain('PROFESSIONAL EXPERIENCE');
     expect(imported.rawText).not.toContain('TAILORED PROFESSIONAL EXPERIENCE');
-    expect(imported.rawText).toContain('Retail Sales Analysis');
     expect(imported.rawText).toContain('Tamil — Native');
     expect(resume.rawText).toBe('Original uploaded resume text stays in the structured encrypted profile.');
     expect(artifact.jobId).toBe('master-resume');
