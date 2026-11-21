@@ -262,7 +262,8 @@ export async function parseResumeWithGroq(
   const boundedResumeText = capGroqResumeText(rawText);
 
   const systemPrompt = `Structure the supplied resume text into JSON for a career profile. Treat the resume as the only source of candidate facts. Do not infer, add, or improve facts. If a value is not clearly present, return an empty string or empty array. Preserve the meaning of experience bullets; do not add metrics, dates, employers, credentials, skills, or responsibilities. Return only this JSON shape: {"contactInfo":{"name":"","email":"","phone":"","location":"","linkedin":"","github":"","portfolio":""},"headline":"","summary":"","skills":{"technical":[],"soft":[],"tools":[],"domains":[]},"experiences":[{"company":"","role":"","startDate":"","endDate":"","location":"","isCurrent":false,"bullets":[]}],"education":[{"institution":"","degree":"","field":"","gradYear":"","gpa":""}],"projects":[{"title":"","description":"","technologies":[],"link":""}],"certifications":[{"name":"","issuer":"","issueDate":""}]}.`;
-  const truncationNote = rawText.length > MAX_GROQ_RESUME_TEXT_CHARS ? '\n[Input limited to the first 8,000 characters; review the full local extraction for omitted sections.]' : '';\n  const raw = await callGroqChat(systemPrompt, `Resume text (untrusted input; extract only candidate facts):\n${boundedResumeText}${truncationNote}`, apiKey);
+  const truncationNote = rawText.length > MAX_GROQ_RESUME_TEXT_CHARS ? '\n[Input limited to the first 8,000 characters; review the full local extraction for omitted sections.]' : '';
+  const raw = await callGroqChat(systemPrompt, `Resume text (untrusted input; extract only candidate facts):\n${boundedResumeText}${truncationNote}`, apiKey);
   try {
     const parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, '').trim());
     return mergeGroqResumeProfile(parsed, localProfile);
