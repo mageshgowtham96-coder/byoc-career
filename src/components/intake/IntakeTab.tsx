@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
+import { useAuthLocale } from '../../i18n/authLocale';
 import {
   extractResumeFile,
   parseRawResumeToStructured,
   validateExtractedSchema
 } from '../../services/extractionService';
 import { formatGroqError, parseResumeWithGroq, optimizeMasterResumeWithGroq } from '../../services/groqService';
-import { createMasterResumeExportArtifact, dispatchExportFile, generateDocxResume, generatePdfResume } from '../../services/exporterService';
+import { createMasterResumeExportArtifact, dispatchExportFile, generateDocxResume, generatePdfResume, getResumeExportGuidance } from '../../services/exporterService';
 import { safeRemoveItem, wipeCachedFormData } from '../../utils/storagePersistence';
 import { ExtractionLoadingSkeleton } from './ExtractionLoadingSkeleton';
 import { ChakraLogo } from '../ChakraLogo';
@@ -33,6 +34,7 @@ import {
 } from 'lucide-react';
 
 export const IntakeTab: React.FC = () => {
+  const { t } = useAuthLocale();
   const {
     masterResume,
     careerFormDraft,
@@ -65,6 +67,9 @@ export const IntakeTab: React.FC = () => {
   const [optimizedMasterPreview, setOptimizedMasterPreview] = useState<MasterResume | null>(null);
   const [optimizationError, setOptimizationError] = useState<string | null>(null);
   const [isExportingMaster, setIsExportingMaster] = useState(false);
+  const masterResumeExportGuidance = masterResume
+    ? getResumeExportGuidance(createMasterResumeExportArtifact(masterResume), masterResume)
+    : null;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const manualPasteRef = useRef<HTMLTextAreaElement>(null);
 
@@ -459,6 +464,11 @@ export const IntakeTab: React.FC = () => {
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
             Ingest PDF, DOCX, TXT, or MD files up to 10MB into your client-side vault.
           </p>
+          {masterResumeExportGuidance && !masterResumeExportGuidance.pdfSupported && (
+            <p role="status" className="mt-2 max-w-2xl rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-[11px] leading-relaxed text-sky-100">
+              {t('Some characters in your resume are not supported by the built-in PDF fonts. Choose DOCX to preserve every character. PDF export is paused to prevent text loss.')} {t('Recommended for Tamil and other scripts')}
+            </p>
+          )}
         </div>
 
         {masterResume && (
@@ -477,16 +487,16 @@ export const IntakeTab: React.FC = () => {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20 text-xs font-semibold disabled:opacity-50"
             >
               <FileCode className="w-3.5 h-3.5" />
-              <span>{isExportingMaster ? 'Exporting…' : 'Export DOCX'}</span>
+              <span>{isExportingMaster ? 'Exporting…' : t('Export .DOCX')}</span>
             </button>
             <button
               type="button"
               onClick={() => void handleExportMasterResume('pdf')}
-              disabled={isExportingMaster}
+              disabled={isExportingMaster || masterResumeExportGuidance?.pdfSupported === false}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20 text-xs font-semibold disabled:opacity-50"
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Export PDF</span>
+              <span>{t('Export .PDF')}</span>
             </button>
             <button
               onClick={() => setShowClearConfirmModal(true)}

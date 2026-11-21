@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ExportedMaterialRecord, TailoredArtifact, MasterResume } from '../types';
-import { dispatchExportFile, generatePlainTextResume, generatePdfResume, generateDocxResume, createMasterResumeExportArtifact } from './exporterService';
+import { dispatchExportFile, generatePlainTextResume, generatePdfResume, generateDocxResume, createMasterResumeExportArtifact, getResumeExportGuidance } from './exporterService';
 
 // Mock the docx and pdf-lib modules
 vi.mock('docx', () => ({
@@ -324,6 +324,14 @@ describe('Export Service', () => {
       resume.contactInfo.name = 'தமிழ் வேட்பாளர்';
       await expect(generatePdfResume(artifact, resume))
         .rejects.toThrow(/cannot safely render.*Unicode|Unicode.*DOCX/i);
+    });
+
+    it('recommends DOCX before export when the visible resume contains Tamil', () => {
+      const artifact = createMockArtifact();
+      const resume = createMockResume();
+      resume.summary = 'தமிழ் மொழியில் வாடிக்கையாளர் சேவையை வழங்கினார்.';
+      expect(getResumeExportGuidance(artifact, resume)).toMatchObject({ pdfSupported: false, recommendedFormat: 'DOCX' });
+      expect(getResumeExportGuidance(artifact, resume).message).toMatch(/Choose DOCX/);
     });
   });
 

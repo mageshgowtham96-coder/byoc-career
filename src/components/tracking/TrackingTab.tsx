@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
+import { useAuthLocale } from '../../i18n/authLocale';
 import { sanitizeExternalHttpUrl } from '../../services/jobSearchService';
 import type { ApplicationRecord, ApplicationStatus } from '../../types';
 import {
@@ -30,6 +31,7 @@ import {
 } from 'lucide-react';
 
 export const TrackingTab: React.FC = () => {
+  const { t } = useAuthLocale();
   const {
     applications,
     unsavedQueue,
@@ -219,10 +221,10 @@ export const TrackingTab: React.FC = () => {
             <KanbanSquare className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-white mb-1">
-            Pipeline Empty
+            {t('Pipeline Empty')}
           </h3>
           <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-            Move jobs from Sourcing or Tailoring by clicking &quot;Mark as Applied&quot; to record your first immutable snapshot.
+            {t('Move jobs from Sourcing or Tailoring by clicking "Mark as Applied" to record your first immutable snapshot.')}
           </p>
         </div>
       ) : (

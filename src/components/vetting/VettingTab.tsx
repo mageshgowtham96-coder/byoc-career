@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
+import { useAuthLocale } from '../../i18n/authLocale';
 import { vetJobWithGroq, formatGroqError } from '../../services/groqService';
 import { verifyJobPosting } from '../../services/jobVerificationService';
 import {
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 
 export const VettingTab: React.FC = () => {
+  const { t } = useAuthLocale();
   const {
     selectedJobId,
     jobs,
@@ -87,10 +89,10 @@ export const VettingTab: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-sky-400" />
-            <span>Job Description & Career Evidence Review</span>
+            <span>{t('Job Description & Career Evidence Review')}</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Evidence-bounded job description and profile comparison. Employer culture and salary-market competitiveness are not independently verified.
+            {t('Evidence-bounded job description and profile comparison. Employer culture and salary-market competitiveness are not independently verified.')}
           </p>
         </div>
 
@@ -99,17 +101,17 @@ export const VettingTab: React.FC = () => {
             <Search className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-white mb-1.5">
-            No Opportunity Selected
+            {t('No Opportunity Selected')}
           </h3>
           <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-            Select a live opening or paste a target Job Description in Sourcing first to compare stated requirements with your career evidence.
+            {t('Select a live opening or paste a target Job Description in Sourcing first to compare stated requirements with your career evidence.')}
           </p>
           <button
             type="button"
             onClick={() => setActiveTab('sourcing')}
             className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition cursor-pointer flex items-center gap-2 mx-auto"
           >
-            <span>Browse Opportunities in Sourcing</span>
+            <span>{t('Browse Opportunities in Sourcing')}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
@@ -127,7 +129,7 @@ export const VettingTab: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-sky-400" />
-            <span>Job Description & Career Evidence Review</span>
+            <span>{t('Job Description & Career Evidence Review')}</span>
           </h2>
           <div className="flex items-center gap-2 mt-1 flex-wrap text-xs">
             <span className="font-bold text-white">{selectedJob.title}</span>

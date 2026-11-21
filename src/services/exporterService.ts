@@ -264,18 +264,44 @@ export function generatePlainTextResume(artifact: TailoredArtifact, resume: Mast
   return lines.join('\n');
 }
 
-function toPdfSafeText(text: string): string {
-  const normalized = (text || '')
-    .replace(/[\r\n]+/g, ' ')
-    .replace(/\u2192/g, '->');
-  const supportedExtendedCharacters = new Set([
-    0x2013, 0x2014, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022
-  ]);
-  const unsupported = Array.from(normalized).find((character) => {
+const PDF_SUPPORTED_EXTENDED_CHARACTERS = new Set([
+  0x2013, 0x2014, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022
+]);
+
+function normalizePdfText(text: string): string {
+  return (text || '').replace(/[\r\n]+/g, ' ').replace(/\u2192/g, '->');
+}
+
+function hasUnsupportedPdfCharacters(text: string): boolean {
+  return Array.from(normalizePdfText(text)).some((character) => {
     const codePoint = character.codePointAt(0) || 0;
-    return codePoint > 0xff && !supportedExtendedCharacters.has(codePoint);
+    return codePoint > 0xff && !PDF_SUPPORTED_EXTENDED_CHARACTERS.has(codePoint);
   });
-  if (unsupported) {
+}
+
+export interface ResumeExportGuidance {
+  pdfSupported: boolean;
+  recommendedFormat: 'PDF' | 'DOCX';
+  message: string | null;
+}
+
+/** Check the exact text that the export pipeline will render before showing PDF as an option. */
+export function getResumeExportGuidance(artifact: TailoredArtifact, resume: MasterResume): ResumeExportGuidance {
+  if (!artifact.reviewConfirmed) return { pdfSupported: true, recommendedFormat: 'PDF', message: null };
+  const exportText = generatePlainTextResume(artifact, resume);
+  if (hasUnsupportedPdfCharacters(exportText)) {
+    return {
+      pdfSupported: false,
+      recommendedFormat: 'DOCX',
+      message: 'Some characters in your resume are not supported by the built-in PDF fonts. Choose DOCX to preserve every character. PDF export is paused to prevent text loss.'
+    };
+  }
+  return { pdfSupported: true, recommendedFormat: 'PDF', message: null };
+}
+
+function toPdfSafeText(text: string): string {
+  const normalized = normalizePdfText(text);
+  if (hasUnsupportedPdfCharacters(normalized)) {
     throw new Error(
       'PDF export cannot safely render this Unicode script with the built-in standard fonts. Export as DOCX to preserve every character; the original and approved resume data remain unchanged.'
     );

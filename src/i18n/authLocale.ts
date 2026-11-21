@@ -102,8 +102,55 @@ const UI_COPY: Partial<Record<AuthLocale, Record<string, string>>> = {
     'Open Workspace Settings': 'பணியிட அமைப்புகளைத் திற',
     'Export .DOCX': '.DOCX ஏற்றுமதி செய்', 'Export .PDF': '.PDF ஏற்றுமதி செய்',
     'Export .TXT': '.TXT ஏற்றுமதி செய்',
-    'Your resume includes Tamil or other non-Latin characters. Choose DOCX to preserve the text. PDF export is paused because its built-in fonts cannot safely display every script.': 'உங்கள் சுயவிவரத்தில் தமிழ் அல்லது பிற லத்தீன் அல்லாத எழுத்துகள் உள்ளன. உரையை முழுமையாகப் பாதுகாக்க DOCX-ஐத் தேர்ந்தெடுக்கவும். எல்லா எழுத்துமுறைகளையும் PDF எழுத்துருக்கள் பாதுகாப்பாகக் காட்ட முடியாததால் PDF ஏற்றுமதி நிறுத்தப்பட்டுள்ளது.',
-    'Recommended for Tamil and other scripts': 'தமிழ் மற்றும் பிற எழுத்துமுறைகளுக்கு பரிந்துரைக்கப்படுகிறது'
+    'Some characters in your resume are not supported by the built-in PDF fonts. Choose DOCX to preserve every character. PDF export is paused to prevent text loss.': 'உங்கள் சுயவிவரத்தில் உள்ள சில எழுத்துகளை PDF-இன் உள்ளமைந்த எழுத்துருக்கள் காட்ட முடியாது. ஒவ்வொரு எழுத்தையும் பாதுகாக்க DOCX-ஐத் தேர்ந்தெடுக்கவும். உரை இழப்பைத் தவிர்க்க PDF ஏற்றுமதி நிறுத்தப்பட்டுள்ளது.',
+    'Recommended for Tamil and other scripts': 'தமிழ் மற்றும் பிற எழுத்துமுறைகளுக்கு பரிந்துரைக்கப்படுகிறது',
+    'Export DOCX': 'DOCX ஏற்றுமதி செய்', 'Export PDF': 'PDF ஏற்றுமதி செய்',
+    'Local Encrypted Vault': 'உள்ளூர் மறைகுறியாக்கப்பட்ட பெட்டகம்',
+    'Groq BYOK Ready': 'Groq BYOK தயார்', 'Groq BYOK Key Pending': 'Groq BYOK திறவுகோல் நிலுவையில் உள்ளது',
+    'Session Guard Configured': 'அமர்வு பாதுகாப்பு அமைக்கப்பட்டுள்ளது', 'Welcome back': 'மீண்டும் வரவேற்கிறோம்',
+    'Your workspace is decrypted in volatile memory. Ingest your Master Resume, source openings, audit fit gaps honestly, and generate grounded tailored kits.': 'உங்கள் பணியிடம் இந்த அமர்வில் திறக்கப்பட்டுள்ளது. முதன்மை சுயவிவரத்தைச் சேர்த்து, வேலை வாய்ப்புகளைத் தேடி, பொருத்தத்தைச் சரிபார்த்து, உண்மையான தகவல்களின் அடிப்படையில் விண்ணப்ப ஆவணங்களை உருவாக்குங்கள்.',
+    'Ingest Master Resume': 'முதன்மை சுயவிவரத்தைச் சேர்க்கவும்', 'Source Target Role': 'இலக்கு பணியைத் தேடவும்',
+    'Build Tailored Kit': 'தனிப்பயனாக்கப்பட்ட தொகுப்பை உருவாக்கவும்', 'Review Pipeline': 'விண்ணப்பப் பாதையைப் பரிசீலிக்கவும்',
+    'Open Prep-Zone': 'தயாரிப்பு பகுதியைத் திற', 'Review Queue': 'வரிசையைப் பரிசீலிக்கவும்',
+    'View Pipeline': 'விண்ணப்பப் பாதையைப் பார்க்கவும்', 'View Roles': 'பணிகளைப் பார்க்கவும்',
+    'Career Workflow Readiness': 'தொழில் பயணத் தயார்நிலை',
+    'Select any stage below to review or update your active workspace.': 'உங்கள் பணியிடத்தைப் பார்க்க அல்லது புதுப்பிக்க கீழே உள்ள எந்த நிலையையும் தேர்ந்தெடுக்கவும்.',
+    'Syncing...': 'ஒத்திசைக்கப்படுகிறது...', 'Live Job Sync': 'நேரடி வேலை ஒத்திசைவு',
+    'Master Resume Intake': 'முதன்மை சுயவிவரச் சேர்ப்பு',
+    'Upload PDF/DOCX or paste resume text': 'PDF/DOCX பதிவேற்றவும் அல்லது சுயவிவர உரையை ஒட்டவும்',
+    'Target Job Sourcing': 'இலக்கு வேலையைத் தேடுதல்', 'Select or paste a target job': 'இலக்கு வேலையைத் தேர்ந்தெடுக்கவும் அல்லது அதன் விவரத்தை ஒட்டவும்',
+    'Tailored Kit & Variants': 'தனிப்பயனாக்கப்பட்ட விண்ணப்பத் தொகுப்பு',
+    'Tailored resume, 3 variants & letter ready': 'தனிப்பயனாக்கப்பட்ட சுயவிவரம், 3 வடிவங்கள் மற்றும் கடிதம் தயார்',
+    'Synthesize kit for target position': 'இலக்கு வேலைக்கான விண்ணப்பத் தொகுப்பை உருவாக்கவும்',
+    'Tracked Apps': 'கண்காணிக்கப்படும் விண்ணப்பங்கள்', 'Encrypted Pipeline': 'மறைகுறியாக்கப்பட்ட விண்ணப்பப் பாதை',
+    'Live Stages': 'நடப்பு நிலைகள்', 'Interviews & Screens': 'நேர்காணல்கள் மற்றும் ஆரம்பத் தேர்வுகள்',
+    'Skills in Master Resume': 'முதன்மை சுயவிவரத் திறன்கள்', 'From Master Resume': 'முதன்மை சுயவிவரத்திலிருந்து',
+    'Target Match': 'இலக்கு வேலைப் பொருத்தம்', 'Insufficient profile data': 'சுயவிவரத் தகவல் போதவில்லை',
+    'No Target': 'இலக்கு தேர்ந்தெடுக்கப்படவில்லை', 'Select a target role': 'இலக்கு பணியைத் தேர்ந்தெடுக்கவும்',
+    'Add Master Resume': 'முதன்மை சுயவிவரத்தைச் சேர்க்கவும்', 'No job skill criteria specified': 'வேலைக்கான திறன் நிபந்தனைகள் குறிப்பிடப்படவில்லை',
+    'Profile Evidence Index': 'சுயவிவர ஆதாரக் குறியீடு',
+    'Opportunity Sourcing & Role Upgrade Engine': 'வேலை வாய்ப்புகள் மற்றும் மேம்பட்ட பணிகளைத் தேடுதல்',
+    'Discover roles with autonomous tier upgrade highlighting and raw description caching.': 'புதிய வேலை வாய்ப்புகளையும் மேம்பட்ட பணிகளையும் தேடுங்கள்.',
+    'Add Custom Job Description': 'வேலை விவரத்தைச் சேர்க்கவும்',
+    'Fit scores are unavailable until your master resume and job skill criteria exist.': 'உங்கள் முதன்மை சுயவிவரமும் வேலைக்குத் தேவையான திறன்களும் சேர்க்கப்பட்ட பிறகே பொருத்த மதிப்பெண் கிடைக்கும்.',
+    'Upload your resume in Intake (and ensure a posting lists required skills) to compute verified keyword matching and ATS gap metrics—never generic or invented scores.': 'உங்கள் சுயவிவரத்தைச் சேர்த்து, வேலை அறிவிப்பில் குறிப்பிடப்பட்டுள்ள திறன்களைச் சரிபார்க்கவும். BYOC உண்மையான தகவல்களை மட்டுமே ஒப்பிடும்; மதிப்பெண்களை உருவாக்காது.',
+    'Search any role, skill or keyword...': 'எந்தப் பணியையும், திறனையும் அல்லது சொல்லையும் தேடுங்கள்...',
+    'Suggested roles · custom searches also supported': 'பரிந்துரைக்கப்பட்ட பணிகள் · உங்கள் சொந்த தேடல்களும் இயங்கும்',
+    'Search Job Listings': 'வேலை அறிவிப்புகளைத் தேடுங்கள்', 'Checking public job listings...': 'பொது வேலை அறிவிப்புகளைச் சரிபார்க்கிறது...',
+    'Job search needs attention': 'வேலைத் தேடலில் கவனம் தேவை', 'No matching openings found': 'பொருந்தும் வேலை வாய்ப்புகள் கிடைக்கவில்லை',
+    'No job listings added yet': 'வேலை அறிவிப்புகள் இன்னும் சேர்க்கப்படவில்லை',
+    'No roles matched your current search and location filters. Try adjusting your keywords or search area.': 'தற்போதைய தேடல் சொற்கள் மற்றும் இட வடிகட்டிகளுக்கு பொருந்தும் பணிகள் இல்லை. வேறு சொற்கள் அல்லது இடத்தை முயற்சிக்கவும்.',
+    'BYOC does not invent job postings. Paste a job description from an employer portal or search public listings to get started.': 'BYOC வேலை அறிவிப்புகளை உருவாக்காது. நிறுவன இணையதளத்திலிருந்து வேலை விவரத்தை ஒட்டவும் அல்லது பொது அறிவிப்புகளைத் தேடவும்.',
+    'Paste Target Job Description': 'இலக்கு வேலை விவரத்தை ஒட்டவும்',
+    'No matching opportunities found for your criteria.': 'உங்கள் நிபந்தனைகளுக்கு பொருந்தும் வேலை வாய்ப்புகள் இல்லை.',
+    'Job Description & Career Evidence Review': 'வேலை விவரம் மற்றும் தொழில் ஆதார மதிப்பாய்வு',
+    'Evidence-bounded job description and profile comparison. Employer culture and salary-market competitiveness are not independently verified.': 'வேலை அறிவிப்பில் உள்ள தேவைகளையும் உங்கள் அனுபவத்தையும் ஒப்பிடுகிறது. நிறுவன கலாசாரம் அல்லது சம்பள நிலை தனியாகச் சரிபார்க்கப்படாது.',
+    'No Opportunity Selected': 'வேலை வாய்ப்பு தேர்ந்தெடுக்கப்படவில்லை',
+    'Select a live opening or paste a target Job Description in Sourcing first to compare stated requirements with your career evidence.': 'தேவைகளை உங்கள் அனுபவத்துடன் ஒப்பிட, வேலை தேடல் பகுதியில் ஒரு அறிவிப்பைத் தேர்ந்தெடுக்கவும் அல்லது அதன் விவரத்தை ஒட்டவும்.',
+    'Browse Opportunities in Sourcing': 'வேலை தேடல் பகுதிக்குச் செல்லவும்',
+    'Pipeline Empty': 'விண்ணப்பப் பட்டியல் காலியாக உள்ளது',
+    'Move jobs from Sourcing or Tailoring by clicking "Mark as Applied" to record your first immutable snapshot.': 'வேலை தேடல் அல்லது விண்ணப்பத் தயாரிப்பு பகுதியில் "விண்ணப்பித்தேன்" என்பதைத் தேர்ந்தெடுத்து உங்கள் முதல் விண்ணப்பத்தைப் பதிவு செய்யுங்கள்.',
+    'Master Resume Intake & Structural Builder': 'முதன்மை சுயவிவரம் மற்றும் உருவாக்கி'
   },
   bn: {
     'Dashboard': 'ড্যাশবোর্ড', 'Home': 'হোম', 'Master Intake': 'মূল প্রোফাইল',
@@ -223,11 +270,13 @@ export function translateUiText(locale: AuthLocale, source: string): string {
 
 export interface AuthLocaleContextValue {
   locale: AuthLocale;
+  setLocale: (locale: AuthLocale) => void;
   t: (source: string) => string;
 }
 
 export const AuthLocaleContext = createContext<AuthLocaleContextValue>({
   locale: 'en',
+  setLocale: () => undefined,
   t: (source) => source
 });
 

@@ -36,6 +36,15 @@ describe('getRoleSuggestions', () => {
     expect(suggestions).toContain('Customer Support Associate');
   });
 
+  it('preserves Tamil letters from resume evidence and cached job titles', () => {
+    const resume = {
+      headline: 'தமிழ் வாடிக்கையாளர் ஆதரவு நிபுணர்', currentRole: '', roleFamily: '',
+      skills: { technical: [], soft: [], tools: [], domains: [] }, experiences: [], projects: [], certifications: []
+    } as unknown as MasterResume;
+    expect(getRoleSuggestions('தமிழ்', resume)).toContain('தமிழ் வாடிக்கையாளர் ஆதரவு நிபுணர்');
+    expect(getRoleSuggestions('தமிழ்', null, [cachedJob('தமிழ் வாடிக்கையாளர் ஆதரவு')])).toContain('தமிழ் வாடிக்கையாளர் ஆதரவு');
+  });
+
   it('tolerates a one-character typo and only treats the final token as partial', () => {
     expect(getRoleSuggestions('Suport').some((item) => /support/i.test(item))).toBe(true);
     expect(getRoleSuggestions('Data Analysit').some((item) => /data analyst/i.test(item))).toBe(true);

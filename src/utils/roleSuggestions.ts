@@ -23,7 +23,7 @@ const COMMON_ROLE_PATTERNS = [
 ] as const;
 
 function normalize(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9+#]+/g, ' ').trim();
+  return value.normalize('NFC').toLowerCase().replace(/[^\p{L}\p{M}\p{N}+#]+/gu, ' ').trim();
 }
 
 function editDistanceAtMostOne(a: string, b: string): boolean {

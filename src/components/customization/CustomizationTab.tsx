@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { openExternalPortalUrl, shouldUseNativeExternalBrowser } from '../../services/externalBrowser';
 import { useWizardStore } from '../../store/useWizardStore';
+import { useAuthLocale } from '../../i18n/authLocale';
+import { getResumeExportGuidance } from '../../services/exporterService';
 import { tailorResumeWithGroq, draftQuestionnaireAnswer, formatGroqError } from '../../services/groqService';
 import { sanitizeExternalHttpUrl } from '../../services/jobSearchService';
 import {
@@ -38,6 +40,7 @@ import {
 } from 'lucide-react';
 
 export const CustomizationTab: React.FC = () => {
+  const { t } = useAuthLocale();
   const {
     masterResume,
     selectedJobId,
@@ -139,6 +142,9 @@ export const CustomizationTab: React.FC = () => {
   // Action Gating Checks
   const hasResume = hasStructuredCareerEvidence(masterResume);
   const hasJob = Boolean(selectedJob);
+  const exportGuidance = currentArtifact && masterResume && currentArtifact.reviewConfirmed
+    ? getResumeExportGuidance(currentArtifact, masterResume)
+    : null;
 
   const handleGenerateTailoring = async () => {
     if (!hasResume) {
@@ -919,17 +925,22 @@ export const CustomizationTab: React.FC = () => {
                 <p className="text-[11px] text-slate-400">
                   Generates local .PDF, .DOCX, or .TXT files (with mobile Web Share support) for portal upload.
                 </p>
+                {exportGuidance && !exportGuidance.pdfSupported && (
+                  <p role="status" className="mt-2 max-w-xl rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-[11px] leading-relaxed text-sky-100">
+                    {t('Some characters in your resume are not supported by the built-in PDF fonts. Choose DOCX to preserve every character. PDF export is paused to prevent text loss.')} {t('Recommended for Tamil and other scripts')}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
                   onClick={() => handleExport('pdf')}
-                  disabled={isExporting !== null || !hasResume || !currentArtifact.reviewConfirmed}
+                  disabled={isExporting !== null || !hasResume || !currentArtifact.reviewConfirmed || exportGuidance?.pdfSupported === false}
                   className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5 text-rose-400" />
-                  <span>{isExporting === 'pdf' ? 'Building...' : 'Export .PDF'}</span>
+                  <span>{isExporting === 'pdf' ? 'Building...' : t('Export .PDF')}</span>
                 </button>
 
                 <button
@@ -939,7 +950,7 @@ export const CustomizationTab: React.FC = () => {
                   className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5 text-blue-400" />
-                  <span>{isExporting === 'docx' ? 'Building...' : 'Export .DOCX'}</span>
+                  <span>{isExporting === 'docx' ? 'Building...' : t('Export .DOCX')}</span>
                 </button>
 
                 <button
@@ -948,7 +959,7 @@ export const CustomizationTab: React.FC = () => {
                   disabled={isExporting !== null || !currentArtifact.reviewConfirmed}
                   className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-medium transition cursor-pointer"
                 >
-                  .TXT
+                  {t('Export .TXT')}
                 </button>
 
                 {currentArtifact.coverLetter && (

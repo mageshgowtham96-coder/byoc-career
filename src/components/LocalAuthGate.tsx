@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { AUTH_COPY, AUTH_LANGUAGES, type AuthLocale } from '../i18n/authLocale';
+import { AUTH_COPY, AUTH_LANGUAGES, type AuthLocale, useAuthLocale } from '../i18n/authLocale';
 import {
   useWizardStore,
   DEFAULT_CANDIDATE_PREFERENCES,
@@ -84,9 +84,8 @@ import {
 } from '../services/emailSyncService';
 
 export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [locale, setLocale] = useState<AuthLocale>(() => { try { const saved = window.localStorage.getItem('byoc_ui_language'); return saved && saved in AUTH_COPY ? saved as AuthLocale : 'en'; } catch { return 'en'; } });
+  const { locale, setLocale } = useAuthLocale();
   const t = (key: keyof typeof AUTH_COPY.en) => AUTH_COPY[locale][key] || AUTH_COPY.en[key];
-  useEffect(() => { try { window.localStorage.setItem('byoc_ui_language', locale); } catch { /* optional preference */ } }, [locale]);
   const {
     user,
     isAuthenticated,

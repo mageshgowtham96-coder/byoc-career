@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MasterResume } from '../types';
-import { createMasterResumeExportArtifact, generateDocxResume, generatePdfResume } from './exporterService';
+import { createMasterResumeExportArtifact, generateDocxResume, generatePdfResume, getResumeExportGuidance } from './exporterService';
 import { extractResumeFile } from './extractionService';
 
 const createApprovedMasterResume = (name = 'Asha Rao'): MasterResume => ({
@@ -23,7 +23,11 @@ const createApprovedMasterResume = (name = 'Asha Rao'): MasterResume => ({
 describe('Master Resume document export integration', () => {
   it('exports a real DOCX and re-imports its Unicode and career content without using raw-text storage', async () => {
     const resume = createApprovedMasterResume('ஆஷா ராவ்');
+    resume.summary = 'தமிழ் மொழியில் வாடிக்கையாளர் சேவை மற்றும் செயல்பாட்டு அறிக்கைகள்.';
+    resume.experiences[0].bullets = ['தமிழில் வாடிக்கையாளர் கேள்விகளுக்கு பதிலளித்து பதிவுகளை பராமரித்தார்.'];
+    resume.projects[0].title = 'தமிழ் விற்பனை பகுப்பாய்வு';
     const artifact = createMasterResumeExportArtifact(resume);
+    expect(getResumeExportGuidance(artifact, resume)).toMatchObject({ pdfSupported: false, recommendedFormat: 'DOCX' });
     const docx = await generateDocxResume(artifact, resume);
     expect(docx.size).toBeGreaterThan(0);
 
@@ -42,6 +46,9 @@ describe('Master Resume document export integration', () => {
     const imported = await extractResumeFile(file);
     expect(imported.success, imported.error || 'DOCX re-import failed without an error message').toBe(true);
     expect(imported.rawText).toContain('ஆஷா ராவ்');
+    expect(imported.rawText).toContain('தமிழ் மொழியில் வாடிக்கையாளர் சேவை');
+    expect(imported.rawText).toContain('தமிழில் வாடிக்கையாளர் கேள்விகளுக்கு');
+    expect(imported.rawText).toContain('தமிழ் விற்பனை பகுப்பாய்வு');
     expect(imported.rawText).toContain('Commerce graduate with project experience');
     expect(imported.rawText).toContain('PROFESSIONAL SUMMARY');
     expect(imported.rawText).not.toContain('EXECUTIVE SUMMARY');
