@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { useWizardStore } from './useWizardStore';
+import { buildVaultDataFromState, useWizardStore } from './useWizardStore';
 import type { JobPosting, JobVerificationEvidence } from '../types';
 
 const job: JobPosting = {
@@ -174,4 +174,28 @@ describe('interview prep question updates', () => {
     expect(saved.variants[0].coverLetterEvidence).toEqual([]);
   });
 
+});
+
+
+describe('Master Resume rollback snapshot', () => {
+  it('keeps the replaced resume in encrypted vault data and allows restoring it', () => {
+    const previous = {
+      rawText: 'Original career evidence',
+      contactInfo: { name: 'Candidate', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
+      headline: 'Original role', summary: 'Original summary',
+      skills: { technical: [], soft: [], tools: [], domains: [] },
+      experiences: [], education: [], projects: [], certifications: [], additionalEvidence: [],
+      stats: { wordCount: 3, pageCount: 1, charCount: 24, lastParsedDate: '2026-11-21T00:00:00.000Z', sourceFileName: 'original.docx' }
+    } as any;
+    const imported = { ...previous, rawText: 'Imported career evidence', headline: 'Imported role' };
+    useWizardStore.setState({ masterResume: previous, previousMasterResume: null, stagedParsedResume: imported, tailoredArtifacts: {} });
+    useWizardStore.getState().confirmStagedResume();
+    expect(useWizardStore.getState().masterResume).toEqual(imported);
+    expect(useWizardStore.getState().previousMasterResume).toEqual(previous);
+    expect(buildVaultDataFromState(useWizardStore.getState()).previousMasterResume).toEqual(previous);
+    useWizardStore.getState().restorePreviousMasterResume();
+    expect(useWizardStore.getState().masterResume).toEqual(previous);
+    expect(useWizardStore.getState().previousMasterResume).toEqual(imported);
+    useWizardStore.setState({ masterResume: null, previousMasterResume: null, stagedParsedResume: null, tailoredArtifacts: {} });
+  });
 });
