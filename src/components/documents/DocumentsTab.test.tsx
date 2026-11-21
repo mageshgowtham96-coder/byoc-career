@@ -1,13 +1,16 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Capacitor } from '@capacitor/core';
 import { DocumentsTab } from './DocumentsTab';
 import { extractResumeFile } from '../../services/extractionService';
 import { inspectPdf } from '../../services/pdfWorkspaceService';
 
-const { mockAskPdfQuestion, mockGroqApiKey } = vi.hoisted(() => ({
+const { mockAskPdfQuestion, mockGroqApiKey, mockSaveBlobToDownloads, mockOpenSavedFileExternally } = vi.hoisted(() => ({
   mockAskPdfQuestion: vi.fn(),
-  mockGroqApiKey: { value: 'test-groq-key' }
+  mockGroqApiKey: { value: 'test-groq-key' },
+  mockSaveBlobToDownloads: vi.fn(),
+  mockOpenSavedFileExternally: vi.fn()
 }));
 
 vi.mock('../../store/useWizardStore', () => ({
@@ -27,6 +30,10 @@ vi.mock('../../services/pdfWorkspaceService', () => ({
 vi.mock('../../services/pdfQuestionService', () => ({
   askPdfQuestion: mockAskPdfQuestion
 }));
+vi.mock('../../services/exporterService', () => ({
+  saveBlobToDownloads: mockSaveBlobToDownloads,
+  openSavedFileExternally: mockOpenSavedFileExternally
+}));
 
 describe('DocumentsTab privacy and explicit AI interaction', () => {
   let container: HTMLDivElement;
@@ -34,7 +41,9 @@ describe('DocumentsTab privacy and explicit AI interaction', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
     mockGroqApiKey.value = 'test-groq-key';
+    mockSaveBlobToDownloads.mockResolvedValue({ uri: 'content://downloads/byoc/resume.pdf', filename: 'resume.pdf' });
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:byoc-pdf') });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
     vi.mocked(extractResumeFile).mockResolvedValue({
@@ -92,6 +101,28 @@ describe('DocumentsTab privacy and explicit AI interaction', () => {
     expect(container.textContent).toContain('Page tools');
     expect(container.textContent).toContain('Configure Groq in Settings');
     expect(mockAskPdfQuestion).not.toHaveBeenCalled();
+  });
+
+  it('shows a readable text preview and native open/save actions on Android', async () => {
+    vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true);
+    vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('android');
+    await act(async () => { root.render(<DocumentsTab />); });
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['%PDF-1.7'], 'resume.pdf', { type: 'application/pdf' });
+    Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] });
+    await act(async () => { fileInput.dispatchEvent(new Event('change', { bubbles: true })); });
+
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(container.textContent).toContain('Candidate skills: Excel and SQL.');
+    const saveButton = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('Save to Downloads/BYOC'));
+    const openButton = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('Open Separately'));
+    expect(saveButton).toBeTruthy();
+    expect(openButton).toBeTruthy();
+
+    await act(async () => { saveButton?.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(mockSaveBlobToDownloads).toHaveBeenCalledOnce();
+    await act(async () => { openButton?.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    expect(mockOpenSavedFileExternally).toHaveBeenCalledWith('content://downloads/byoc/resume.pdf', 'application/pdf');
   });
 
   it('removes the selected document and revokes its temporary preview URL', async () => {
