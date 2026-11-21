@@ -88,23 +88,39 @@ export const CustomizationTab: React.FC = () => {
   const [draftListingUrl, setDraftListingUrl] = useState('');
   const [humanReviewedConfirmed, setHumanReviewedConfirmed] = useState(false);
 
-  const handleCopyChip = (key: string, value: string) => {
+  const writeClipboardText = async (value: string): Promise<boolean> => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      try { await navigator.clipboard.writeText(value); return true; }
+      catch { /* Continue to the local document-copy fallback. */ }
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    let copied = false;
+    try { copied = document.execCommand('copy'); } catch { copied = false; }
+    finally { textarea.remove(); }
+    return copied;
+  };
+
+  const handleCopyChip = async (key: string, value: string) => {
     if (!value.trim()) return;
     if (currentArtifact?.variants.length && !currentArtifact.reviewConfirmed) {
-      addToast({
-        type: 'warning',
-        title: 'Factual Review Required',
-        message: 'Review the AI-generated wording and confirm its claims against your Master Resume and the supplied job description before copying.'
-      });
+      addToast({ type: 'warning', title: 'Factual Review Required', message: 'Review the AI-generated wording and confirm its claims against your Master Resume and the supplied job description before copying.' });
       return;
     }
-    navigator.clipboard.writeText(value);
+    const copied = await writeClipboardText(value);
+    if (!copied) {
+      setCopiedField(null);
+      addToast({ type: 'error', title: 'Copy Failed', message: 'Clipboard access was unavailable. Please select and copy the text manually.' });
+      return;
+    }
     setCopiedField(key);
     setTimeout(() => setCopiedField(null), 2000);
-    addToast({
-      type: 'success',
-      message: `Copied: ${value.length > 35 ? value.substring(0, 35) + '...' : value}`
-    });
+    addToast({ type: 'success', message: `Copied: ${value.length > 35 ? value.substring(0, 35) + '...' : value}` });
   };
 
   const handleCreateOfflineBaselineKit = () => {
