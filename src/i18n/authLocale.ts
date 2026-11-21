@@ -177,7 +177,10 @@ const UI_COPY: Partial<Record<AuthLocale, Record<string, string>>> = {
     'Copy Recovery Phrase': 'மீட்பு சொற்றொடரை நகலெடுக்கவும்',
     'Recovery phrase copied to clipboard.': 'மீட்பு சொற்றொடர் நகலெடுக்கப்பட்டது.',
     'Clipboard access failed. Select and copy the recovery phrase manually.': 'நகலெடுக்க முடியவில்லை. மீட்பு சொற்றொடரைத் தேர்ந்தெடுத்து கைமுறையாக நகலெடுக்கவும்.',
-    'I Have Saved My Recovery Phrase → Enter Workspace': 'மீட்பு சொற்றொடரைச் சேமித்துவிட்டேன் → பணியிடத்திற்குச் செல்லவும்'
+    'I Have Saved My Recovery Phrase → Enter Workspace': 'மீட்பு சொற்றொடரைச் சேமித்துவிட்டேன் → பணியிடத்திற்குச் செல்லவும்',
+    'AI tailoring needs an optional Groq key. Choose the offline baseline kit to continue without one.': 'AI மூலம் தனிப்பயனாக்க விரும்பினால் விருப்பமாக Groq திறவுகோலைச் சேர்க்கவும். அது இல்லாமலும் தொடர, இணையமற்ற அடிப்படைத் தொகுப்பைத் தேர்ந்தெடுக்கவும்.',
+    'Prepare Offline Baseline Kit': 'இணையமற்ற அடிப்படைத் தொகுப்பைத் தயாரிக்கவும்',
+    'Prepare the offline baseline kit (AI needs an optional Groq key)': 'இணையமற்ற அடிப்படைத் தொகுப்பைத் தயாரிக்கவும் (AI-க்கு விருப்பமான Groq திறவுகோல் தேவை)'
   },
   bn: {
     'Dashboard': 'ড্যাশবোর্ড', 'Home': 'হোম', 'Master Intake': 'মূল প্রোফাইল',
