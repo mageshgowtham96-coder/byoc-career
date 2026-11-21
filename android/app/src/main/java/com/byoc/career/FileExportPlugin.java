@@ -18,6 +18,28 @@ import java.io.OutputStream;
 @CapacitorPlugin(name = "FileExport")
 public class FileExportPlugin extends Plugin {
     @PluginMethod
+    public void openFile(PluginCall call) {
+        String value = call.getString("uri");
+        String mimeType = call.getString("mimeType", "application/pdf");
+        if (value == null || !value.startsWith("content://")) {
+            call.reject("A saved Downloads document URI is required.");
+            return;
+        }
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(Uri.parse(value), mimeType);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (android.content.ActivityNotFoundException error) {
+            call.reject("No compatible app is installed to open this document.", error);
+        } catch (Exception error) {
+            call.reject("Unable to open the saved document.", error);
+        }
+    }
+
+    @PluginMethod
     public void saveFile(PluginCall call) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             call.reject("Direct Downloads export requires Android 10 or newer.");
