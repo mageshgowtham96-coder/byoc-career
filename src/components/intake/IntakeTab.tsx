@@ -764,7 +764,9 @@ export const IntakeTab: React.FC = () => {
                 value={(stagedParsedResume.additionalEvidence || []).join('\n')}
                 onChange={(event) => {
                   const additionalEvidence = event.target.value.split('\n').map((item) => item.trim()).filter(Boolean);
-                  setStagedParsedResume((current) => current ? { ...current, additionalEvidence } : current);
+                  if (stagedParsedResume) {
+                    setStagedParsedResume({ ...stagedParsedResume, additionalEvidence });
+                  }
                 }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs leading-relaxed" />
             </div>
