@@ -37,6 +37,8 @@ export const IntakeTab: React.FC = () => {
   const { t } = useAuthLocale();
   const {
     masterResume,
+    previousMasterResume,
+    restorePreviousMasterResume,
     careerFormDraft,
     setCareerFormDraft,
     groqApiKey,
@@ -1025,7 +1027,12 @@ export const IntakeTab: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {previousMasterResume && (
+                <button type="button" onClick={restorePreviousMasterResume} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 text-xs font-semibold transition">
+                  Restore Previous Resume
+                </button>
+              )}
               <button
                 onClick={() => setShowGuidedBuilder(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-200 text-xs font-semibold transition"
