@@ -333,6 +333,14 @@ describe('Export Service', () => {
       expect(getResumeExportGuidance(artifact, resume)).toMatchObject({ pdfSupported: false, recommendedFormat: 'DOCX' });
       expect(getResumeExportGuidance(artifact, resume).message).toMatch(/Choose DOCX/);
     });
+
+    it('keeps PDF available for printable Latin text and pauses it for hidden control characters', () => {
+      const artifact = createMockArtifact();
+      const resume = createMockResume();
+      expect(getResumeExportGuidance(artifact, resume)).toMatchObject({ pdfSupported: true, recommendedFormat: 'PDF' });
+      resume.summary = 'Experience\twith hidden formatting';
+      expect(getResumeExportGuidance(artifact, resume)).toMatchObject({ pdfSupported: false, recommendedFormat: 'DOCX' });
+    });
   });
 
   describe('dispatchExportFile', () => {

@@ -102,7 +102,7 @@ const UI_COPY: Partial<Record<AuthLocale, Record<string, string>>> = {
     'Open Workspace Settings': 'பணியிட அமைப்புகளைத் திற',
     'Export .DOCX': '.DOCX ஏற்றுமதி செய்', 'Export .PDF': '.PDF ஏற்றுமதி செய்',
     'Export .TXT': '.TXT ஏற்றுமதி செய்',
-    'Some characters in your resume are not supported by the built-in PDF fonts. Choose DOCX to preserve every character. PDF export is paused to prevent text loss.': 'உங்கள் சுயவிவரத்தில் உள்ள சில எழுத்துகளை PDF-இன் உள்ளமைந்த எழுத்துருக்கள் காட்ட முடியாது. ஒவ்வொரு எழுத்தையும் பாதுகாக்க DOCX-ஐத் தேர்ந்தெடுக்கவும். உரை இழப்பைத் தவிர்க்க PDF ஏற்றுமதி நிறுத்தப்பட்டுள்ளது.',
+    'Some characters in your resume may not display correctly in PDF. Choose DOCX to keep every character. PDF export is paused to avoid changing your text.': 'உங்கள் சுயவிவரத்தில் உள்ள சில எழுத்துகள் PDF-இல் சரியாகத் தெரியாமல் போகலாம். எல்லா எழுத்துகளையும் பாதுகாக்க DOCX-ஐத் தேர்ந்தெடுக்கவும். உங்கள் உரை மாறாமல் இருக்க PDF ஏற்றுமதி தற்காலிகமாக நிறுத்தப்பட்டுள்ளது.',
     'Recommended for Tamil and other scripts': 'தமிழ் மற்றும் பிற எழுத்துமுறைகளுக்கு பரிந்துரைக்கப்படுகிறது',
     'Export DOCX': 'DOCX ஏற்றுமதி செய்', 'Export PDF': 'PDF ஏற்றுமதி செய்',
     'Local Encrypted Vault': 'உள்ளூர் மறைகுறியாக்கப்பட்ட பெட்டகம்',

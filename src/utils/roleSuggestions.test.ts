@@ -45,6 +45,11 @@ describe('getRoleSuggestions', () => {
     expect(getRoleSuggestions('தமிழ்', null, [cachedJob('தமிழ் வாடிக்கையாளர் ஆதரவு')])).toContain('தமிழ் வாடிக்கையாளர் ஆதரவு');
   });
 
+  it('normalizes combining marks without discarding accented letters', () => {
+    const decomposedQuery = 'Cafe\u0301';
+    expect(getRoleSuggestions(decomposedQuery, null, [cachedJob('Café Analyst')])).toContain('Café Analyst');
+  });
+
   it('tolerates a one-character typo and only treats the final token as partial', () => {
     expect(getRoleSuggestions('Suport').some((item) => /support/i.test(item))).toBe(true);
     expect(getRoleSuggestions('Data Analysit').some((item) => /data analyst/i.test(item))).toBe(true);

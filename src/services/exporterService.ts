@@ -275,7 +275,9 @@ function normalizePdfText(text: string): string {
 function hasUnsupportedPdfCharacters(text: string): boolean {
   return Array.from(normalizePdfText(text)).some((character) => {
     const codePoint = character.codePointAt(0) || 0;
-    return codePoint > 0xff && !PDF_SUPPORTED_EXTENDED_CHARACTERS.has(codePoint);
+    const printableAscii = codePoint >= 0x20 && codePoint <= 0x7e;
+    const printableLatin1 = codePoint >= 0xa0 && codePoint <= 0xff;
+    return !printableAscii && !printableLatin1 && !PDF_SUPPORTED_EXTENDED_CHARACTERS.has(codePoint);
   });
 }
 
@@ -293,7 +295,7 @@ export function getResumeExportGuidance(artifact: TailoredArtifact, resume: Mast
     return {
       pdfSupported: false,
       recommendedFormat: 'DOCX',
-      message: 'Some characters in your resume are not supported by the built-in PDF fonts. Choose DOCX to preserve every character. PDF export is paused to prevent text loss.'
+      message: 'Some characters in your resume may not display correctly in PDF. Choose DOCX to keep every character. PDF export is paused to avoid changing your text.'
     };
   }
   return { pdfSupported: true, recommendedFormat: 'PDF', message: null };
@@ -303,10 +305,10 @@ function toPdfSafeText(text: string): string {
   const normalized = normalizePdfText(text);
   if (hasUnsupportedPdfCharacters(normalized)) {
     throw new Error(
-      'PDF export cannot safely render this Unicode script with the built-in standard fonts. Export as DOCX to preserve every character; the original and approved resume data remain unchanged.'
+      'PDF export is paused because some characters may not display correctly. Export as DOCX to preserve every character; your original resume data has not been changed.'
     );
   }
-  return normalized.replace(/[^\x20-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2022]/g, ' ');
+  return normalized;
 }
 
 /**
