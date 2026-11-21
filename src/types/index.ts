@@ -58,6 +58,8 @@ export interface MasterResume {
   education: EducationItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
+  /** User-authored evidence not covered by standard resume sections (awards, volunteering, publications, languages, memberships, etc.). */
+  additionalEvidence?: string[];
   sourceLanguage?: string;
   sourceLanguageOther?: string;
   currentRole?: string;
@@ -75,10 +77,15 @@ export interface MasterResume {
 }
 
 export interface JobVetting {
-  cultureFit: number; // 0 - 100
+  /** AI-estimated alignment of supplied candidate evidence to the supplied JD; null when evidence is insufficient. */
+  profileAlignmentEstimate: number | null;
+  /** @deprecated Retained only so older encrypted vault snapshots can still be read. Never display as a culture score. */
+  cultureFit?: number;
   redFlags: string[];
   greenFlags: string[];
+  /** AI interpretation of progression signals explicitly present in the job description, not a promise from the employer. */
   growthTrajectory: string;
+  /** Always discloses that market competitiveness is not assessed without independent salary data. */
   salaryCompetitiveness: string;
   pros: string[];
   cons: string[];
@@ -125,6 +132,13 @@ export interface JobVerificationEvidence {
   employerIdentityVerified: false;
 }
 
+export interface JobEligibilityAssessment {
+  status: 'explicitly-eligible' | 'regionally-eligible' | 'explicitly-ineligible' | 'not-stated' | 'not-assessed';
+  market: string;
+  evidence: string;
+  source: 'published-location' | 'search-scope';
+}
+
 export interface JobPosting {
   id: string;
   title: string;
@@ -137,7 +151,11 @@ export interface JobPosting {
   url: string;
   source: string;
   skillsRequired: string[];
-  fitScore: number | null; // 0 - 100, or null when profile/criteria data is insufficient
+  skillsPreferred?: string[];
+  skillsListed?: string[];
+  eligibilityAssessment?: JobEligibilityAssessment;
+  fitScore: number | null;
+  fitStatusText?: string; // 0 - 100, or null when profile/criteria data is insufficient
   matchedKeywords: string[];
   missingKeywords: string[];
   department?: string;
@@ -165,20 +183,27 @@ export interface TailoredBullet {
 
 export interface InterviewQuestion {
   question: string;
-  category: 'Technical' | 'Behavioral' | 'Architecture' | 'Leadership';
+  category: 'Technical' | 'Behavioral' | 'Situational' | 'Role-Specific';
   suggestedTalkingPoints: string[];
   authenticEvidenceRef: string;
 }
 
+export interface CandidateEvidenceReference {
+  id: string;
+  text: string;
+}
+
 export interface TailoredVariant {
   id: string; // e.g. 'variant-a' | 'variant-b' | 'variant-c'
-  name: string; // e.g. 'Variant A: High-Impact Metric & Leadership'
-  badge: string; // e.g. 'Leadership & Scale'
+  name: string; // e.g. 'Variant A: Role-Relevant Evidence'
+  badge: string; // e.g. 'Role Alignment'
   description: string;
   tailoredSummary: string;
+  summaryEvidence?: CandidateEvidenceReference[];
   highlightedSkills: string[];
   optimizedBullets: TailoredBullet[];
   coverLetter: string;
+  coverLetterEvidence?: CandidateEvidenceReference[];
   interviewPrepQuestions: InterviewQuestion[];
 }
 
@@ -199,12 +224,15 @@ export interface TailoredArtifact {
   selectedVariantId: string;
   variants: TailoredVariant[];
   tailoredSummary: string;
+  summaryEvidence?: CandidateEvidenceReference[];
   highlightedSkills: string[];
   optimizedBullets: TailoredBullet[];
   coverLetter: string;
+  coverLetterEvidence?: CandidateEvidenceReference[];
   interviewPrepQuestions: InterviewQuestion[];
   generationTimestamp: string;
   authenticityGuaranteed: boolean; // True only when every artifact field is independently source-validated
+  reviewConfirmed?: boolean; // User explicitly reviewed factual claims before export
   exportedMaterials?: ExportedMaterialRecord[];
 }
 
@@ -233,6 +261,9 @@ export interface ApplicationRecord {
   portalSource?: string;
   jobUrl?: string;
   skillsRequired?: string[];
+  skillsPreferred?: string[];
+  skillsListed?: string[];
+  eligibilityAssessment?: JobEligibilityAssessment;
   exportedMaterials?: ExportedMaterialRecord[];
   lastActivityDate?: string;
   followUpDate?: string;
@@ -346,10 +377,10 @@ export interface CandidatePreferences {
 
 export interface PracticeQuestion {
   id: string;
-  category: 'Technical' | 'Architecture' | 'Behavioral' | 'Leadership';
+  category: 'Technical' | 'Behavioral' | 'Situational' | 'Role-Specific';
   title: string;
   question: string;
-  difficulty: 'Mid' | 'Senior' | 'Staff / Lead';
+  difficulty: 'Foundational' | 'Mid' | 'Senior' | 'Role-appropriate';
   keyConcepts: string[];
   suggestedFramework: string;
   sampleEvidencePrompt: string;
@@ -453,5 +484,6 @@ export interface CareerApplicationFormState {
   originalLanguageSnapshot?: string;
   projects?: ProjectItem[];
   certifications?: CertificationItem[];
+  additionalEvidence?: string[];
 }
 

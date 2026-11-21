@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { CareerApplicationFormState, MasterResume } from '../../types';
 import { formatGroqError } from '../../services/groqService';
+import { useAuthLocale } from '../../i18n/authLocale';
 import { translateCareerDraftToEnglish } from '../../services/careerTranslationService';
 import { buildMasterResumeFromCareerDraft } from '../../utils/guidedResumeMapper';
 import { EXPERIENCE_LEVEL_OPTIONS, getRoleSpecificQuestions, ROLE_FAMILY_OPTIONS } from '../../utils/roleQuestions';
@@ -49,6 +50,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
   onComplete,
   onCancel
 }) => {
+  const { t } = useAuthLocale();
   const [draft, setDraft] = useState<CareerApplicationFormState>(() => sanitizeCareerFormState(initialDraft));
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
@@ -71,7 +73,8 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
     draft.skills.length ||
     (draft.projects || []).some((item) => item.title.trim() || item.description.trim()) ||
     draft.education.some((item) => item.degree.trim() || item.institution.trim()) ||
-    (draft.certifications || []).some((item) => item.name.trim())
+    (draft.certifications || []).some((item) => item.name.trim()) ||
+    (draft.additionalEvidence || []).some((item) => item.trim())
   );
 
   const updateDraft = (patch: Partial<CareerApplicationFormState>) => {
@@ -332,6 +335,18 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
                   </div>
                 ))}
               </div>
+              <div className="space-y-2">
+                <FieldLabel htmlFor="guided-additional-evidence" optional>{t('Other career evidence')}</FieldLabel>
+                <p className="text-[11px] leading-relaxed text-slate-400">Add anything relevant that does not fit the sections above: volunteering, awards, publications, research, languages, professional memberships, community work, caregiving, competitions or other experience. One item per line.</p>
+                <textarea
+                  id="guided-additional-evidence"
+                  className={textAreaClass}
+                  rows={4}
+                  value={(draft.additionalEvidence || []).join('\n')}
+                  onChange={(e) => updateDraft({ additionalEvidence: e.target.value.split('\n').map((item) => item.trim()).filter(Boolean) })}
+                  placeholder="Volunteer coordinator — organised weekly community learning sessions&#10;Tamil — native; English — professional working proficiency"
+                />
+              </div>
             </section>
           )}
 
@@ -369,7 +384,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
 
           {step === 4 && (
             <section className="space-y-4">
-              <div><h3 className="text-base font-bold text-white">Review your information</h3><p className="mt-1 text-xs text-slate-400">BYOC will use only the information you entered. Check names, dates, and achievements before continuing.</p></div>
+              <div><h3 className="text-base font-bold text-white">{t('Review your information')}</h3><p className="mt-1 text-xs text-slate-400">BYOC will use only the information you entered. Check names, dates, and achievements before continuing.</p></div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Name</p><p className="mt-1 text-sm font-semibold text-white">{draft.personalDetails.fullName || '—'}</p></div>
                 <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><p className="text-[10px] uppercase tracking-wider text-slate-500">Target role</p><p className="mt-1 text-sm font-semibold text-white">{draft.targetRole || draft.currentRole || '—'}</p></div>
@@ -391,7 +406,7 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-2">
                   <Languages className="mt-0.5 h-4 w-4 shrink-0 text-indigo-300" />
-                  <div><p className="text-xs font-bold text-white">Optional English translation</p><p className="mt-1 text-[11px] leading-relaxed text-slate-400">Sends selected resume text fields to Groq only when you press the button. Contact fields and dedicated employer, school, date, and skills fields are omitted. Names or personal details typed into free-text summaries, role titles, bullets, or project descriptions may still be sent. Your original text is preserved.</p></div>
+                  <div><p className="text-xs font-bold text-white">{t('Optional English translation')}</p><p className="mt-1 text-[11px] leading-relaxed text-slate-400">Sends selected resume text fields to Groq only when you press the button. Contact fields and dedicated employer, school, date, and skills fields are omitted. Names or personal details typed into free-text summaries, role titles, bullets, or project descriptions may still be sent. Your original text is preserved.</p></div>
                 </div>
                 <button type="button" onClick={() => void handleTranslate()} disabled={isTranslating || !groqApiKey.trim()} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-3 py-2 text-[11px] font-bold text-indigo-100 hover:bg-indigo-500/25 disabled:opacity-50">
                   {isTranslating ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200/30 border-t-indigo-200" /> : <Sparkles className="h-3.5 w-3.5" />}

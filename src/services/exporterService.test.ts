@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ExportedMaterialRecord, TailoredArtifact, MasterResume } from '../types';
-import { dispatchExportFile, generatePlainTextResume, generatePdfResume, generateDocxResume } from '../services/exporterService';
+import { dispatchExportFile, generatePlainTextResume, generatePdfResume, generateDocxResume, createMasterResumeExportArtifact, getResumeExportGuidance } from './exporterService';
 
 // Mock the docx and pdf-lib modules
 vi.mock('docx', () => ({
@@ -68,6 +68,7 @@ vi.mock('../utils/tailoredBulletResolver', () => ({
     projects: resume.projects,
     education: resume.education,
     certifications: resume.certifications,
+    additionalEvidence: resume.additionalEvidence || [],
     coverLetter: artifact.coverLetter
   }))
 }));
@@ -121,6 +122,7 @@ describe('Export Service', () => {
     interviewPrepQuestions: [],
     generationTimestamp: new Date().toISOString(),
     authenticityGuaranteed: false,
+    reviewConfirmed: true,
     exportedMaterials: []
   });
 
@@ -174,6 +176,7 @@ describe('Export Service', () => {
         link: 'https://github.com/project'
       }
     ],
+    additionalEvidence: ['Volunteer coordinator — organised weekly community learning sessions'],
     certifications: [
       {
         id: 'cert-1',
@@ -189,6 +192,16 @@ describe('Export Service', () => {
       lastParsedDate: new Date().toISOString(),
       sourceFileName: 'resume.pdf'
     }
+  });
+
+  describe('human review export gate', () => {
+    it('refuses PDF, DOCX and TXT exports until factual review is confirmed', async () => {
+      const unreviewed = { ...createMockArtifact(), reviewConfirmed: false };
+      const resume = createMockResume();
+      expect(() => generatePlainTextResume(unreviewed, resume)).toThrow(/review/i);
+      await expect(generatePdfResume(unreviewed, resume)).rejects.toThrow(/review/i);
+      await expect(generateDocxResume(unreviewed, resume)).rejects.toThrow(/review/i);
+    });
   });
 
   describe('generatePlainTextResume', () => {
@@ -209,6 +222,12 @@ describe('Export Service', () => {
       expect(text).toContain('PROFESSIONAL EXPERIENCE');
       expect(text).toContain('Test Company');
       expect(text).toContain('Led a cross-functional team');
+    });
+
+    it('includes additional career evidence in the exportable resume', () => {
+      const text = generatePlainTextResume(createMockArtifact(), createMockResume());
+      expect(text).toContain('ADDITIONAL CAREER EVIDENCE');
+      expect(text).toContain('Volunteer coordinator');
     });
 
     it('includes all major resume sections', () => {
@@ -237,6 +256,14 @@ describe('Export Service', () => {
       
       expect(blob).toBeInstanceOf(Blob);
       expect(blob.type).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    });
+
+    it('includes additional career evidence in the generated DOCX', async () => {
+      const { TextRun } = await import('docx');
+      await generateDocxResume(createMockArtifact(), createMockResume());
+      expect(TextRun).toHaveBeenCalledWith(expect.objectContaining({
+        text: 'Volunteer coordinator — organised weekly community learning sessions'
+      }));
     });
 
     it('calls Packer.toBlob with document', async () => {
@@ -289,6 +316,30 @@ describe('Export Service', () => {
       
       expect(blob).toBeInstanceOf(Blob);
       expect(blob.size).toBeGreaterThan(0);
+    });
+
+    it('refuses to silently strip non-Latin resume text from PDF output', async () => {
+      const artifact = createMockArtifact();
+      const resume = createMockResume();
+      resume.contactInfo.name = 'தமிழ் வேட்பாளர்';
+      await expect(generatePdfResume(artifact, resume))
+        .rejects.toThrow(/Export as DOCX to preserve every character/i);
+    });
+
+    it('recommends DOCX before export when the visible resume contains Tamil', () => {
+      const artifact = createMockArtifact();
+      const resume = createMockResume();
+      resume.summary = 'தமிழ் மொழியில் வாடிக்கையாளர் சேவையை வழங்கினார்.';
+      expect(getResumeExportGuidance(artifact, resume)).toMatchObject({ pdfSupported: false, recommendedFormat: 'DOCX' });
+      expect(getResumeExportGuidance(artifact, resume).message).toMatch(/Choose DOCX/);
+    });
+
+    it('keeps PDF available for printable Latin text and pauses it for hidden control characters', () => {
+      const artifact = createMockArtifact();
+      const resume = createMockResume();
+      expect(getResumeExportGuidance(artifact, resume)).toMatchObject({ pdfSupported: true, recommendedFormat: 'PDF' });
+      resume.summary = 'Experience\twith hidden formatting';
+      expect(getResumeExportGuidance(artifact, resume)).toMatchObject({ pdfSupported: false, recommendedFormat: 'DOCX' });
     });
   });
 
@@ -413,5 +464,27 @@ describe('dispatchExportFile cancellation', () => {
       else Reflect.deleteProperty(navigator, 'share');
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('Master Resume export artifact', () => {
+  it('creates a structured exportable document from the approved profile without requiring a job-tailored artifact', () => {
+    const resume = {
+      rawText: 'Original source text remains unchanged',
+      contactInfo: { name: 'Asha Rao', email: 'asha@example.com', phone: '', location: 'Chennai', linkedin: '', github: '', portfolio: '' },
+      headline: 'Commerce Graduate',
+      summary: 'Commerce graduate with practical project experience.',
+      skills: { technical: ['SQL'], soft: [], tools: ['Excel'], domains: [] },
+      experiences: [{ id: 'exp-1', company: 'Local Co-op', role: 'Intern', startDate: '2025', endDate: '2025', location: '', bullets: ['Prepared weekly reports.'], isCurrent: false }],
+      education: [], projects: [], certifications: [],
+      stats: { wordCount: 20, pageCount: 1, charCount: 100, lastParsedDate: '2026-11-20T00:00:00.000Z', sourceFileName: 'resume.docx' }
+    } as any;
+    const artifact = createMasterResumeExportArtifact(resume);
+    const text = generatePlainTextResume(artifact, resume);
+    expect(text).toContain('ASHA RAO');
+    expect(text).toContain('Commerce Graduate');
+    expect(text).toContain('Prepared weekly reports.');
+    expect(artifact.jobId).toBe('master-resume');
+    expect(artifact.reviewConfirmed).toBe(true);
   });
 });

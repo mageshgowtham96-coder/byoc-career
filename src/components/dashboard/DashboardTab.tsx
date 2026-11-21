@@ -1,5 +1,6 @@
 import React from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
+import { useAuthLocale } from '../../i18n/authLocale';
 import { ChakraLogo } from '../ChakraLogo';
 import {
   ArrowRight,
@@ -18,8 +19,10 @@ import {
 import type { ApplicationRecord } from '../../types';
 import { calculateHonestMatch } from '../../services/jobSearchService';
 import { hasActiveVaultKey, readStoredVaultEnvelope } from '../../utils/cryptoVault';
+import { getCandidateDiscoverySignals } from '../../utils/resumeReadiness';
 
 export const DashboardTab: React.FC = () => {
+  const { t } = useAuthLocale();
   const {
     user,
     masterResume,
@@ -43,10 +46,11 @@ export const DashboardTab: React.FC = () => {
   const [isRefreshingJobs, setIsRefreshingJobs] = React.useState(false);
 
   const handleLiveJobRefresh = async (manual = false) => {
+    const resumeDiscoverySignals = getCandidateDiscoverySignals(masterResume);
     const hasSearchSignals = Boolean(
       candidatePreferences.targetRole?.trim() ||
         candidatePreferences.profession?.trim() ||
-        (masterResume?.skills.technical && masterResume.skills.technical.length > 0)
+        resumeDiscoverySignals.length > 0
     );
 
     if (!hasSearchSignals) {
@@ -54,7 +58,7 @@ export const DashboardTab: React.FC = () => {
         addToast({
           type: 'info',
           title: 'Keywords Needed for Live Sync',
-          message: 'Add your skills in Intake or target role in Settings to discover live openings.'
+          message: t('Add your skills in Intake or target role in Settings to discover live openings.')
         });
       }
       return;
@@ -72,7 +76,7 @@ export const DashboardTab: React.FC = () => {
           location: optionalLocation,
           profession: candidatePreferences.profession,
           targetRole: candidatePreferences.targetRole,
-          skills: masterResume?.skills.technical,
+          skills: resumeDiscoverySignals,
           workplaceType: candidatePreferences.workplaceTypePreference
         },
         masterResume,
@@ -126,7 +130,7 @@ export const DashboardTab: React.FC = () => {
 
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || null;
   const selectedJobMatch = selectedJob ? calculateHonestMatch(selectedJob, masterResume) : null;
-  const hasResume = Boolean(masterResume && (masterResume.rawText.length > 20 || masterResume.experiences.length > 0));
+  const hasResume = Boolean(masterResume && (masterResume.rawText.length > 20 || masterResume.experiences.length > 0 || masterResume.education.length > 0 || masterResume.projects.length > 0 || masterResume.skills.technical.length > 0 || masterResume.skills.soft.length > 0 || masterResume.skills.tools.length > 0));
   const hasJob = Boolean(selectedJob);
   const hasTailored = Boolean(selectedJobId && tailoredArtifacts[selectedJobId]);
   const storedVaultEnvelope = readStoredVaultEnvelope();
@@ -163,15 +167,15 @@ export const DashboardTab: React.FC = () => {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="max-w-2xl">
             <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400 mb-2.5 flex-wrap">
-              <span className="text-sky-400 font-semibold uppercase tracking-wider">Local Encrypted Vault</span>
+              <span className="text-sky-400 font-semibold uppercase tracking-wider">{t('Local Encrypted Vault')}</span>
               <span aria-hidden="true" className="text-slate-600">·</span>
               <span className={groqApiKey ? 'text-emerald-400' : 'text-amber-400'}>
-                {groqApiKey ? 'Groq BYOK Ready' : 'Groq BYOK Key Pending'}
+                {t(groqApiKey ? 'Groq BYOK Ready' : 'Groq BYOK Key Pending')}
               </span>
               {user?.biometricEnabled && (
                 <>
                   <span aria-hidden="true" className="text-slate-600">·</span>
-                  <span className="text-indigo-300">Session Guard Configured</span>
+                  <span className="text-indigo-300">{t('Session Guard Configured')}</span>
                 </>
               )}
             </div>
@@ -183,7 +187,7 @@ export const DashboardTab: React.FC = () => {
               Build Your Own Career
             </p>
             <p className="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed">
-              {user?.name ? `Welcome back, ${user.name}. ` : ''}Your workspace is decrypted in volatile memory. Ingest your Master Resume, source openings, audit fit gaps honestly, and generate grounded tailored kits.
+              {user?.name ? `${t('Welcome back')}, ${user.name}. ` : ''}{t('Your workspace is decrypted in volatile memory. Ingest your Master Resume, source openings, audit fit gaps honestly, and generate grounded tailored kits.')}
             </p>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -192,7 +196,7 @@ export const DashboardTab: React.FC = () => {
                 onClick={() => setActiveTab(nextActionTab)}
                 className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white font-bold text-xs shadow-lg shadow-indigo-600/20 transition cursor-pointer flex items-center gap-2"
               >
-                <span>{nextActionLabel}</span>
+                <span>{t(nextActionLabel)}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
               <button
@@ -200,7 +204,7 @@ export const DashboardTab: React.FC = () => {
                 onClick={() => setActiveTab('prepzone')}
                 className="px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold text-xs transition cursor-pointer"
               >
-                Open Prep-Zone
+                {t('Open Prep-Zone')}
               </button>
             </div>
           </div>
@@ -238,7 +242,7 @@ export const DashboardTab: React.FC = () => {
             onClick={() => setActiveTab('tracking')}
             className="self-start sm:self-auto px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition cursor-pointer shrink-0"
           >
-            Review Queue
+            {t('Review Queue')}
           </button>
         </div>
       )}
@@ -278,7 +282,7 @@ export const DashboardTab: React.FC = () => {
               onClick={() => setActiveTab('tracking')}
               className="px-3 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-semibold transition cursor-pointer"
             >
-              View Pipeline
+              {t('View Pipeline')}
             </button>
           </div>
         </div>
@@ -305,7 +309,7 @@ export const DashboardTab: React.FC = () => {
             onClick={() => setActiveTab('sourcing')}
             className="self-start sm:self-auto px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer shrink-0"
           >
-            View Roles
+            {t('View Roles')}
           </button>
         </div>
       )}
@@ -316,10 +320,10 @@ export const DashboardTab: React.FC = () => {
           <div>
             <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-sky-400" />
-              <span>Career Workflow Readiness</span>
+              <span>{t('Career Workflow Readiness')}</span>
             </h2>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Select any stage below to review or update your active workspace.
+              {t('Select any stage below to review or update your active workspace.')}
             </p>
           </div>
           <button
@@ -329,7 +333,7 @@ export const DashboardTab: React.FC = () => {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingJobs ? 'animate-spin text-sky-400' : ''}`} />
-            <span>{isRefreshingJobs ? 'Syncing...' : 'Live Job Sync'}</span>
+            <span>{t(isRefreshingJobs ? 'Syncing...' : 'Live Job Sync')}</span>
           </button>
         </div>
 
@@ -351,11 +355,11 @@ export const DashboardTab: React.FC = () => {
                 <AlertCircle className="w-4 h-4 text-amber-400" />
               )}
             </div>
-            <h3 className="text-sm font-bold text-white mb-1">Master Resume Intake</h3>
+            <h3 className="text-sm font-bold text-white mb-1">{t('Master Resume Intake')}</h3>
             <p className="text-[11px] text-slate-400 tabular-nums">
               {hasResume
                 ? `Ingested: ${masterResume?.stats.wordCount} words (${masterResume?.experiences.length} roles)`
-                : 'Upload PDF/DOCX or paste resume text'}
+                : t('Upload PDF/DOCX or paste resume text')}
             </p>
           </button>
 
@@ -376,11 +380,11 @@ export const DashboardTab: React.FC = () => {
                 <AlertCircle className="w-4 h-4 text-slate-500" />
               )}
             </div>
-            <h3 className="text-sm font-bold text-white mb-1">Target Job Sourcing</h3>
+            <h3 className="text-sm font-bold text-white mb-1">{t('Target Job Sourcing')}</h3>
             <p className="text-[11px] text-slate-400 truncate">
               {hasJob
                 ? `${selectedJob?.title} @ ${selectedJob?.company}`
-                : 'Select or paste a target job'}
+                : t('Select or paste a target job')}
             </p>
           </button>
 
@@ -401,11 +405,11 @@ export const DashboardTab: React.FC = () => {
                 <AlertCircle className="w-4 h-4 text-slate-500" />
               )}
             </div>
-            <h3 className="text-sm font-bold text-white mb-1">Tailored Kit & Variants</h3>
+            <h3 className="text-sm font-bold text-white mb-1">{t('Tailored Kit & Variants')}</h3>
             <p className="text-[11px] text-slate-400">
               {hasTailored
-                ? 'Tailored resume, 3 variants & letter ready'
-                : 'Synthesize kit for target position'}
+                ? t('Tailored resume, 3 variants & letter ready')
+                : t('Synthesize kit for target position')}
             </p>
           </button>
         </div>
@@ -414,40 +418,40 @@ export const DashboardTab: React.FC = () => {
       {/* Metrics Grid */}
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 rounded-2xl bg-[#0F172A] border border-slate-800">
-          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Tracked Apps</span>
+          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">{t('Tracked Apps')}</span>
           <p className="text-2xl font-black text-white font-mono tabular-nums mt-1">{totalApps}</p>
-          <span className="text-[10px] text-slate-500">Encrypted Pipeline</span>
+          <span className="text-[10px] text-slate-500">{t('Encrypted Pipeline')}</span>
         </div>
 
         <div className="p-4 rounded-2xl bg-[#0F172A] border border-slate-800">
-          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Live Stages</span>
+          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">{t('Live Stages')}</span>
           <p className="text-2xl font-black text-sky-400 font-mono tabular-nums mt-1">{activeInterviews}</p>
-          <span className="text-[10px] text-slate-500">Interviews & Screens</span>
+          <span className="text-[10px] text-slate-500">{t('Interviews & Screens')}</span>
         </div>
 
         <div className="p-4 rounded-2xl bg-[#0F172A] border border-slate-800">
-          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Skills in Master Resume</span>
+          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">{t('Skills in Master Resume')}</span>
           <p className="text-2xl font-black text-indigo-400 font-mono tabular-nums mt-1">{skillsCount}</p>
-          <span className="text-[10px] text-slate-500">From Master Resume</span>
+          <span className="text-[10px] text-slate-500">{t('From Master Resume')}</span>
         </div>
 
         <div className="p-4 rounded-2xl bg-[#0F172A] border border-slate-800">
-          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Target Match</span>
+          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">{t('Target Match')}</span>
           <p className="text-xl font-black text-emerald-400 font-mono tabular-nums mt-1">
             {selectedJob
               ? hasResume && selectedJobMatch && selectedJobMatch.score !== null
                 ? `${selectedJobMatch.score}%`
-                : 'Insufficient profile data'
-              : 'No Target'}
+                : t('Insufficient profile data')
+              : t('No Target')}
           </p>
           <span className="text-[10px] text-slate-500">
             {!selectedJob
-              ? 'Select a target role'
+              ? t('Select a target role')
               : !hasResume
-              ? 'Add Master Resume'
+              ? t('Add Master Resume')
               : selectedJobMatch?.score === null
-              ? 'No job skill criteria specified'
-              : 'Profile Evidence Index'}
+              ? t('No job skill criteria specified')
+              : t('Profile Evidence Index')}
           </span>
         </div>
       </section>

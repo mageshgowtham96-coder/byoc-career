@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
+import { useAuthLocale } from '../../i18n/authLocale';
 import { sanitizeExternalHttpUrl } from '../../services/jobSearchService';
+import { copyToClipboardSafely } from '../../utils/copyToClipboardSafely';
 import type { ApplicationRecord, ApplicationStatus } from '../../types';
 import {
   KanbanSquare,
@@ -30,6 +32,7 @@ import {
 } from 'lucide-react';
 
 export const TrackingTab: React.FC = () => {
+  const { t } = useAuthLocale();
   const {
     applications,
     unsavedQueue,
@@ -219,10 +222,10 @@ export const TrackingTab: React.FC = () => {
             <KanbanSquare className="w-6 h-6" />
           </div>
           <h3 className="text-base font-bold text-white mb-1">
-            Pipeline Empty
+            {t('Pipeline Empty')}
           </h3>
           <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-            Move jobs from Sourcing or Tailoring by clicking &quot;Mark as Applied&quot; to record your first immutable snapshot.
+            {t('Move jobs from Sourcing or Tailoring by clicking "Mark as Applied" to record your first immutable snapshot.')}
           </p>
         </div>
       ) : (
@@ -637,17 +640,17 @@ export const TrackingTab: React.FC = () => {
 
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <h4 className="text-xs font-bold text-slate-300">Frozen Tailored Summary</h4>
+                        <h4 className="text-xs font-bold text-slate-300">{t('Frozen Tailored Summary')}</h4>
                         {snapshotSummary && (
                           <button
                             type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(snapshotSummary);
-                              addToast({ type: 'success', message: 'Copied frozen summary.' });
+                            onClick={async () => {
+                              const copied = await copyToClipboardSafely(snapshotSummary);
+                              addToast(copied ? { type: 'success', message: t('Copied frozen summary.') } : { type: 'error', message: t('Could not copy. Select the summary and copy it manually.') });
                             }}
                             className="text-[11px] text-sky-400 hover:text-sky-300 font-mono cursor-pointer"
                           >
-                            Copy Summary
+                            {t('Copy Summary')}
                           </button>
                         )}
                       </div>
@@ -674,16 +677,16 @@ export const TrackingTab: React.FC = () => {
                     {snapshotCover && (
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <h4 className="text-xs font-bold text-slate-300">Frozen Cover Letter</h4>
+                          <h4 className="text-xs font-bold text-slate-300">{t('Frozen Cover Letter')}</h4>
                           <button
                             type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(snapshotCover);
-                              addToast({ type: 'success', message: 'Copied frozen cover letter.' });
+                            onClick={async () => {
+                              const copied = await copyToClipboardSafely(snapshotCover);
+                              addToast(copied ? { type: 'success', message: t('Copied frozen cover letter.') } : { type: 'error', message: t('Could not copy. Select the letter and copy it manually.') });
                             }}
                             className="text-[11px] text-sky-400 hover:text-sky-300 font-mono cursor-pointer"
                           >
-                            Copy Cover Letter
+                            {t('Copy Cover Letter')}
                           </button>
                         </div>
                         <p className="text-xs text-slate-300 bg-slate-900 p-3 rounded-xl border border-slate-800 whitespace-pre-line leading-relaxed">
@@ -708,7 +711,7 @@ export const TrackingTab: React.FC = () => {
                 </div>
               )}
 
-              {/* Automated Outreach / 7-Day Follow-Up Tab */}
+              {/* Follow-Up Email Draft Tab */}
               {activeModalTab === 'followup' && (() => {
                 const email = generateFollowUpEmailContent(selectedApp);
                 return (
@@ -716,7 +719,7 @@ export const TrackingTab: React.FC = () => {
                     <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-                        <span>7-Day Automated Outreach: Grounded in your Notice Period & CTC preferences</span>
+                        <span>Follow-Up Email Draft — review and send it yourself</span>
                       </div>
                     </div>
                     <div>
@@ -744,11 +747,13 @@ export const TrackingTab: React.FC = () => {
                       </span>
                       <button
                         type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${email.subject}\n\n${email.body}`);
-                          setCopiedFollowUpModal(true);
-                          setTimeout(() => setCopiedFollowUpModal(false), 2000);
-                          addToast({ type: 'success', message: 'Follow-up email copied to clipboard!' });
+                        onClick={async () => {
+                          const copied = await copyToClipboardSafely(`${email.subject}\n\n${email.body}`);
+                          if (copied) {
+                            setCopiedFollowUpModal(true);
+                            setTimeout(() => setCopiedFollowUpModal(false), 2000);
+                          }
+                          addToast(copied ? { type: 'success', message: 'Follow-up email copied to clipboard!' } : { type: 'error', message: 'Could not copy. Select the email and copy it manually.' });
                         }}
                         className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-slate-950 font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-md"
                       >

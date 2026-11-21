@@ -1,4 +1,5 @@
 import type { JobPosting, MasterResume, JobSourcePortal, PortalShortcut } from '../types';
+import { expandTamilJobSearchQuery, translateTamilJobSearchQuery } from '../utils/roleSuggestions';
 
 export interface JobSearchQueryParams {
   query?: string;
@@ -59,7 +60,7 @@ const COUNTRY_ELIGIBILITY_ALIASES: Record<string, string[]> = {
 
 const COUNTRY_WIDE_REMOTE_MARKERS: Record<string, string[]> = {
   IN: ['india', 'india only', 'within india', 'apac', 'asia'],
-  US: ['usa', 'u.s.', 'united states', 'us only', 'north america', 'americas'],
+  US: ['usa', 'u.s.', 'united states', 'us only', 'anywhere in the us', 'anywhere in us', 'remote anywhere in the us', 'north america', 'americas'],
   GB: ['uk', 'u.k.', 'united kingdom', 'britain', 'england', 'europe', 'emea'],
   CA: ['canada', 'north america', 'americas'],
   DE: ['germany', 'deutschland', 'europe', 'eu', 'emea'],
@@ -83,9 +84,17 @@ const COUNTRY_SPECIFIC_LOCATION_MARKERS: Record<string, string[]> = {
   AE: ['dubai', 'abu dhabi']
 };
 
-const GLOBAL_REMOTE_MARKERS = ['worldwide', 'anywhere', 'global', 'everywhere', 'any location', 'open to all locations'];
+function getExplicitWorldwideLocationEvidence(location: string): string | null {
+  // Require the location field itself to express worldwide scope. Do not let
+  // "Global HQ, New York" or "Anywhere in the US" bypass country eligibility.
+  const match = (location || '').trim().match(
+    /^(?:remote\s*[-—,:]?\s*)?(?:worldwide|anywhere|everywhere|global|any location|open to all locations|open worldwide|anywhere in (?:the )?world)(?:\s*[-—,:]?\s*remote)?$/i
+  );
+  return match?.[0] || null;
+}
 
 const EXCLUSIVE_REGION_MARKERS: Array<{ marker: RegExp; countries: string[] }> = [
+  { marker: /\b(anywhere|work from anywhere|remote anywhere)\s+in\s+(?:the\s+)?(?:us|usa|u\.s\.|united states)\b/i, countries: ['US'] },
   { marker: /\b(usa only|us only|u\.s\. only|united states only|us[- ]residents only|us[- ]based)\b/i, countries: ['US'] },
   { marker: /\b(uk only|united kingdom only)\b/i, countries: ['GB'] },
   { marker: /\b(canada only)\b/i, countries: ['CA'] },
@@ -95,6 +104,77 @@ const EXCLUSIVE_REGION_MARKERS: Array<{ marker: RegExp; countries: string[] }> =
   { marker: /\b(europe only|eu only|emea only)\b/i, countries: ['GB', 'DE', 'AE'] },
   { marker: /\b(north america)\b/i, countries: ['US', 'CA'] }
 ];
+
+export function assessRemoteCountryEligibility(
+  jobLocation: string,
+  country?: string
+): import('../types').JobEligibilityAssessment {
+  const location = (jobLocation || '').trim();
+  const locLower = location.toLowerCase();
+  const market = (country || '').trim().toUpperCase();
+
+  if (isWorldwideCountryCode(market)) {
+    return {
+      status: 'not-assessed',
+      market: 'GLOBAL',
+      evidence: 'No country-specific eligibility filter was applied.',
+      source: 'search-scope'
+    };
+  }
+
+  if (!locLower || /\b(location unspecified|unspecified|unknown location|location unknown)\b/i.test(locLower)) {
+    return {
+      status: 'not-stated',
+      market,
+      evidence: 'The published location does not state an eligible market.',
+      source: 'published-location'
+    };
+  }
+
+  for (const rule of EXCLUSIVE_REGION_MARKERS) {
+    const match = location.match(rule.marker);
+    if (!match) continue;
+    const regionalMarker = /north america|europe only|eu only|emea only/i.test(match[0]);
+    return {
+      status: rule.countries.includes(market)
+        ? (regionalMarker ? 'regionally-eligible' : 'explicitly-eligible')
+        : 'explicitly-ineligible',
+      market,
+      evidence: match[0],
+      source: 'published-location'
+    };
+  }
+
+  const aliases = COUNTRY_ELIGIBILITY_ALIASES[market] || [];
+  const matchedAlias = aliases.find((alias) => locLower.includes(alias));
+  if (matchedAlias) {
+    const regionalMarker = /^(apac|asia|europe|eu|emea|americas|north america|mena)$/i.test(matchedAlias);
+    const index = locLower.indexOf(matchedAlias);
+    return {
+      status: regionalMarker ? 'regionally-eligible' : 'explicitly-eligible',
+      market,
+      evidence: location.slice(index, index + matchedAlias.length),
+      source: 'published-location'
+    };
+  }
+
+  const worldwideEvidence = getExplicitWorldwideLocationEvidence(location);
+  if (worldwideEvidence) {
+    return {
+      status: 'explicitly-eligible',
+      market,
+      evidence: worldwideEvidence,
+      source: 'published-location'
+    };
+  }
+
+  return {
+    status: 'not-stated',
+    market,
+    evidence: 'The published location does not explicitly name this market or worldwide eligibility.',
+    source: 'published-location'
+  };
+}
 
 export function sanitizeExternalHttpUrl(rawUrl?: string): string | null {
   const trimmed = (rawUrl || '').trim();
@@ -152,6 +232,13 @@ export const DEFAULT_PORTAL_SHORTCUTS: PortalShortcut[] = [
     searchUrlTemplate: 'https://www.instahyre.com/candidate/opportunities/',
     note: 'External curated board shortcut — paste copied JD & URL into BYOC.',
     isBuiltIn: true
+  },
+  {
+    id: 'portal-google-jobs',
+    name: 'Google Jobs',
+    searchUrlTemplate: 'https://www.google.com/search?q={query}+jobs&ibp=htl;jobs',
+    note: 'External Google Jobs search shortcut — paste copied JD & URL into BYOC.',
+    isBuiltIn: true
   }
 ];
 
@@ -162,7 +249,10 @@ export function mergePortalShortcuts(saved?: PortalShortcut[]): PortalShortcut[]
   }
   if (Array.isArray(saved)) {
     for (const item of saved) {
-      if (item && item.id && item.name && sanitizeExternalHttpUrl(item.searchUrlTemplate.replace('{query}', 'engineer'))) {
+      const validTemplate = typeof item?.searchUrlTemplate === 'string'
+        && Boolean(sanitizeExternalHttpUrl(item.searchUrlTemplate.replace('{query}', 'engineer')));
+      if (item && typeof item.id === 'string' && item.id.trim()
+        && typeof item.name === 'string' && item.name.trim() && validTemplate) {
         const existing = byId.get(item.id);
         if (!existing || !existing.isBuiltIn || item.isBuiltIn) {
           byId.set(item.id, item);
@@ -174,7 +264,8 @@ export function mergePortalShortcuts(saved?: PortalShortcut[]): PortalShortcut[]
 }
 
 export function buildPortalShortcutUrl(template: string, query?: string): string | null {
-  const cleanQuery = (query || '').trim() || 'software engineer';
+  const originalQuery = (query || '').trim() || 'software engineer';
+  const cleanQuery = expandTamilJobSearchQuery(originalQuery);
   const usesSlug = /\/\{query\}-jobs/i.test(template);
   const replacement = usesSlug
     ? encodeURIComponent(cleanQuery.toLowerCase().replace(/\s+/g, '-'))
@@ -208,7 +299,7 @@ export function matchesRemoteCountryAndLocation(
       .some((alias) => locLower.includes(alias));
     const countryWideRemote = !knownSpecificCityInLocation && (COUNTRY_WIDE_REMOTE_MARKERS[normalizedCountry] || [])
       .some((marker) => locLower.includes(marker));
-    const explicitlyWorldwide = includeWorldwideRemote && GLOBAL_REMOTE_MARKERS.some((marker) => locLower.includes(marker));
+    const explicitlyWorldwide = includeWorldwideRemote && Boolean(getExplicitWorldwideLocationEvidence(jobLocation));
 
     // City eligibility comes from the published location only. A role mentioning a city in its description is not location evidence.
     // Country-wide remote postings remain valid for a city in that country; an explicit city elsewhere does not.
@@ -217,36 +308,20 @@ export function matchesRemoteCountryAndLocation(
     }
   }
 
-  if (isWorldwideCountryCode(country)) {
+  const assessment = assessRemoteCountryEligibility(jobLocation, country);
+  // A worldwide search intentionally has no country-specific eligibility gate.
+  if (assessment.status === 'not-assessed' && isWorldwideCountryCode(country)) {
     return true;
   }
-
-  const normalizedCountry = (country || '').trim().toUpperCase();
-  // Missing feed location data is not proof that a posting is eligible in a selected market.
-  if (/\b(location unspecified|unspecified|unknown location|location unknown)\b/i.test(locLower)) {
+  if (assessment.status !== 'explicitly-eligible' && assessment.status !== 'regionally-eligible') {
     return false;
   }
-  const aliases = COUNTRY_ELIGIBILITY_ALIASES[normalizedCountry] || [];
 
-  // Exclude postings explicitly locked to a different region/country
-  for (const rule of EXCLUSIVE_REGION_MARKERS) {
-    if (rule.marker.test(locLower)) {
-      return rule.countries.includes(normalizedCountry);
-    }
+  // A worldwide listing may be eligible in this market, but the user can explicitly exclude it.
+  if (!includeWorldwideRemote && getExplicitWorldwideLocationEvidence(jobLocation)) {
+    return false;
   }
-
-  if (aliases.some((alias) => locLower.includes(alias))) {
-    return true;
-  }
-
-  // Only explicit all-location eligibility qualifies as global. A generic "Remote" label is insufficient.
-  if (includeWorldwideRemote && GLOBAL_REMOTE_MARKERS.some((marker) => locLower.includes(marker))) {
-    return true;
-  }
-
-  // Fail closed: a country-specific search must have explicit country/region eligibility evidence.
-  // This prevents generic remote and unrecognized locations (e.g. Warsaw) from appearing in India results.
-  return false;
+  return true;
 }
 
 /**
@@ -257,13 +332,20 @@ export function matchesJobSearchTerms(
   query: string | undefined,
   ...fields: Array<string | string[] | undefined>
 ): boolean {
-  const normalizedQuery = (query || '').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ').trim();
+  const normalizedQuery = translateTamilJobSearchQuery(query || '').toLocaleLowerCase().normalize('NFC').replace(/[^\p{L}\p{M}\p{N}+#]+/gu, ' ').trim();
   if (!normalizedQuery) return true;
-  const terms = Array.from(new Set(normalizedQuery.split(/\s+/).filter((term) => term.length > 1)));
+  // Keep standalone C and R searchable; discard other one-letter noise.
+  const terms = Array.from(new Set(normalizedQuery.split(/\s+/).filter((term) =>
+    term.length > 1 || term === 'c' || term === 'r'
+  )));
   if (terms.length === 0) return true;
   const haystack = fields.flatMap((field) => Array.isArray(field) ? field : [field || ''])
-    .join(' ').toLowerCase().replace(/[^a-z0-9+#]+/g, ' ');
-  return terms.every((term) => haystack.includes(term));
+    .join(' ').toLocaleLowerCase().normalize('NFC').replace(/[^\p{L}\p{M}\p{N}+#]+/gu, ' ');
+  const matchedTerms = terms.filter((term, index) => matchesSearchTerm(haystack, term, index === terms.length - 1)).length;
+  // A long role phrase is a bundle of search hints, not an exact-phrase requirement.
+  // Two meaningful overlapping terms are enough for multi-word queries; one-token
+  // searches remain useful for broad discovery and live typeahead.
+  return matchedTerms >= Math.min(2, terms.length);
 }
 
 export function normalizeLocation(rawLocation?: string): string {
@@ -299,9 +381,117 @@ export function mergeDiscoveredJobs(existingJobs: JobPosting[], discoveredJobs: 
 }
 
 /**
- * Calculates authentic match score strictly from verifiable profile facts vs job criteria.
- * Returns null if master resume is missing or profile data is insufficient.
+ * Search terms should respect token boundaries but tolerate common singular/plural
+ * forms in job titles and descriptions (e.g. analyst/analysts, company/companies).
+ * Skill scoring intentionally continues to use exact token matching.
  */
+function editDistanceAtMostOne(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1 || Math.min(a.length, b.length) < 4) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i += 1; j += 1; continue; }
+    edits += 1;
+    if (edits > 1) return false;
+    if (a.length > b.length) i += 1;
+    else if (b.length > a.length) j += 1;
+    else { i += 1; j += 1; }
+  }
+  if (i < a.length || j < b.length) edits += 1;
+  return edits <= 1;
+}
+
+function matchesSearchTerm(text: string, term: string, allowPartial = false): boolean {
+  if (containsSkillToken(text, term)) return true;
+  if (term.length <= 2) return false;
+
+  const tokens = text.split(/[^\p{L}\p{M}\p{N}+#]+/u).filter(Boolean);
+  // Partial tokens support live typeahead searches such as "Supp" -> "Support".
+  if (allowPartial && term.length >= 3 && tokens.some((token) => token.startsWith(term))) return true;
+
+  const variants = new Set<string>();
+  if (term.endsWith('ies') && term.length > 4) {
+    variants.add(term.slice(0, -3) + 'y');
+  } else if (/(ches|shes|xes|zes|sses)$/.test(term)) {
+    variants.add(term.slice(0, -2));
+  } else if (term.endsWith('s') && !term.endsWith('ss')) {
+    variants.add(term.slice(0, -1));
+  }
+
+  if (term.endsWith('y') && term.length > 2) {
+    variants.add(term.slice(0, -1) + 'ies');
+  } else if (/(s|x|z|ch|sh)$/.test(term)) {
+    variants.add(term + 'es');
+  } else {
+    variants.add(term + 's');
+  }
+
+  if (Array.from(variants).some((variant) => containsSkillToken(text, variant))) return true;
+  return term.length >= 4 && tokens.some((token) => editDistanceAtMostOne(term, token));
+}
+
+/**
+ * Keyword overlap is a discovery aid, not proof of qualification or eligibility.
+ * Matching uses token boundaries so short skills such as Go, R and C do not
+ * match inside unrelated words. Experience depth and eligibility are assessed
+ * separately by the user; this function does not claim to verify them.
+ */
+function containsSkillToken(text: string, skill: string): boolean {
+  const normalizedSkill = skill.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!normalizedSkill) return false;
+  const escaped = normalizedSkill.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  const matcher = new RegExp('(^|[^\\p{L}\\p{M}\\p{N}])' + escaped + '(?=$|[^\\p{L}\\p{M}\\p{N}])', 'iu');
+  return matcher.test(text);
+}
+
+/**
+ * Describes the provenance of the skill criteria behind a keyword-overlap score.
+ * Feed tags are not classified by providers as mandatory or preferred requirements.
+ */
+export interface JobMatchCriteria {
+  skills: string[];
+  basis: 'user-required' | 'provider-listed-unknown' | 'none';
+  label: string;
+}
+
+/**
+ * Resolve the exact criteria used for both scoring and UI disclosure.
+ * Empty/malformed entries are ignored so the displayed denominator cannot
+ * drift from the denominator used by calculateHonestMatch.
+ */
+export function getJobMatchCriteria(
+  job: Pick<JobPosting, 'skillsRequired' | 'skillsListed'>
+): JobMatchCriteria {
+  const required = (Array.isArray(job.skillsRequired) ? job.skillsRequired : [])
+    .filter((skill): skill is string => typeof skill === 'string' && skill.trim().length > 0);
+  if (required.length > 0) {
+    return {
+      skills: required,
+      basis: 'user-required',
+      label: 'Based on user-specified required skills'
+    };
+  }
+
+  const listed = (Array.isArray(job.skillsListed) ? job.skillsListed : [])
+    .filter((skill): skill is string => typeof skill === 'string' && skill.trim().length > 0);
+  if (listed.length > 0) {
+    return {
+      skills: listed,
+      basis: 'provider-listed-unknown',
+      label: 'Provider-listed skills; requirement status unknown'
+    };
+  }
+
+  return { skills: [], basis: 'none', label: 'No job skill criteria specified' };
+}
+
+export function getJobMatchBasisLabel(
+  job: Pick<JobPosting, 'skillsRequired' | 'skillsListed'>
+): string {
+  return getJobMatchCriteria(job).label;
+}
+
 export function calculateHonestMatch(
   job: JobPosting,
   masterResume: MasterResume | null
@@ -311,56 +501,101 @@ export function calculateHonestMatch(
   matchedKeywords: string[];
   missingKeywords: string[];
 } {
-  if (!masterResume || (!masterResume.rawText && masterResume.experiences.length === 0)) {
+  const criteria = getJobMatchCriteria(job);
+  const criteriaSkills = criteria.skills;
+  // Public feed tags are useful discovery hints, but providers do not classify them
+  // as required or preferred. Score them only with an explicit uncertainty label.
+  const criteriaLabel = criteria.basis === 'user-required'
+    ? 'user-specified required skills'
+    : 'feed-listed skills (requirement status unknown)';
+
+  if (!masterResume) {
     return {
       score: null,
       statusText: 'Insufficient profile data',
       matchedKeywords: [],
-      missingKeywords: job.skillsRequired || []
+      missingKeywords: criteriaSkills
     };
   }
 
-  const candidateSkills = [
+  const nonEmptyStrings = (values: unknown[]): string[] =>
+    values.filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+  const candidateSkills = nonEmptyStrings([
     ...(masterResume.skills?.technical || []),
     ...(masterResume.skills?.tools || []),
     ...(masterResume.skills?.soft || []),
     ...(masterResume.skills?.domains || [])
-  ].map((s) => s.toLowerCase());
+  ]);
+  const experienceEvidence = (masterResume.experiences || []).flatMap((experience) => [
+    experience?.role, experience?.company, ...(experience?.bullets || [])
+  ]);
+  const educationEvidence = (masterResume.education || []).flatMap((education) => [
+    education?.institution, education?.degree, education?.field, education?.gradYear, education?.gpa || ''
+  ]);
+  const projectEvidence = (masterResume.projects || []).flatMap((project) => [
+    project?.title, project?.description, ...(project?.technologies || [])
+  ]);
+  const certificationEvidence = (masterResume.certifications || []).flatMap((certification) => [
+    certification?.name, certification?.issuer, certification?.issueDate
+  ]);
+  const additionalEvidence = masterResume.additionalEvidence || [];
+  const profileEvidence = nonEmptyStrings([
+    masterResume.rawText,
+    masterResume.summary,
+    masterResume.headline,
+    ...candidateSkills,
+    ...experienceEvidence,
+    ...educationEvidence,
+    ...projectEvidence,
+    ...certificationEvidence,
+    ...additionalEvidence
+  ]);
 
-  const rawResumeText = (masterResume.rawText || '').toLowerCase();
-
-  const matchedKeywords: string[] = [];
-  const missingKeywords: string[] = [];
-
-  const requiredSkills = job.skillsRequired || [];
-  if (requiredSkills.length === 0) {
+  // Guided profiles may legitimately have no paid-work history. Education,
+  // projects, certifications and other user-authored evidence still count.
+  // Blank placeholder rows do not count as evidence.
+  if (profileEvidence.length === 0) {
     return {
       score: null,
-      statusText: 'No job skill criteria specified',
+      statusText: 'Insufficient profile data',
+      matchedKeywords: [],
+      missingKeywords: criteriaSkills
+    };
+  }
+
+  const evidenceText = profileEvidence.join(' ');
+
+  if (criteriaSkills.length === 0) {
+    return {
+      score: null,
+      statusText: nonEmptyStrings(job.skillsPreferred || []).length > 0
+        ? 'No required or feed-listed skill criteria specified; preferred skills are not treated as requirements'
+        : 'No job skill criteria specified',
       matchedKeywords: [],
       missingKeywords: []
     };
   }
 
-  for (const skill of requiredSkills) {
-    const sLower = skill.toLowerCase();
-    const isMatched =
-      candidateSkills.some((cs) => cs.includes(sLower) || sLower.includes(cs)) ||
-      rawResumeText.includes(sLower);
-
-    if (isMatched) {
-      matchedKeywords.push(skill);
-    } else {
-      missingKeywords.push(skill);
-    }
+  const matchedKeywords: string[] = [];
+  const missingKeywords: string[] = [];
+  for (const skill of criteriaSkills) {
+    const normalizedSkill = skill.trim().toLowerCase();
+    // One- and two-character skills are too ambiguous in ordinary prose (Go, R, C).
+    // Count them only when the user explicitly listed the exact skill in a structured
+    // skills field. Longer phrases can be reported as keyword overlap from source text.
+    const matched = normalizedSkill.length <= 2
+      ? candidateSkills.some((candidateSkill) => candidateSkill.trim().toLowerCase() === normalizedSkill)
+      : containsSkillToken(evidenceText, skill);
+    if (matched) matchedKeywords.push(skill);
+    else missingKeywords.push(skill);
   }
 
-  const rawRatio = matchedKeywords.length / requiredSkills.length;
-  const calculatedScore = Math.min(100, Math.max(0, Math.round(rawRatio * 100)));
-
+  const calculatedScore = Math.round((matchedKeywords.length / criteriaSkills.length) * 100);
+  const statusText = calculatedScore + '% keyword overlap against ' + criteriaLabel + ' — experience and eligibility not assessed';
   return {
     score: calculatedScore,
-    statusText: `${calculatedScore}% Verified Match`,
+    statusText,
     matchedKeywords,
     missingKeywords
   };
@@ -405,7 +640,7 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
 
   async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
     const fallbackSkill = params.skills && params.skills.length > 0 ? params.skills[0] : '';
-    const query = (params.query || params.targetRole || params.profession || fallbackSkill || '').trim().toLowerCase();
+    const query = translateTamilJobSearchQuery((params.query || params.targetRole || params.profession || fallbackSkill || '').trim()).toLowerCase();
 
     if (!query) {
       return [];
@@ -429,7 +664,30 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
       }
 
       const data = await res.json();
-      const rawJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+      let rawJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+
+      // A strict provider-side keyword search can return zero results for a minor
+      // typo or a short partial token. In that case, retry once against the bounded
+      // latest feed and let the shared local typo-tolerant matcher decide relevance.
+      if (rawJobs.length === 0) {
+        const fallbackController = new AbortController();
+        const fallbackTimeout = setTimeout(() => fallbackController.abort(), 15000);
+        try {
+          const fallbackResponse = await fetch(
+            'https://remotive.com/api/remote-jobs?limit=50',
+            { signal: fallbackController.signal }
+          );
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            rawJobs = Array.isArray(fallbackData?.jobs) ? fallbackData.jobs : [];
+          }
+        } catch {
+          // Preserve the empty result from the primary query if the bounded fallback is unavailable.
+        } finally {
+          clearTimeout(fallbackTimeout);
+        }
+      }
+
       const results: JobPosting[] = [];
 
       for (const item of rawJobs) {
@@ -460,7 +718,9 @@ export class PublicFeedsJobAdapter implements JobProviderAdapter {
           jobDescriptionRaw: plainDesc,
           url: item.url || '#',
           source: 'Remotive Live',
-          skillsRequired: Array.isArray(item.tags) ? item.tags.slice(0, 8) : [],
+          skillsRequired: [],
+          skillsListed: Array.isArray(item.tags) ? item.tags.slice(0, 8) : [],
+          eligibilityAssessment: assessRemoteCountryEligibility(parsedLocation, params.country),
           fitScore: null,
           matchedKeywords: [],
           missingKeywords: [],
@@ -555,7 +815,7 @@ function parseSalaryRange(min: unknown, max: unknown, currency: unknown, period:
 
 function createRemoteFeedJob(item: any, sourceId: string, sourceName: string, fields: {
   id: unknown; title: unknown; company: unknown; location: unknown; description: unknown; url: unknown;
-  date?: unknown; salary?: string; tags?: unknown; workplaceType?: JobPosting['workplaceType'];
+  date?: unknown; salary?: string; tags?: unknown; workplaceType?: JobPosting['workplaceType']; country?: string;
 }): JobPosting | null {
   const title = typeof fields.title === 'string' ? fields.title.trim() : '';
   const company = typeof fields.company === 'string' ? fields.company.trim() : '';
@@ -580,7 +840,9 @@ function createRemoteFeedJob(item: any, sourceId: string, sourceName: string, fi
     jobDescriptionRaw: description,
     url,
     source: sourceName,
-    skillsRequired: tags,
+    skillsRequired: [],
+    skillsListed: tags,
+    eligibilityAssessment: assessRemoteCountryEligibility(location, fields.country),
     fitScore: null,
     matchedKeywords: [],
     missingKeywords: [],
@@ -631,7 +893,8 @@ export class RemoteOkJobAdapter implements JobProviderAdapter {
       salary: item.salary_min || item.salary_max
         ? parseSalaryRange(item.salary_min, item.salary_max, item.salary_currency, item.salary_period)
         : 'Undisclosed',
-      tags: item.tags
+      tags: item.tags,
+      country: params.country
     })).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
       job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
     ));
@@ -665,7 +928,8 @@ export class ArbeitnowJobAdapter implements JobProviderAdapter {
         url: item.url,
         date: createdAt,
         tags: item.tags,
-        workplaceType: item.remote === true ? 'Remote' : 'Unspecified'
+        workplaceType: item.remote === true ? 'Remote' : 'Unspecified',
+        country: params.country
       });
     }).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
       job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
@@ -714,7 +978,8 @@ export class JobicyJobAdapter implements JobProviderAdapter {
       url: item.url,
       date: item.pubDate,
       salary: parseSalaryRange(item.salaryMin, item.salaryMax, item.salaryCurrency, item.salaryPeriod),
-      tags: []
+      tags: [],
+      country: params.country
     })).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
       job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
     ));
@@ -867,13 +1132,16 @@ export class LiveJobSearchEngine {
           }
         };
       } catch (error: unknown) {
+        const detail = error instanceof Error ? error.message : `${provider.name} request failed.`;
+        const rateLimited = /HTTP 429|rate limit exceeded/i.test(detail);
         return {
           jobs: [] as JobPosting[],
           queried: false,
-          error: error instanceof Error ? error.message : `${provider.name} request failed.`,
+          // One feed's rate limit is a provider-status detail, not a failed search.
+          error: rateLimited ? undefined : detail,
           status: {
-            id: provider.id, name: provider.name, status: 'error' as const, count: 0,
-            detail: error instanceof Error ? error.message : `${provider.name} request failed.`
+            id: provider.id, name: provider.name, status: rateLimited ? 'skipped' as const : 'error' as const, count: 0,
+            detail: rateLimited ? `${provider.name} is temporarily rate-limited; results from other feeds and saved jobs are unaffected.` : detail
           }
         };
       }
@@ -893,6 +1161,7 @@ export class LiveJobSearchEngine {
       return {
         ...job,
         fitScore: honestMatch.score,
+        fitStatusText: honestMatch.statusText,
         matchedKeywords: honestMatch.matchedKeywords,
         missingKeywords: honestMatch.missingKeywords
       };
@@ -901,7 +1170,7 @@ export class LiveJobSearchEngine {
     const locLower = (normalizedParams.location || '').toLowerCase().trim();
     const filtered = scoredJobs.filter((job) => {
       if (!matchesJobSearchTerms(normalizedParams.query || normalizedParams.targetRole || normalizedParams.profession,
-        job.title, job.company, job.location, job.skillsRequired, job.jobDescriptionRaw)) return false;
+        job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.jobDescriptionRaw)) return false;
 
       if (locLower) {
         const source = (job.source || '').toLowerCase();

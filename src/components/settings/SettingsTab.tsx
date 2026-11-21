@@ -53,6 +53,7 @@ export const SettingsTab: React.FC = () => {
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null);
   const [showWipeModal, setShowWipeModal] = useState(false);
+  const [showPlaintextBackupConfirm, setShowPlaintextBackupConfirm] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
   const [activeDocSection, setActiveDocSection] = useState<'quickstart' | 'security' | 'formats'>(
     settingsFocusSection === 'recovery-help' ? 'security' : 'quickstart'
@@ -86,7 +87,7 @@ export const SettingsTab: React.FC = () => {
         type: 'success',
         title: 'Groq API Key Saved',
         message: synced
-          ? 'Encrypted in your AES-256-GCM vault. Live Groq inference active.'
+          ? 'Encrypted in your private device vault. Live Groq inference active.'
           : 'Groq key active for this session.'
       });
     } else {
@@ -164,9 +165,10 @@ export const SettingsTab: React.FC = () => {
     a.download = `BYOC_Workspace_Snapshot_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setShowPlaintextBackupConfirm(false);
     addToast({
       type: 'success',
-      message: 'Unencrypted career snapshot exported (API keys & passkeys omitted).'
+      message: 'Unencrypted career snapshot exported (API keys & passkeys omitted). Keep the file private or delete it when no longer needed.'
     });
   };
 
@@ -237,7 +239,7 @@ export const SettingsTab: React.FC = () => {
           <span>System &amp; Workspace Settings</span>
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-          Manage your Groq BYOK credentials, AES-256-GCM vault backups, biometric screen shield, and documentation.
+          Manage your Groq BYOK credentials, private device backups, biometric screen shield, and documentation.
         </p>
       </div>
 
@@ -367,7 +369,7 @@ export const SettingsTab: React.FC = () => {
           <div>
             <span className="text-xs font-bold text-white block">Session Hardware Lock</span>
             <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-              Locks quick physical screen access during an active session. Cold starts still require your Vault Passphrase to unwrap the AES-256-GCM Master Vault Key.
+              Locks quick screen access during an active session. Reopening BYOC still requires your Secret Passphrase.
             </p>
           </div>
 
@@ -418,7 +420,7 @@ export const SettingsTab: React.FC = () => {
             <div>
               <h3 className="text-sm font-bold text-white">Local Email Interaction Vault</h3>
               <p className="text-xs text-slate-400">
-                AES-256-GCM encrypted vault storage ({emailInteractions.length} stored) · OAuth external inbox sync is not connected
+                Private device vault storage ({emailInteractions.length} stored) · OAuth external inbox sync is not connected
               </p>
             </div>
           </div>
@@ -464,9 +466,9 @@ export const SettingsTab: React.FC = () => {
           </div>
 
           <div className="p-3.5 rounded-xl bg-[#070B14] border border-slate-800">
-            <span className="text-[11px] text-slate-400 font-mono block">Cipher &amp; Key Derivation</span>
+            <span className="text-[11px] text-slate-400 font-mono block">Device Privacy</span>
             <span className="font-bold text-emerald-400 mt-1 block">
-              {user?.hasEncryptedVault ? 'AES-256-GCM · PBKDF2-SHA256 (100k)' : 'Vault Protected'}
+              {user?.hasEncryptedVault ? 'Private Device Lock · Protected' : 'Vault Protected'}
             </span>
             <span className="text-slate-500 text-[11px] tabular-nums">
               Created {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
@@ -515,7 +517,7 @@ export const SettingsTab: React.FC = () => {
 
           <button
             type="button"
-            onClick={handleExportWorkspaceJson}
+            onClick={() => setShowPlaintextBackupConfirm(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer"
           >
             <Download className="w-3.5 h-3.5 text-sky-400" />
@@ -575,8 +577,8 @@ export const SettingsTab: React.FC = () => {
               <ol className="list-decimal list-inside space-y-1.5 text-slate-400">
                 <li><strong className="text-slate-200">Intake:</strong> Upload your master resume or paste raw text, verify extracted milestones in the Review Gate, and approve into your vault.</li>
                 <li><strong className="text-slate-200">Sourcing:</strong> Paste job descriptions from any board or query the public Remotive, Remote OK, and Jobicy remote feeds. These are not an exhaustive global index; Adzuna needs server-side credentials, and LinkedIn/Glassdoor/Naukri/Indeed/Foundit/Instahyre remain shortcuts rather than live feeds.</li>
-                <li><strong className="text-slate-200">Vetting:</strong> Audit role requirements, culture signals, and skill gaps via Groq before investing time tailoring.</li>
-                <li><strong className="text-slate-200">Customize:</strong> Generate 3 strictly grounded resume variations, review diffs, export PDF/DOCX/TXT, and use questionnaire chips.</li>
+                <li><strong className="text-slate-200">Vetting:</strong> Compare stated job requirements with your career evidence via Groq. Company culture and salary-market competitiveness are not independently verified.</li>
+                <li><strong className="text-slate-200">Customize:</strong> Generate role-relevant resume versions from available evidence, review generated wording, export PDF/DOCX/TXT, and use questionnaire chips.</li>
                 <li><strong className="text-slate-200">Tracking &amp; Prep-Zone:</strong> Save immutable application snapshots, track interview stages, and practice domain-grounded prompts.</li>
               </ol>
             </>
@@ -584,10 +586,10 @@ export const SettingsTab: React.FC = () => {
 
           {activeDocSection === 'security' && (
             <>
-              <p className="font-semibold text-white">AES-256-GCM Master Vault Key &amp; Recovery Architecture</p>
+              <p className="font-semibold text-white">Private Device Lock &amp; Recovery</p>
               <ul className="space-y-1.5 text-slate-400">
-                <li>• <strong className="text-slate-200">Encrypted At Rest:</strong> Your master resume, intake drafts, email interaction records, saved jobs, tailored kits, applications, preferences, and API keys are stored solely inside <span className="font-mono text-sky-400">byoc_secure_vault_envelope</span> using a random 256-bit Master Vault Key (AES-256-GCM).</li>
-                <li>• <strong className="text-slate-200">Key Wrapping:</strong> Your Vault Passphrase and Emergency Recovery Phrase (<span className="font-mono text-sky-400">BYOC-XXXX-...</span>) each derive a 256-bit PBKDF2-SHA256 (100,000 iterations) wrapping key.</li>
+                <li>• <strong className="text-slate-200">Encrypted At Rest:</strong> Your Master Resume, intake drafts, email records, saved jobs, tailored kits, applications, preferences, and API keys are stored only inside BYOC's encrypted on-device vault.</li>
+                <li>• <strong className="text-slate-200">Key Wrapping:</strong> Your Secret Passphrase and Emergency Recovery Phrase (<span className="font-mono text-sky-400">BYOC-XXXX-...</span>) protect access to your encrypted workspace. Keep both private and store your recovery phrase somewhere safe.</li>
                 <li>• <strong className="text-slate-200">Offline Recovery:</strong> If you forget your passphrase, switch to Emergency Recovery on the unlock screen, verify your recovery phrase, and set a new passphrase without losing any stored data.</li>
                 <li>• <strong className="text-slate-200">Portable Backups:</strong> Export your encrypted vault envelope above to back up your ciphertext offline or import it onto another browser.</li>
               </ul>
@@ -606,6 +608,24 @@ export const SettingsTab: React.FC = () => {
           )}
         </div>
       </section>
+
+      {showPlaintextBackupConfirm && (
+        <div role="dialog" aria-modal="true" aria-labelledby="plaintext-backup-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-amber-500/40 bg-[#0F172A] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300"><AlertCircle className="h-5 w-5" /></div>
+              <h3 id="plaintext-backup-title" className="text-base font-bold text-white">Export readable, unencrypted data?</h3>
+            </div>
+            <p className="text-xs leading-relaxed text-slate-300">
+              This JSON file can be read by anyone who obtains it. It contains your career profile, saved jobs, tailored resume content and application records. API keys and passkeys are omitted. Prefer the encrypted vault export unless you specifically need a readable copy.
+            </p>
+            <div className="flex justify-end gap-2 border-t border-slate-800 pt-3">
+              <button type="button" onClick={() => setShowPlaintextBackupConfirm(false)} className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800">Cancel</button>
+              <button type="button" onClick={handleExportWorkspaceJson} className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-500">Export readable snapshot</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* In-App Confirmation Modal for Wiping Local Data (Zero window.confirm) */}
       {showWipeModal && (

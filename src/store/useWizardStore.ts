@@ -1,10 +1,29 @@
 import { create } from 'zustand';
+const invalidateTailoredArtifacts = (
+  artifacts: Record<string, TailoredArtifact>
+): Record<string, TailoredArtifact> => Object.fromEntries(
+  Object.entries(artifacts).map(([id, artifact]) => [id, {
+    ...artifact,
+    reviewConfirmed: false,
+    summaryEvidence: [],
+    coverLetterEvidence: [],
+    interviewPrepQuestions: [],
+    variants: (artifact.variants || []).map((variant) => ({
+      ...variant,
+      summaryEvidence: [],
+      coverLetterEvidence: [],
+      interviewPrepQuestions: []
+    }))
+  }])
+);
+
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   MasterResume,
   JobPosting,
   JobVerificationEvidence,
   TailoredArtifact,
+  InterviewQuestion,
   ApplicationRecord,
   UserWorkspace,
   AppToast,
@@ -51,6 +70,7 @@ import {
   type LegacyPlaintextCapture
 } from '../utils/vaultMigration';
 import { sanitizeCareerFormState } from '../utils/storagePersistence';
+import { hasCareerEvidence } from '../utils/resumeReadiness';
 
 export const DEFAULT_CANDIDATE_PREFERENCES: CandidatePreferences = {
   country: 'IN',
@@ -136,6 +156,8 @@ interface RejectionCollisionCheck {
   pastRecord?: ApplicationRecord;
 }
 
+type VaultDataWithPreviousResume = DecryptedVaultData & { previousMasterResume?: MasterResume | null };
+
 interface WizardState {
   // Navigation & Tabs
   activeTab: ActiveTab;
@@ -164,6 +186,8 @@ interface WizardState {
 
   // Master Resume Profile & Half-Built Builder
   masterResume: MasterResume | null;
+  previousMasterResume: MasterResume | null;
+  restorePreviousMasterResume: () => void;
   stagedParsedResume: MasterResume | null;
   careerFormDraft: CareerApplicationFormState | null;
   setCareerFormDraft: (draft: CareerApplicationFormState | null) => void;
@@ -194,6 +218,8 @@ interface WizardState {
   // Tailored Artifacts & Sibling Variants
   tailoredArtifacts: Record<string, TailoredArtifact>;
   saveTailoredArtifact: (jobId: string, artifact: TailoredArtifact) => void;
+  saveInterviewPrepQuestions: (jobId: string, questions: InterviewQuestion[]) => void;
+  setTailoredArtifactReviewConfirmed: (jobId: string, confirmed: boolean) => void;
   selectTailoredVariant: (jobId: string, variantId: string) => void;
   recordExportedMaterial: (jobId: string, record: Omit<ExportedMaterialRecord, 'id'>) => void;
 
@@ -234,11 +260,12 @@ interface WizardState {
   checkActionGate: (action: 'tailor' | 'apply' | 'vet') => ActionGateResult;
 }
 
-export function buildVaultDataFromState(state: WizardState): DecryptedVaultData {
+export function buildVaultDataFromState(state: WizardState): VaultDataWithPreviousResume {
   return {
     groqApiKey: state.groqApiKey || '',
     geminiApiKey: state.geminiApiKey || '',
     masterResume: state.masterResume || null,
+    previousMasterResume: state.previousMasterResume || null,
     careerFormDraft: state.careerFormDraft || null,
     emailInteractions: Array.isArray(state.emailInteractions) ? state.emailInteractions : [],
     jobs: state.jobs || [],
@@ -281,12 +308,12 @@ export function buildApplicationSnapshotRecord(params: {
         selectedVariantId: 'master-baseline',
         variants: [],
         tailoredSummary: masterResumeSummary,
-        highlightedSkills: job.skillsRequired || [],
+        highlightedSkills: [...(job.skillsRequired || []), ...(job.skillsListed || [])],
         optimizedBullets: [],
         coverLetter: '',
         interviewPrepQuestions: [],
         generationTimestamp: nowIso,
-        authenticityGuaranteed: true,
+        authenticityGuaranteed: false,
         exportedMaterials: []
       };
 
@@ -313,6 +340,9 @@ export function buildApplicationSnapshotRecord(params: {
     portalSource: portalSource || job.source || 'User Import',
     jobUrl: validUrl || undefined,
     skillsRequired: Array.isArray(job.skillsRequired) && job.skillsRequired.length > 0 ? [...job.skillsRequired] : undefined,
+    skillsPreferred: Array.isArray(job.skillsPreferred) && job.skillsPreferred.length > 0 ? [...job.skillsPreferred] : undefined,
+    skillsListed: Array.isArray(job.skillsListed) && job.skillsListed.length > 0 ? [...job.skillsListed] : undefined,
+    eligibilityAssessment: job.eligibilityAssessment ? { ...job.eligibilityAssessment } : undefined,
     exportedMaterials,
     lastActivityDate: nowIso,
     interviewStages: [
@@ -405,6 +435,7 @@ export const useWizardStore = create<WizardState>()(
           groqApiKey: '',
           geminiApiKey: '',
           masterResume: null,
+          previousMasterResume: null,
           stagedParsedResume: null,
           careerFormDraft: null,
           emailInteractions: [],
@@ -427,6 +458,14 @@ export const useWizardStore = create<WizardState>()(
 
       // Resume
       masterResume: null,
+      previousMasterResume: null,
+      restorePreviousMasterResume: () => {
+        const previous = get().previousMasterResume;
+        if (!previous) return;
+        const current = get().masterResume;
+        set({ masterResume: previous, previousMasterResume: current, tailoredArtifacts: invalidateTailoredArtifacts(get().tailoredArtifacts) });
+        get().addToast({ type: 'success', title: 'Previous Resume Restored', message: 'Your previous Master Resume is active again. The replaced profile remains available as the next rollback snapshot.' });
+      },
       stagedParsedResume: null,
       careerFormDraft: null,
       setCareerFormDraft: (draft) => set({ careerFormDraft: draft ? sanitizeCareerFormState(draft) : null }),
@@ -435,13 +474,15 @@ export const useWizardStore = create<WizardState>()(
         const staged = get().stagedParsedResume;
         if (staged) {
           set({
+            previousMasterResume: get().masterResume || null,
             masterResume: staged,
-            stagedParsedResume: null
+            stagedParsedResume: null,
+            tailoredArtifacts: invalidateTailoredArtifacts(get().tailoredArtifacts)
           });
           get().addToast({
             type: 'success',
             title: 'Master Resume Approved',
-            message: `Ingested ${staged.stats.wordCount} words across ${staged.experiences.length} experience milestones.`
+            message: `Approved ${staged.stats.wordCount} words of career evidence. Your Master Profile is ready to use.`
           });
         }
       },
@@ -449,7 +490,10 @@ export const useWizardStore = create<WizardState>()(
         const current = get().masterResume;
         if (current) {
           const updated = updater(current);
-          set({ masterResume: updated });
+          set({
+            masterResume: updated,
+            tailoredArtifacts: invalidateTailoredArtifacts(get().tailoredArtifacts)
+          });
         }
       },
       addExperienceMilestone: (expData) => {
@@ -476,7 +520,10 @@ export const useWizardStore = create<WizardState>()(
             wordCount: current.stats.wordCount + addedWords
           }
         };
-        set({ masterResume: updatedResume });
+        set({
+          masterResume: updatedResume,
+          tailoredArtifacts: invalidateTailoredArtifacts(get().tailoredArtifacts)
+        });
         get().addToast({
           type: 'success',
           title: 'Milestone Added',
@@ -490,11 +537,15 @@ export const useWizardStore = create<WizardState>()(
           ...current,
           experiences: current.experiences.filter((e) => e.id !== id)
         };
-        set({ masterResume: updatedResume });
+        set({
+          masterResume: updatedResume,
+          tailoredArtifacts: invalidateTailoredArtifacts(get().tailoredArtifacts)
+        });
       },
       clearMasterResume: () => {
         set({
           masterResume: null,
+          previousMasterResume: null,
           stagedParsedResume: null,
           careerFormDraft: null,
           tailoredArtifacts: {}
@@ -628,7 +679,7 @@ export const useWizardStore = create<WizardState>()(
         set((state) => ({
           tailoredArtifacts: {
             ...state.tailoredArtifacts,
-            [jobId]: artifact
+            [jobId]: { ...artifact, reviewConfirmed: false }
           }
         }));
         get().addToast({
@@ -636,6 +687,33 @@ export const useWizardStore = create<WizardState>()(
           title: 'Application Kit Saved',
           message: `Ready for ${artifact.jobTitle} at ${artifact.company} in Customization.`
         });
+      },
+      saveInterviewPrepQuestions: (jobId, questions) => {
+        const current = get().tailoredArtifacts[jobId];
+        if (!current) return;
+        set((state) => ({
+          tailoredArtifacts: {
+            ...state.tailoredArtifacts,
+            [jobId]: {
+              ...current,
+              interviewPrepQuestions: questions,
+              variants: current.variants.map((variant) => ({
+                ...variant,
+                interviewPrepQuestions: questions
+              }))
+            }
+          }
+        }));
+      },
+      setTailoredArtifactReviewConfirmed: (jobId, confirmed) => {
+        const current = get().tailoredArtifacts[jobId];
+        if (!current) return;
+        set((state) => ({
+          tailoredArtifacts: {
+            ...state.tailoredArtifacts,
+            [jobId]: { ...current, reviewConfirmed: confirmed }
+          }
+        }));
       },
       selectTailoredVariant: (jobId, variantId) => {
         const current = get().tailoredArtifacts[jobId];
@@ -646,10 +724,13 @@ export const useWizardStore = create<WizardState>()(
         const updated: TailoredArtifact = {
           ...current,
           selectedVariantId: variantId,
+          reviewConfirmed: false,
           tailoredSummary: chosen.tailoredSummary,
+          summaryEvidence: chosen.summaryEvidence,
           highlightedSkills: chosen.highlightedSkills,
           optimizedBullets: chosen.optimizedBullets,
           coverLetter: chosen.coverLetter,
+          coverLetterEvidence: chosen.coverLetterEvidence,
           interviewPrepQuestions: chosen.interviewPrepQuestions
         };
 
@@ -918,7 +999,7 @@ export const useWizardStore = create<WizardState>()(
             coverLetter: '',
             interviewPrepQuestions: [],
             generationTimestamp: item.dateReceived,
-            authenticityGuaranteed: true
+            authenticityGuaranteed: false
           },
           notes: `Discovered from external recruiting system: ${item.infrastructure}. Reference ID: ${item.detectedReferenceNumber || 'N/A'}.`,
           interviewStages: [
@@ -1014,10 +1095,7 @@ export const useWizardStore = create<WizardState>()(
       },
 
       // Readiness Selectors
-      hasMasterResume: () => {
-        const mr = get().masterResume;
-        return Boolean(mr && (mr.rawText?.length > 20 || mr.experiences?.length > 0));
-      },
+      hasMasterResume: () => hasCareerEvidence(get().masterResume),
       hasSelectedJob: () => {
         const selectedId = get().selectedJobId;
         return Boolean(selectedId && get().jobs.some((j) => j.id === selectedId));
@@ -1165,7 +1243,7 @@ export function syncVaultFromStoreNow(): Promise<boolean> {
         buildVaultDataFromState(state),
         buildVaultMetaFromUser(state.user)
       );
-      const saved = writeStoredVaultEnvelope(envelope);
+      const saved = await writeStoredVaultEnvelope(envelope);
       applyVaultPersistenceTransition(saved);
       return saved;
     })
@@ -1187,6 +1265,7 @@ export function restoreVaultDataToStore(
     groqApiKey: data.groqApiKey || '',
     geminiApiKey: data.geminiApiKey || '',
     masterResume: data.masterResume || null,
+    previousMasterResume: (data as VaultDataWithPreviousResume).previousMasterResume || null,
     careerFormDraft: data.careerFormDraft ? sanitizeCareerFormState(data.careerFormDraft) : null,
     emailInteractions: Array.isArray(data.emailInteractions) ? data.emailInteractions : [],
     jobs: Array.isArray(data.jobs) ? data.jobs : [],
@@ -1227,6 +1306,7 @@ useWizardStore.subscribe((state, prevState) => {
     state.groqApiKey !== prevState.groqApiKey ||
     state.geminiApiKey !== prevState.geminiApiKey ||
     state.masterResume !== prevState.masterResume ||
+    state.previousMasterResume !== prevState.previousMasterResume ||
     state.careerFormDraft !== prevState.careerFormDraft ||
     state.emailInteractions !== prevState.emailInteractions ||
     state.jobs !== prevState.jobs ||

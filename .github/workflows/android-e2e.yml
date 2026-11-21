@@ -1,0 +1,99 @@
+name: BYOC Android E2E
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: byoc-android-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-e2e:
+    name: Android emulator smoke test (Maestro)
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout exact PR commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+      - name: Install locked dependencies and build APK
+        run: |
+          bun install --frozen-lockfile
+          npm run build
+          bunx cap sync android
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Generate Maestro DOCX fixture
+        run: |
+          mkdir -p artifacts
+          node .maestro/create-fixture.mjs
+      - name: Install Maestro CLI
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Enable KVM permissions
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo udevadm trigger --name-match=kvm || true
+            sudo chmod 666 /dev/kvm
+            ls -l /dev/kvm
+          else
+            echo "::error::KVM device /dev/kvm is unavailable on this runner."
+            exit 1
+          fi
+      - name: Run Android E2E on KVM-accelerated emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-boot-timeout: 600
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: >-
+            bash -euo pipefail -c 'mkdir -p artifacts;
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk;
+            adb shell settings put global hide_error_dialogs 1; adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true; adb shell mkdir -p /sdcard/Download;
+            adb shell rm -f /sdcard/Download/byoc-e2e-resume.docx || true;
+            adb push artifacts/byoc-e2e-resume.docx /data/local/tmp/byoc-e2e-resume.docx;
+            for attempt in 1 2 3 4 5 6 7 8 9 10; do adb shell cp /data/local/tmp/byoc-e2e-resume.docx /sdcard/Download/byoc-e2e-resume.docx && break; echo "Downloads not writable yet (attempt $attempt); waiting"; sleep 6; done; adb shell test -s /sdcard/Download/byoc-e2e-resume.docx;
+            adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/byoc-e2e-resume.docx;
+            adb shell screenrecord --time-limit 180 /sdcard/byoc-android-e2e.mp4 >/dev/null 2>&1 & sleep 2;
+            sleep 15;
+            if maestro test .maestro/smoke-test.yaml; then status=0; else status=$?; adb exec-out screencap -p > artifacts/failure-screenshot.png || true; adb shell uiautomator dump /sdcard/byoc-ui-hierarchy.xml >/dev/null 2>&1 || true; adb pull /sdcard/byoc-ui-hierarchy.xml artifacts/ui-hierarchy.xml || true; adb logcat -d -t 5000 > artifacts/logcat-failure.txt || true; adb logcat -d -v time | grep -iE "chromium|console|webview|capacitor" > artifacts/webview-console.txt || true; echo "=== DIAG focus ==="; adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp" || true; echo "=== DIAG ui packages ==="; grep -o "package=\\"[^\\"]*\\"" artifacts/ui-hierarchy.xml | sort | uniq -c || true; echo "=== DIAG ui texts ==="; grep -o "text=\\"[^\\"]*\\"" artifacts/ui-hierarchy.xml | head -40 || true; echo "=== DIAG ui texts with bounds ==="; grep -oE "text=\\"[^\\"]+\\"[^>]*bounds=\\"[^\\"]*\\"" artifacts/ui-hierarchy.xml | sed -E "s/(resource-id|class|package|content-desc|checkable|checked|clickable|enabled|focusable|focused|long-clickable|password|scrollable|selected|visible-to-user|drawing-order|hint|display-id)=\\"[^\\"]*\\" ?//g" | head -150 || true; echo "=== DIAG screen size ==="; adb shell wm size || true; echo "=== DIAG webview console ==="; tail -60 artifacts/webview-console.txt || true; echo "=== DIAG app lifecycle ==="; grep -E "com.byoc.career" artifacts/logcat-failure.txt | grep -vE "Capacitor|Handling local|Registering plugin" | cut -c1-200 | head -40 || true; echo "=== DIAG anr/fatal ==="; grep -iE "ANR in|not responding|FATAL EXCEPTION|AndroidRuntime" artifacts/logcat-failure.txt | tail -20 || true; fi;
+            adb shell pkill -INT screenrecord >/dev/null 2>&1 || true;
+            sleep 2;
+            adb pull /sdcard/byoc-android-e2e.mp4 artifacts/byoc-android-e2e.mp4 || true;
+            adb shell ls -la /sdcard/Download/BYOC > artifacts/android-downloads.txt || true;
+            adb pull /sdcard/Download/BYOC artifacts/exports || true;
+            if [ "$status" -eq 0 ]; then adb shell test -s /sdcard/Download/BYOC/BYOC_E2E_Candidate_Master_Resume.pdf || status=$?; adb shell test -s /sdcard/Download/BYOC/BYOC_E2E_Candidate_Master_Resume.docx || status=$?; test -s artifacts/byoc-android-e2e.mp4 || status=1; fi;
+            exit "$status"'
+      - name: Upload E2E video, screenshots, logs and exports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BYOC-Android-E2E-${{ github.run_number }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14

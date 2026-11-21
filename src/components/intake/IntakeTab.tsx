@@ -1,17 +1,20 @@
 import React, { useState, useRef } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
+import { useAuthLocale } from '../../i18n/authLocale';
 import {
   extractResumeFile,
   parseRawResumeToStructured,
   validateExtractedSchema
 } from '../../services/extractionService';
-import { formatGroqError, parseResumeWithGroq } from '../../services/groqService';
+import { formatGroqError, parseResumeWithGroq, optimizeMasterResumeWithGroq } from '../../services/groqService';
+import { createMasterResumeExportArtifact, dispatchExportFile, generateDocxResume, generatePdfResume, getResumeExportGuidance } from '../../services/exporterService';
 import { safeRemoveItem, wipeCachedFormData } from '../../utils/storagePersistence';
 import { ExtractionLoadingSkeleton } from './ExtractionLoadingSkeleton';
 import { ChakraLogo } from '../ChakraLogo';
 import { GuidedMasterResumeBuilder } from './GuidedMasterResumeBuilder';
 import { createCareerDraftFromMasterResume } from '../../utils/guidedResumeMapper';
 import { assessResumeReadiness } from '../../utils/resumeReadiness';
+import { applyResumeIntakeReviewEdits } from '../../utils/resumeIntake';
 import type { MasterResume, ExperienceItem } from '../../types';
 import {
   UploadCloud,
@@ -31,8 +34,11 @@ import {
 } from 'lucide-react';
 
 export const IntakeTab: React.FC = () => {
+  const { t } = useAuthLocale();
   const {
     masterResume,
+    previousMasterResume,
+    restorePreviousMasterResume,
     careerFormDraft,
     setCareerFormDraft,
     groqApiKey,
@@ -59,6 +65,13 @@ export const IntakeTab: React.FC = () => {
   const [localStagedProfile, setLocalStagedProfile] = useState<MasterResume | null>(stagedParsedResume);
   const [isAiStructuring, setIsAiStructuring] = useState(false);
   const [aiStructuringError, setAiStructuringError] = useState<string | null>(null);
+  const [isOptimizingMaster, setIsOptimizingMaster] = useState(false);
+  const [optimizedMasterPreview, setOptimizedMasterPreview] = useState<MasterResume | null>(null);
+  const [optimizationError, setOptimizationError] = useState<string | null>(null);
+  const [isExportingMaster, setIsExportingMaster] = useState(false);
+  const masterResumeExportGuidance = masterResume
+    ? getResumeExportGuidance(createMasterResumeExportArtifact(masterResume), masterResume)
+    : null;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const manualPasteRef = useRef<HTMLTextAreaElement>(null);
 
@@ -130,13 +143,15 @@ export const IntakeTab: React.FC = () => {
     const file = files[0];
 
     setIsProcessing(true);
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
     setProcessingFileName(file.name);
     setScannedFallbackActive(false);
 
     try {
       const result = await extractResumeFile(file);
 
-      if (!result.success || result.isScannedImage || result.wordCount < 10) {
+      if (!result.success || result.isScannedImage) {
         setScannedFallbackActive(true);
         addToast({
           type: 'warning',
@@ -182,6 +197,8 @@ export const IntakeTab: React.FC = () => {
     }
 
     setIsProcessing(true);
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
     setProcessingFileName('Manual_Text_Paste.txt');
 
     setTimeout(() => {
@@ -223,14 +240,25 @@ export const IntakeTab: React.FC = () => {
   const handleAiStructureResume = async () => {
     if (!stagedParsedResume || !groqApiKey || isAiStructuring) return;
     setIsAiStructuring(true);
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
     setAiStructuringError(null);
     try {
-      const structured = await parseResumeWithGroq(localStagedProfile || stagedParsedResume, groqApiKey);
-      setStagedParsedResume(structured);
-      setEditableStagedSummary(structured.summary);
-      setEditableHeadline(structured.headline);
-      setEditableName(structured.contactInfo.name || '');
-      setEditableEmail(structured.contactInfo.email || '');
+      const reviewEdits = {
+        name: editableName,
+        email: editableEmail,
+        headline: editableHeadline,
+        summary: editableStagedSummary
+      };
+      const reviewedSource = applyResumeIntakeReviewEdits(stagedParsedResume, reviewEdits);
+      const structured = await parseResumeWithGroq(reviewedSource, groqApiKey);
+      // AI output may misread contact or headline fields; explicit user corrections win.
+      const reviewedStructured = applyResumeIntakeReviewEdits(structured, reviewEdits);
+      setStagedParsedResume(reviewedStructured);
+      setEditableStagedSummary(reviewedStructured.summary);
+      setEditableHeadline(reviewedStructured.headline);
+      setEditableName(reviewedStructured.contactInfo.name || '');
+      setEditableEmail(reviewedStructured.contactInfo.email || '');
       addToast({
         type: 'info',
         title: 'AI Structure Ready for Review',
@@ -245,9 +273,76 @@ export const IntakeTab: React.FC = () => {
     }
   };
 
+  const handleOptimizeMasterResume = async () => {
+    if (!stagedParsedResume || !groqApiKey || isOptimizingMaster) return;
+    setIsOptimizingMaster(true);
+    setOptimizationError(null);
+    setOptimizedMasterPreview(null);
+    try {
+      const reviewedSource = applyResumeIntakeReviewEdits(stagedParsedResume, {
+        name: editableName,
+        email: editableEmail,
+        headline: editableHeadline,
+        summary: editableStagedSummary
+      });
+      const optimized = await optimizeMasterResumeWithGroq(reviewedSource, groqApiKey);
+      setOptimizedMasterPreview(optimized);
+    } catch (err: unknown) {
+      const message = formatGroqError(err, 'Master Resume optimization failed.');
+      setOptimizationError(message);
+      addToast({ type: 'error', title: 'Optimization Failed', message });
+    } finally {
+      setIsOptimizingMaster(false);
+    }
+  };
+
+  const handleAcceptOptimizedMaster = () => {
+    if (!optimizedMasterPreview) return;
+    setStagedParsedResume(optimizedMasterPreview);
+    setEditableStagedSummary(optimizedMasterPreview.summary);
+    setEditableHeadline(optimizedMasterPreview.headline);
+    setEditableName(optimizedMasterPreview.contactInfo.name || '');
+    setEditableEmail(optimizedMasterPreview.contactInfo.email || '');
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
+    addToast({
+      type: 'success',
+      title: 'Optimized Draft Applied',
+      message: 'Review the updated profile and confirm it to save as your Master Resume. The original source text remains unchanged.'
+    });
+  };
+
+  const handleExportMasterResume = async (format: 'docx' | 'pdf') => {
+    if (!masterResume || isExportingMaster) return;
+    setIsExportingMaster(true);
+    try {
+      const artifact = createMasterResumeExportArtifact(masterResume);
+      const blob = format === 'docx'
+        ? await generateDocxResume(artifact, masterResume)
+        : await generatePdfResume(artifact, masterResume);
+      const extension = format === 'docx' ? 'docx' : 'pdf';
+      const mimeType = format === 'docx'
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        : 'application/pdf';
+      const safeName = (masterResume.contactInfo.name || 'Master_Resume').replace(/[^a-z0-9_-]+/gi, '_');
+      const exported = await dispatchExportFile(blob, `${safeName}_Master_Resume.${extension}`, mimeType);
+      if (exported) {
+        addToast({ type: 'success', title: 'Master Resume Exported', message: `Your approved Master Resume was exported as ${extension.toUpperCase()}.` });
+      } else {
+        addToast({ type: 'info', title: 'Export Cancelled', message: 'The share or download action was cancelled.' });
+      }
+    } catch (err: unknown) {
+      addToast({ type: 'error', title: 'Master Resume Export Failed', message: err instanceof Error ? err.message : 'Could not export the Master Resume.' });
+    } finally {
+      setIsExportingMaster(false);
+    }
+  };
+
   const handleRevertToLocalParse = () => {
     if (!localStagedProfile) return;
     setStagedParsedResume(localStagedProfile);
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
     setEditableStagedSummary(localStagedProfile.summary);
     setEditableHeadline(localStagedProfile.headline);
     setEditableName(localStagedProfile.contactInfo.name || '');
@@ -262,11 +357,12 @@ export const IntakeTab: React.FC = () => {
       ...stagedParsedResume,
       contactInfo: {
         ...stagedParsedResume.contactInfo,
-        name: editableName.trim() || stagedParsedResume.contactInfo.name,
-        email: editableEmail.trim() || stagedParsedResume.contactInfo.email
+        name: editableName.trim(),
+        email: editableEmail.trim()
       },
-      headline: editableHeadline || stagedParsedResume.headline,
-      summary: editableStagedSummary || stagedParsedResume.summary
+      headline: editableHeadline.trim(),
+      summary: editableStagedSummary.trim(),
+      additionalEvidence: [...(stagedParsedResume.additionalEvidence || [])]
     };
 
     useWizardStore.setState({ stagedParsedResume: finalStaged });
@@ -276,6 +372,7 @@ export const IntakeTab: React.FC = () => {
   };
 
   const handleGuidedBuilderComplete = (profile: MasterResume) => {
+    setOptimizedMasterPreview(null);
     setStagedParsedResume(profile);
     setLocalStagedProfile(profile);
     setEditableStagedSummary(profile.summary);
@@ -283,6 +380,8 @@ export const IntakeTab: React.FC = () => {
     setEditableName(profile.contactInfo.name || '');
     setEditableEmail(profile.contactInfo.email || '');
     setAiStructuringError(null);
+    setOptimizedMasterPreview(null);
+    setOptimizationError(null);
     setShowGuidedBuilder(false);
     addToast({
       type: 'success',
@@ -368,6 +467,11 @@ export const IntakeTab: React.FC = () => {
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
             Ingest PDF, DOCX, TXT, or MD files up to 10MB into your client-side vault.
           </p>
+          {masterResumeExportGuidance && !masterResumeExportGuidance.pdfSupported && (
+            <p role="status" className="mt-2 max-w-2xl rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-[11px] leading-relaxed text-sky-100">
+              {t('Some characters in your resume are not supported by the built-in PDF fonts. Choose DOCX to preserve every character. PDF export is paused to prevent text loss.')} {t('Recommended for Tamil and other scripts')}
+            </p>
+          )}
         </div>
 
         {masterResume && (
@@ -377,7 +481,25 @@ export const IntakeTab: React.FC = () => {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold transition cursor-pointer"
             >
               <Wrench className="w-3.5 h-3.5" />
-              <span>Half-Built Resume Builder</span>
+              <span>Build or Improve Master Resume</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleExportMasterResume('docx')}
+              disabled={isExportingMaster}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20 text-xs font-semibold disabled:opacity-50"
+            >
+              <FileCode className="w-3.5 h-3.5" />
+              <span>{isExportingMaster ? 'Exporting…' : t('Export .DOCX')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleExportMasterResume('pdf')}
+              disabled={isExportingMaster || masterResumeExportGuidance?.pdfSupported === false}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20 text-xs font-semibold disabled:opacity-50"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>{t('Export .PDF')}</span>
             </button>
             <button
               onClick={() => setShowClearConfirmModal(true)}
@@ -401,14 +523,14 @@ export const IntakeTab: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="text-xs font-bold text-amber-200">
-                  Half-Built Resume Detected ({completenessScore}% Complete)
+                  Master Resume Profile Completeness: {completenessScore}%
                 </h4>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Missing Structural Evidence
+                  Details to Review
                 </span>
               </div>
               <p className="text-[11px] text-amber-300/80 mt-1">
-                Your extracted profile may still need: {resumeReadiness.missingSections.join(', ')}. Review the original resume and add only details that reflect your real experience.
+                This score measures structured profile information, not employability, and does not require paid work history. You may want to add: {resumeReadiness.missingSections.join(', ')}. Include only details that reflect your real experience.
               </p>
             </div>
           </div>
@@ -417,7 +539,7 @@ export const IntakeTab: React.FC = () => {
             onClick={() => setShowBuilderModal(true)}
             className="self-start sm:self-auto px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer shrink-0 shadow-sm"
           >
-            Launch Builder Panel
+            Review and Improve Profile
           </button>
         </div>
       )}
@@ -434,8 +556,20 @@ export const IntakeTab: React.FC = () => {
             Review Ingested Evidence Slab
           </h3>
           <p className="text-xs text-slate-400 mt-0.5 mb-4">
-            Verify parsed metrics and layout bounds before committing to your master store.
+            Check the extracted information. You can edit every section before approving it; BYOC will not change your active Master Profile until you confirm.
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              setOptimizedMasterPreview(null);
+              setCareerFormDraft(createCareerDraftFromMasterResume(stagedParsedResume));
+              setShowGuidedBuilder(true);
+            }}
+            className="mb-5 inline-flex items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-200 hover:bg-sky-500/20"
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+            Edit all extracted details
+          </button>
 
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
@@ -465,10 +599,10 @@ export const IntakeTab: React.FC = () => {
               <div className="mb-5 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-2 animate-in fade-in">
                 <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
                   <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Mandatory Application Schema Fields Missing ({validation.missingMandatoryFields.length})</span>
+                  <span>Information Not Automatically Detected ({validation.missingMandatoryFields.length})</span>
                 </div>
                 <p className="text-[11px] text-amber-200/90 leading-relaxed">
-                  The document extraction stream could not detect: <strong>{validation.missingMandatoryFields.join(', ')}</strong>. You can manually enter or edit these values below before confirming to your Master Profile.
+                  The document reader did not confidently identify: <strong>{validation.missingMandatoryFields.join(', ')}</strong>. Review these details and add or correct anything relevant before confirming your career profile. Work history is not required when other career evidence applies.
                 </p>
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {validation.missingMandatoryFields.map((field, idx) => (
@@ -476,7 +610,7 @@ export const IntakeTab: React.FC = () => {
                       key={idx}
                       className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-200 border border-amber-500/30 text-[10px] font-mono"
                     >
-                      Missing: {field}
+                      Review: {field}
                     </span>
                   ))}
                 </div>
@@ -489,7 +623,7 @@ export const IntakeTab: React.FC = () => {
               <div>
                 <h4 className="text-xs font-bold text-sky-200">Optional AI Resume Structuring (Groq)</h4>
                 <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-slate-400">
-                  Local extraction already ran. Nothing is sent automatically. If you click this, the extracted resume text (up to 24,000 characters) is sent to Groq using your API key to propose structured fields. AI can misread or invent details: compare everything with the source below before approving. The local parse remains available to restore.
+                  Local extraction already ran. Nothing is sent automatically. If you click this, the extracted resume text (up to 24,000 characters) is sent to Groq using your API key to propose structured fields. It may include your name, email, phone, links and other personal details present in the document. AI can misread or invent details: compare everything with the source below before approving. The local parse remains available to restore.
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
@@ -523,6 +657,65 @@ export const IntakeTab: React.FC = () => {
             </details>
           </div>
 
+          {/* Optional Master Resume optimization: compare before accepting. */}
+          <div className="mb-5 rounded-2xl border border-violet-500/25 bg-violet-500/5 p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div>
+                <h4 className="text-xs font-bold text-violet-200">Optional Master Resume Optimization</h4>
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                  Ask Groq to improve wording and clarity using your structured profile only. Dedicated contact fields and original uploaded text are excluded; personal details typed into free-text bullets, project descriptions or other evidence may still be sent. This is optional and never replaces your source automatically.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleOptimizeMasterResume()}
+                disabled={!groqApiKey || isOptimizingMaster || isAiStructuring || isProcessing}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-violet-400/30 bg-violet-500/15 px-3 py-2 text-xs font-semibold text-violet-100 hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {isOptimizingMaster ? 'Optimizing…' : 'Suggest improvements'}
+              </button>
+            </div>
+            {!groqApiKey && <p className="text-[11px] text-amber-300">This additional feature uses your existing Groq key. The local Master Resume workflow remains available without it.</p>}
+            {optimizationError && <p role="alert" className="text-[11px] text-rose-300">{optimizationError}</p>}
+            {optimizedMasterPreview && (
+              <div className="space-y-3 rounded-xl border border-violet-400/25 bg-slate-950/60 p-3">
+                <p className="text-[11px] font-bold text-violet-200">Compare the proposed wording with your current draft</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div><p className="text-[10px] font-bold uppercase text-slate-500">Current headline</p><p className="mt-1 whitespace-pre-wrap text-xs text-slate-300">{editableHeadline || 'Not provided'}</p></div>
+                  <div><p className="text-[10px] font-bold uppercase text-violet-300">Suggested headline</p><p className="mt-1 whitespace-pre-wrap text-xs text-white">{optimizedMasterPreview.headline || 'Not provided'}</p></div>
+                  <div><p className="text-[10px] font-bold uppercase text-slate-500">Current summary</p><p className="mt-1 whitespace-pre-wrap text-xs text-slate-300">{editableStagedSummary || 'Not provided'}</p></div>
+                  <div><p className="text-[10px] font-bold uppercase text-violet-300">Suggested summary</p><p className="mt-1 whitespace-pre-wrap text-xs text-white">{optimizedMasterPreview.summary || 'Not provided'}</p></div>
+                </div>
+                {optimizedMasterPreview.projects.map((project) => {
+                  const original = stagedParsedResume.projects.find((item) => item.id === project.id);
+                  if (!original || original.description === project.description) return null;
+                  return (
+                    <div key={project.id} className="grid gap-2 border-t border-slate-800 pt-2 sm:grid-cols-2">
+                      <div><p className="text-[10px] font-bold uppercase text-slate-500">{original.title} — Current description</p><p className="mt-1 text-[11px] text-slate-400">{original.description || 'Not provided'}</p></div>
+                      <div><p className="text-[10px] font-bold uppercase text-violet-300">{project.title} — Suggested description</p><p className="mt-1 text-[11px] text-white">{project.description || 'Not provided'}</p></div>
+                    </div>
+                  );
+                })}
+                {optimizedMasterPreview.experiences.map((experience) => {
+                  const original = stagedParsedResume.experiences.find((item) => item.id === experience.id);
+                  if (!original) return null;
+                  return experience.bullets.map((bullet, index) => (
+                    <div key={experience.id + '-' + index} className="grid gap-2 border-t border-slate-800 pt-2 sm:grid-cols-2">
+                      <p className="text-[11px] text-slate-400">{original.bullets[index] || '—'}</p>
+                      <p className="text-[11px] text-white">{bullet}</p>
+                    </div>
+                  ));
+                })}
+                <p className="text-[10px] leading-relaxed text-amber-200">AI wording is a suggestion, not proof. Check every factual statement. Accepting applies it only to this staged draft; your active Master Resume changes only after the separate confirmation below.</p>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button type="button" onClick={() => setOptimizedMasterPreview(null)} className="rounded-lg border border-slate-600 px-3 py-2 text-[11px] font-semibold text-slate-300 hover:bg-slate-800">Discard suggestion</button>
+                  <button type="button" onClick={handleAcceptOptimizedMaster} className="rounded-lg bg-violet-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-violet-500">Use suggested wording</button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Editable Fields in Review Gate */}
           <div className="space-y-4 mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -533,7 +726,12 @@ export const IntakeTab: React.FC = () => {
                 <input
                   type="text"
                   value={editableName}
-                  onChange={(e) => setEditableName(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setEditableName(value);
+                    setLocalStagedProfile((current) => current ? { ...current, contactInfo: { ...current.contactInfo, name: value } } : current);
+                    setOptimizedMasterPreview(null);
+                  }}
                   placeholder="Candidate Full Name"
                   className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-bold focus:outline-none focus:border-indigo-500"
                 />
@@ -545,13 +743,33 @@ export const IntakeTab: React.FC = () => {
                 <input
                   type="email"
                   value={editableEmail}
-                  onChange={(e) => setEditableEmail(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setEditableEmail(value);
+                    setLocalStagedProfile((current) => current ? { ...current, contactInfo: { ...current.contactInfo, email: value } } : current);
+                    setOptimizedMasterPreview(null);
+                  }}
                   placeholder="candidate@domain.com"
                   className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
 
+            <div className="mt-4">
+              <label htmlFor="review-additional-evidence" className="block text-xs font-semibold text-slate-300 mb-1">
+                {t('Other career evidence')}
+              </label>
+              <p className="mb-2 text-[11px] text-slate-400">{t('Each line is a separate item. Edit its wording or category, or delete the line if it does not describe your experience.')}</p>
+              <textarea id="review-additional-evidence" rows={Math.max(3, Math.min(10, stagedParsedResume.additionalEvidence?.length || 3))}
+                value={(stagedParsedResume.additionalEvidence || []).join('\n')}
+                onChange={(event) => {
+                  const additionalEvidence = event.target.value.split('\n').map((item) => item.trim()).filter(Boolean);
+                  if (stagedParsedResume) {
+                    setStagedParsedResume({ ...stagedParsedResume, additionalEvidence });
+                  }
+                }}
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs leading-relaxed" />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
                 Headline / Title
@@ -559,7 +777,12 @@ export const IntakeTab: React.FC = () => {
               <input
                 type="text"
                 value={editableHeadline}
-                onChange={(e) => setEditableHeadline(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditableHeadline(value);
+                  setLocalStagedProfile((current) => current ? { ...current, headline: value } : current);
+                  setOptimizedMasterPreview(null);
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -571,7 +794,12 @@ export const IntakeTab: React.FC = () => {
               <textarea
                 rows={3}
                 value={editableStagedSummary}
-                onChange={(e) => setEditableStagedSummary(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditableStagedSummary(value);
+                  setLocalStagedProfile((current) => current ? { ...current, summary: value } : current);
+                  setOptimizedMasterPreview(null);
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs leading-relaxed focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -678,7 +906,13 @@ export const IntakeTab: React.FC = () => {
               accept=".pdf,.docx,.txt,.md"
               className="hidden"
               disabled={isProcessing}
-              onChange={(e) => handleFileDrop(e.target.files)}
+              onChange={(e) => {
+                const input = e.currentTarget;
+                // handleFileDrop reads the file synchronously before its first await,
+                // so clearing the input afterwards lets the same file be picked again.
+                void handleFileDrop(input.files);
+                input.value = '';
+              }}
             />
 
             {isProcessing ? (
@@ -809,7 +1043,12 @@ export const IntakeTab: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {previousMasterResume && (
+                <button type="button" onClick={restorePreviousMasterResume} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-200 text-xs font-semibold transition">
+                  Restore Previous Resume
+                </button>
+              )}
               <button
                 onClick={() => setShowGuidedBuilder(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-200 text-xs font-semibold transition"
@@ -992,7 +1231,7 @@ export const IntakeTab: React.FC = () => {
           <div className="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-3xl p-6 shadow-2xl relative text-left my-8">
             <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
               <Wrench className="w-5 h-5 text-indigo-400" />
-              <span>Half-Built Resume Builder Panel</span>
+              <span>Master Resume Builder</span>
             </h3>
             <p className="text-xs text-slate-400 mb-4">
               Add verified career milestones directly into your master profile to eliminate gaps.
@@ -1079,9 +1318,9 @@ export const IntakeTab: React.FC = () => {
 
       {showGuidedBuilder && (
         <GuidedMasterResumeBuilder
-          initialDraft={careerFormDraft || (masterResume ? createCareerDraftFromMasterResume(masterResume) : null)}
+          initialDraft={careerFormDraft || (stagedParsedResume ? createCareerDraftFromMasterResume(stagedParsedResume) : masterResume ? createCareerDraftFromMasterResume(masterResume) : null)}
           groqApiKey={groqApiKey}
-          isEditingExisting={Boolean(masterResume)}
+          isEditingExisting={Boolean(masterResume || stagedParsedResume)}
           onDraftChange={setCareerFormDraft}
           onComplete={handleGuidedBuilderComplete}
           onCancel={() => setShowGuidedBuilder(false)}

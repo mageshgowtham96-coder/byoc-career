@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
+import { openExternalPortalUrl, shouldUseNativeExternalBrowser } from '../../services/externalBrowser';
 import { useWizardStore } from '../../store/useWizardStore';
+import { useAuthLocale } from '../../i18n/authLocale';
 import { getRoleSuggestions } from '../../utils/roleSuggestions';
+import { getCandidateDiscoverySignals } from '../../utils/resumeReadiness';
 import {
   jobSearchEngine,
   calculateHonestMatch,
+  getJobMatchCriteria,
   isWorldwideCountryCode,
   matchesRemoteCountryAndLocation,
   isLiveDiscoveredJobSource,
@@ -41,6 +45,7 @@ import {
 } from 'lucide-react';
 
 export const SourcingTab: React.FC = () => {
+  const { t } = useAuthLocale();
   const {
     jobs,
     setJobs,
@@ -63,7 +68,7 @@ export const SourcingTab: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isRoleSuggestionsOpen, setIsRoleSuggestionsOpen] = useState(false);
   const [activeRoleSuggestion, setActiveRoleSuggestion] = useState(-1);
-  const roleSuggestions = React.useMemo(() => getRoleSuggestions(searchQuery), [searchQuery]);
+  const roleSuggestions = React.useMemo(() => getRoleSuggestions(searchQuery, masterResume, jobs), [searchQuery, masterResume, jobs]);
   const showRoleSuggestions = isRoleSuggestionsOpen && roleSuggestions.length > 0;
   const liveSearchInFlight = React.useRef(false);
   const [workplaceFilter, setWorkplaceFilter] = useState<'All' | 'Remote' | 'Hybrid' | 'On-site'>('All');
@@ -95,6 +100,7 @@ export const SourcingTab: React.FC = () => {
   const [customWorkplace, setCustomWorkplace] = useState<'Remote' | 'Hybrid' | 'On-site' | 'Unspecified'>('Unspecified');
   const [customSalary, setCustomSalary] = useState('');
   const [customSkills, setCustomSkills] = useState('');
+  const [customPreferredSkills, setCustomPreferredSkills] = useState('');
   const [customRawJD, setCustomRawJD] = useState('');
 
   const portalShortcuts = React.useMemo(
@@ -105,13 +111,14 @@ export const SourcingTab: React.FC = () => {
   const resumeIngested = hasMasterResume();
   const isWorldwide = isWorldwideCountryCode(candidatePreferences?.country || 'IN');
 
-  const handleRunLiveSearch = async () => {
+  const handleRunLiveSearch = async (queryOverride?: string) => {
     if (liveSearchInFlight.current) return;
+    const effectiveQuery = (queryOverride ?? searchQuery).trim();
     const hasSearchTerms = Boolean(
-      searchQuery.trim() ||
+      effectiveQuery ||
         candidatePreferences?.targetRole?.trim() ||
         candidatePreferences?.profession?.trim() ||
-        (masterResume?.skills.technical?.length ?? 0) > 0
+        getCandidateDiscoverySignals(masterResume).length > 0
     );
     if (!hasSearchTerms) {
       addToast({
@@ -128,7 +135,7 @@ export const SourcingTab: React.FC = () => {
     try {
       const res = await jobSearchEngine.executeLiveSearch(
         {
-          query: searchQuery.trim() || undefined,
+          query: effectiveQuery || undefined,
           country: candidatePreferences?.country || 'IN',
           location: isWorldwide ? undefined : optionalLocation.trim() || undefined,
           includeWorldwideRemote: candidatePreferences?.includeWorldwideRemote !== false,
@@ -136,7 +143,7 @@ export const SourcingTab: React.FC = () => {
           portal: portalFilter,
           profession: candidatePreferences?.profession,
           targetRole: candidatePreferences?.targetRole,
-          skills: masterResume?.skills.technical
+          skills: getCandidateDiscoverySignals(masterResume)
         },
         masterResume,
         jobs
@@ -184,12 +191,13 @@ export const SourcingTab: React.FC = () => {
         return {
           ...job,
           fitScore: match.score,
+          fitStatusText: match.statusText,
           matchedKeywords: match.matchedKeywords,
           missingKeywords: match.missingKeywords
         };
       })
       .filter((job) => {
-        if (!matchesJobSearchTerms(searchQuery, job.title, job.company, job.location, job.skillsRequired, job.jobDescriptionRaw)) return false;
+        if (!matchesJobSearchTerms(searchQuery, job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.jobDescriptionRaw)) return false;
         const source = (job.source || '').toLowerCase();
         // Hide legacy Groq-discovered candidates retained in older local vaults; do not delete user data.
         if (source.includes('groq')) return false;
@@ -280,6 +288,10 @@ export const SourcingTab: React.FC = () => {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
+    const preferredSkillsArray = customPreferredSkills
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     const honest = calculateHonestMatch(
       {
@@ -293,6 +305,7 @@ export const SourcingTab: React.FC = () => {
         source: chosenSource,
         url: cleanListingUrl || '#',
         skillsRequired: skillsArray,
+        skillsPreferred: preferredSkillsArray,
         fitScore: null,
         matchedKeywords: [],
         missingKeywords: [],
@@ -313,7 +326,9 @@ export const SourcingTab: React.FC = () => {
       source: chosenSource,
       url: cleanListingUrl || '#',
       skillsRequired: skillsArray,
+      skillsPreferred: preferredSkillsArray,
       fitScore: honest.score,
+      fitStatusText: honest.statusText,
       matchedKeywords: honest.matchedKeywords,
       missingKeywords: honest.missingKeywords,
       experienceLevel: 'Unspecified',
@@ -331,6 +346,7 @@ export const SourcingTab: React.FC = () => {
     setCustomWorkplace('Unspecified');
     setCustomRawJD('');
     setCustomSkills('');
+    setCustomPreferredSkills('');
 
     addToast({
       type: 'success',
@@ -359,10 +375,10 @@ export const SourcingTab: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <Briefcase className="w-6 h-6 text-sky-400" />
-            <span>Opportunity Sourcing & Role Upgrade Engine</span>
+            <span>{t('Opportunity Sourcing & Role Upgrade Engine')}</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            Discover roles with autonomous tier upgrade highlighting and raw description caching.
+            {t('Discover roles with autonomous tier upgrade highlighting and raw description caching.')}
           </p>
         </div>
 
@@ -371,7 +387,7 @@ export const SourcingTab: React.FC = () => {
           className="self-start sm:self-auto flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition cursor-pointer"
         >
           <PlusCircle className="w-4 h-4" />
-          <span>Add Custom Job Description</span>
+          <span>{t('Add Custom Job Description')}</span>
         </button>
       </div>
 
@@ -382,10 +398,10 @@ export const SourcingTab: React.FC = () => {
             <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div>
               <h4 className="text-xs font-bold text-amber-200">
-                Fit scores are unavailable until your master resume and job skill criteria exist.
+                {t('Fit scores are unavailable until your master resume and job skill criteria exist.')}
               </h4>
               <p className="text-[11px] text-amber-300/80 mt-0.5">
-                Upload your resume in Intake (and ensure a posting lists required skills) to compute verified keyword matching and ATS gap metrics—never generic or invented scores.
+                {t('Upload your resume in Intake (and ensure a posting lists required skills) to compute verified keyword matching and ATS gap metrics—never generic or invented scores.')}
               </p>
             </div>
           </div>
@@ -393,7 +409,7 @@ export const SourcingTab: React.FC = () => {
             onClick={() => setActiveTab('intake')}
             className="self-start sm:self-auto px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer shrink-0"
           >
-            Add Master Resume
+            {t('Add Master Resume')}
           </button>
         </div>
       )}
@@ -614,6 +630,12 @@ export const SourcingTab: React.FC = () => {
                 >
                   <a
                     href={targetHref}
+                    onClick={(event) => {
+                      if (shouldUseNativeExternalBrowser()) {
+                        event.preventDefault();
+                        void openExternalPortalUrl(targetHref).catch((error) => console.error('Portal launch failed:', error));
+                      }
+                    }}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-slate-200 hover:text-sky-300 font-semibold transition"
@@ -667,24 +689,24 @@ export const SourcingTab: React.FC = () => {
             aria-controls="byoc-role-suggestions"
             aria-activedescendant={activeRoleSuggestion >= 0 && showRoleSuggestions ? "byoc-role-option-" + activeRoleSuggestion : undefined}
             onFocus={() => setIsRoleSuggestionsOpen(true)}
-            onBlur={() => setIsRoleSuggestionsOpen(false)}
+            onBlur={() => window.setTimeout(() => setIsRoleSuggestionsOpen(false), 120)}
             onChange={(e) => { setSearchQuery(e.target.value); setIsRoleSuggestionsOpen(true); setActiveRoleSuggestion(-1); }}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown' && showRoleSuggestions) { e.preventDefault(); setActiveRoleSuggestion((current) => Math.min(current + 1, roleSuggestions.length - 1)); }
               else if (e.key === 'ArrowUp' && showRoleSuggestions) { e.preventDefault(); setActiveRoleSuggestion((current) => Math.max(current - 1, 0)); }
               else if (e.key === 'Escape') { setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); }
-              else if (e.key === 'Enter') { if (showRoleSuggestions && activeRoleSuggestion >= 0) { e.preventDefault(); setSearchQuery(roleSuggestions[activeRoleSuggestion]); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); } else { setIsRoleSuggestionsOpen(false); void handleRunLiveSearch(); } }
+              else if (e.key === 'Enter') { if (showRoleSuggestions && activeRoleSuggestion >= 0) { e.preventDefault(); setSearchQuery(roleSuggestions[activeRoleSuggestion]); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); void handleRunLiveSearch(roleSuggestions[activeRoleSuggestion]); } else { setIsRoleSuggestionsOpen(false); void handleRunLiveSearch(); } }
             }}
-            placeholder="Search a role (e.g. fraud) or any keyword..."
+            placeholder={t('Search any role, skill or keyword...')}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
           />
           {showRoleSuggestions && (
-            <div id="byoc-role-suggestions" role="listbox" aria-label="Suggested job roles" className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-sky-500/30 bg-slate-950/95 shadow-2xl shadow-black/40 backdrop-blur-xl">
-              <div className="px-3 py-2 border-b border-slate-800 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Suggested roles · custom searches also supported</div>
+            <div id="byoc-role-suggestions" role="listbox" aria-label="Suggested job roles" className="absolute top-full z-[60] mt-2 max-h-[min(42vh,18rem)] w-full overflow-y-auto overscroll-contain rounded-xl border border-sky-500/30 bg-slate-950/95 shadow-2xl shadow-black/40 backdrop-blur-xl">
+              <div className="px-3 py-2 border-b border-slate-800 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t('Suggested roles · custom searches also supported')}</div>
               {roleSuggestions.map((role, index) => (
                 <button key={role} id={"byoc-role-option-" + index} type="button" role="option" aria-selected={activeRoleSuggestion === index}
                   onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setActiveRoleSuggestion(index)}
-                  onClick={() => { setSearchQuery(role); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); }}
+                  onClick={() => { setSearchQuery(role); setIsRoleSuggestionsOpen(false); setActiveRoleSuggestion(-1); void handleRunLiveSearch(role); }}
                   className={"block w-full px-3 py-2.5 text-left text-xs transition " + (activeRoleSuggestion === index ? "bg-sky-500/15 text-sky-200" : "text-slate-300 hover:bg-slate-800")}>
                   {role}
                 </button>
@@ -718,7 +740,7 @@ export const SourcingTab: React.FC = () => {
             className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSearchingLive ? 'animate-spin' : ''}`} />
-            <span>{isSearchingLive ? 'Checking public job listings...' : 'Search Job Listings'}</span>
+            <span>{isSearchingLive ? t('Checking public job listings...') : t('Search Job Listings')}</span>
           </button>
         </div>
       </div>
@@ -769,17 +791,17 @@ export const SourcingTab: React.FC = () => {
               </div>
               <h3 className="text-base font-bold text-white mb-2">
                 {liveSearchReport?.error
-                  ? 'Job search needs attention'
+                  ? t('Job search needs attention')
                   : liveSearchReport
-                    ? 'No matching openings found'
-                    : 'No job listings added yet'}
+                    ? t('No matching openings found')
+                    : t('No job listings added yet')}
               </h3>
               <p className="text-xs text-slate-400 mb-6 leading-relaxed">
                 {liveSearchReport?.error
                   ? liveSearchReport.error
                   : liveSearchReport
-                    ? 'No roles matched your current search and location filters. Try adjusting your keywords or search area.'
-                    : 'BYOC does not invent job postings. Paste a job description from an employer portal or search public listings to get started.'}
+                    ? t('No roles matched your current search and location filters. Try adjusting your keywords or search area.')
+                    : t('BYOC does not invent job postings. Paste a job description from an employer portal or search public listings to get started.')}
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
@@ -788,7 +810,7 @@ export const SourcingTab: React.FC = () => {
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition cursor-pointer flex items-center justify-center gap-2"
                 >
                   <PlusCircle className="w-4 h-4" />
-                  <span>Paste Target Job Description</span>
+                  <span>{t('Paste Target Job Description')}</span>
                 </button>
                 <button
                   type="button"
@@ -797,13 +819,13 @@ export const SourcingTab: React.FC = () => {
                   className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
                 >
                   <Search className="w-4 h-4 text-sky-400" />
-                  <span>{isSearchingLive ? 'Checking public job listings...' : 'Search Job Listings'}</span>
+                  <span>{isSearchingLive ? t('Checking public job listings...') : t('Search Job Listings')}</span>
                 </button>
               </div>
             </div>
           ) : (
             <div className="p-8 rounded-3xl bg-slate-800/40 border border-slate-800 text-center">
-              <p className="text-xs text-slate-400 mb-3">No matching opportunities found for your criteria.</p>
+              <p className="text-xs text-slate-400 mb-3">{t('No matching opportunities found for your criteria.')}</p>
               <button
                 type="button"
                 onClick={() => {
@@ -908,13 +930,13 @@ export const SourcingTab: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Honest Fit Score Badge */}
+                  {/* Evidence-limited keyword overlap indicator */}
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1">
                     {resumeIngested && job.fitScore !== null ? (
                       <>
                         <div className="flex items-baseline gap-1">
                           <span className="text-2xl font-black text-white font-mono">{job.fitScore}%</span>
-                          <span className="text-[10px] uppercase font-bold text-emerald-400">Match</span>
+                          <span className="text-[10px] uppercase font-bold text-emerald-400">Keyword overlap</span>
                         </div>
                         <div className="w-24 h-1.5 rounded-full bg-slate-700 overflow-hidden">
                           <div
@@ -923,13 +945,16 @@ export const SourcingTab: React.FC = () => {
                           />
                         </div>
                         <span className="text-[9px] text-slate-400 font-mono">
-                          {job.matchedKeywords.length}/{job.skillsRequired.length} Verified
+                          {job.matchedKeywords.length}/{getJobMatchCriteria(job).skills.length} keywords
+                        </span>
+                        <span className="text-[9px] text-slate-500 text-right max-w-36">
+                          {getJobMatchCriteria(job).label}
                         </span>
                       </>
                     ) : (
                       <div className="text-right">
                         <span className="px-2 py-1 rounded-lg bg-slate-700/60 border border-slate-600/50 text-[10px] font-mono text-amber-300 block">
-                          Insufficient profile data
+                          {job.fitStatusText || 'Match not assessed'}
                         </span>
                         <span className="text-[9px] text-slate-500 mt-0.5 block">
                           {!resumeIngested ? 'Upload resume in Intake' : 'No job skill criteria specified'}
@@ -957,13 +982,18 @@ export const SourcingTab: React.FC = () => {
                   </div>
                 )}
 
-                {/* Skills tags */}
+                {/* Skill classifications remain distinct: required, preferred and feed-listed. */}
                 <div className="flex flex-wrap gap-1.5 mb-4">
-                  {job.skillsRequired.map((s, i) => {
-                    const isMatched = job.matchedKeywords.includes(s);
+                  {[
+                    ...job.skillsRequired.map((skill) => ({ skill, kind: 'Required' })),
+                    ...(job.skillsPreferred || []).map((skill) => ({ skill, kind: 'Preferred' })),
+                    ...(job.skillsListed || []).map((skill) => ({ skill, kind: 'Listed' }))
+                  ].map(({ skill, kind }, index) => {
+                    const isMatched = job.matchedKeywords.includes(skill);
                     return (
                       <span
-                        key={i}
+                        key={kind + '-' + skill + '-' + index}
+                        title={kind === 'Listed' ? 'Provider-listed tag; requirement status is unknown.' : kind + ' skill'}
                         className={`px-2 py-0.5 rounded-md text-[11px] font-mono border ${
                           isMatched
                             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
@@ -971,11 +1001,18 @@ export const SourcingTab: React.FC = () => {
                         }`}
                       >
                         {isMatched && '✓ '}
-                        {s}
+                        {kind}: {skill}
                       </span>
                     );
                   })}
                 </div>
+
+                {job.eligibilityAssessment && (
+                  <p className="mb-3 text-[10px] leading-relaxed text-slate-400" title={job.eligibilityAssessment.evidence}>
+                    Market eligibility: <span className="font-semibold text-slate-300">{job.eligibilityAssessment.status.replace(/-/g, ' ')}</span>
+                    {' · '}{job.eligibilityAssessment.evidence}
+                  </p>
+                )}
 
                 {/* Raw JD Preview */}
                 <p className="text-xs text-slate-400 line-clamp-2 mb-4 leading-relaxed bg-slate-900/40 p-2.5 rounded-xl border border-slate-800">
@@ -1025,6 +1062,12 @@ export const SourcingTab: React.FC = () => {
                       return (
                         <a
                           href={validJobUrl}
+                          onClick={(event) => {
+                            if (shouldUseNativeExternalBrowser()) {
+                              event.preventDefault();
+                              void openExternalPortalUrl(validJobUrl).catch((error) => console.error('Portal launch failed:', error));
+                            }
+                          }}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-xs font-semibold transition"
@@ -1301,6 +1344,20 @@ export const SourcingTab: React.FC = () => {
                   placeholder="TypeScript, React, Node.js, GraphQL, Docker"
                   className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Preferred / Nice-to-have Skills (optional, comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={customPreferredSkills}
+                  onChange={(e) => setCustomPreferredSkills(e.target.value)}
+                  placeholder="Power BI, stakeholder reporting, a second language"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
+                />
+                <p className="mt-1 text-[10px] text-slate-500">These are not counted as mandatory requirements in the keyword-overlap score.</p>
               </div>
 
               <div>

@@ -1,4 +1,22 @@
-import type { MasterResume, TailoredArtifact, JobPosting } from '../types';
+import type { MasterResume, TailoredArtifact, TailoredVariant, JobPosting } from '../types';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+interface NativeFileExportPlugin {
+  saveFile(options: { filename: string; mimeType: string; base64Data: string }): Promise<{ uri: string; filename: string }>;
+  openFile(options: { uri: string; mimeType: string }): Promise<void>;
+}
+
+const NativeFileExport = registerPlugin<NativeFileExportPlugin>('FileExport');
+
+async function encodeBlobAsBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const chunks: string[] = [];
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + chunkSize)));
+  }
+  return btoa(chunks.join(''));
+}
 import type { Paragraph } from 'docx';
 import { resolveTailoredResumeForExportAndPreview } from '../utils/tailoredBulletResolver';
 
@@ -9,11 +27,92 @@ export interface ExportOptions {
   targetJob?: JobPosting | null;
 }
 
+
+/**
+ * Adapts an approved Master Resume into the existing structured document exporter.
+ * This is not a job-specific artifact: every source section remains the user's profile.
+ */
+export function createMasterResumeExportArtifact(resume: MasterResume): TailoredArtifact {
+  const highlightedSkills = [
+    ...resume.skills.technical,
+    ...resume.skills.soft,
+    ...resume.skills.tools,
+    ...resume.skills.domains
+  ].filter((skill, index, all) => Boolean(skill.trim()) && all.indexOf(skill) === index);
+  const optimizedBullets = resume.experiences.flatMap((experience) =>
+    experience.bullets.map((bullet) => ({
+      experienceId: experience.id,
+      company: experience.company,
+      role: experience.role,
+      originalBullet: bullet,
+      tailoredBullet: bullet,
+      matchRationale: 'Original user-approved Master Resume evidence.'
+    }))
+  );
+  const variant: TailoredVariant = {
+    id: 'master-resume',
+    name: 'Master Resume',
+    badge: 'Master Resume',
+    description: 'User-approved career profile, not tailored to a specific vacancy.',
+    tailoredSummary: resume.summary,
+    highlightedSkills,
+    optimizedBullets,
+    coverLetter: '',
+    interviewPrepQuestions: []
+  };
+  return {
+    id: 'master-' + resume.stats.lastParsedDate,
+    jobId: 'master-resume',
+    jobTitle: resume.headline || resume.currentRole || 'Master Resume',
+    company: '',
+    selectedVariantId: variant.id,
+    variants: [variant],
+    tailoredSummary: resume.summary,
+    highlightedSkills,
+    optimizedBullets,
+    coverLetter: '',
+    interviewPrepQuestions: [],
+    generationTimestamp: new Date().toISOString(),
+    authenticityGuaranteed: false,
+    reviewConfirmed: true
+  };
+}
+
+/** Save a document through Android MediaStore into Downloads/BYOC. */
+export async function saveBlobToDownloads(blob: Blob, filename: string, mimeType: string): Promise<{ uri: string; filename: string }> {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+    throw new Error('Direct Downloads export is available in the Android app.');
+  }
+  const base64Data = await encodeBlobAsBase64(blob);
+  const saved = await NativeFileExport.saveFile({ filename, mimeType, base64Data });
+  if (!saved?.uri || !saved?.filename) throw new Error('Android did not confirm the saved file.');
+  return saved;
+}
+
+/** Open a MediaStore content URI in an installed Android document/PDF viewer. */
+export async function openSavedFileExternally(uri: string, mimeType = 'application/pdf'): Promise<void> {
+  if (!uri.startsWith('content://')) throw new Error('A saved Android document URI is required.');
+  await NativeFileExport.openFile({ uri, mimeType });
+}
+
 /**
  * Universal Mobile-Aware File Dispatcher
  * Checks navigator.canShare() to seamlessly offer iOS / Android Web Share sheet fallback
  */
 export async function dispatchExportFile(blob: Blob, filename: string, mimeType: string): Promise<boolean> {
+  // Capacitor's Android WebView does not guarantee browser-anchor downloads.
+  // Save natively to the public Downloads/BYOC folder so exports survive app restarts.
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+    try {
+      await saveBlobToDownloads(blob, filename, mimeType);
+      return true;
+    } catch (error) {
+      // Do not claim a Downloads save when Android MediaStore did not confirm it.
+      console.error('Native Android Downloads export failed:', error);
+      return false;
+    }
+  }
+
   // Check if Web Share API is available and can share files (iOS Safari & Android Chrome)
   if (typeof navigator !== 'undefined' && 'canShare' in navigator && 'share' in navigator) {
     try {
@@ -66,7 +165,14 @@ export async function dispatchExportFile(blob: Blob, filename: string, mimeType:
 /**
  * Clean Text (.txt) Generator
  */
+function assertHumanReviewConfirmed(artifact: TailoredArtifact): void {
+  if (!artifact.reviewConfirmed) {
+    throw new Error('Review the generated content against your Master Resume and the supplied job description before exporting.');
+  }
+}
+
 export function generatePlainTextResume(artifact: TailoredArtifact, resume: MasterResume): string {
+  assertHumanReviewConfirmed(artifact);
   const resolved = resolveTailoredResumeForExportAndPreview(artifact, resume);
   const lines: string[] = [];
 
@@ -157,6 +263,12 @@ export function generatePlainTextResume(artifact: TailoredArtifact, resume: Mast
     });
   }
 
+  if (resolved.additionalEvidence.length > 0) {
+    lines.push('\n' + '-'.repeat(50) + '\n');
+    lines.push('ADDITIONAL CAREER EVIDENCE');
+    resolved.additionalEvidence.forEach((item) => lines.push(item));
+  }
+
   // Cover Letter Section if generated
   if (resolved.coverLetter) {
     lines.push('\n\n' + '='.repeat(50));
@@ -168,19 +280,61 @@ export function generatePlainTextResume(artifact: TailoredArtifact, resume: Mast
   return lines.join('\n');
 }
 
+const PDF_SUPPORTED_EXTENDED_CHARACTERS = new Set([
+  0x2013, 0x2014, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022
+]);
+
+function normalizePdfText(text: string): string {
+  return (text || '').replace(/[\r\n]+/g, ' ').replace(/\u2192/g, '->');
+}
+
+function hasUnsupportedPdfCharacters(text: string): boolean {
+  return Array.from(normalizePdfText(text)).some((character) => {
+    const codePoint = character.codePointAt(0) || 0;
+    const printableAscii = codePoint >= 0x20 && codePoint <= 0x7e;
+    const printableLatin1 = codePoint >= 0xa0 && codePoint <= 0xff;
+    return !printableAscii && !printableLatin1 && !PDF_SUPPORTED_EXTENDED_CHARACTERS.has(codePoint);
+  });
+}
+
+export interface ResumeExportGuidance {
+  pdfSupported: boolean;
+  recommendedFormat: 'PDF' | 'DOCX';
+  message: string | null;
+}
+
+/** Check the exact text that the export pipeline will render before showing PDF as an option. */
+export function getResumeExportGuidance(artifact: TailoredArtifact, resume: MasterResume): ResumeExportGuidance {
+  if (!artifact.reviewConfirmed) return { pdfSupported: true, recommendedFormat: 'PDF', message: null };
+  const exportText = generatePlainTextResume(artifact, resume);
+  if (hasUnsupportedPdfCharacters(exportText)) {
+    return {
+      pdfSupported: false,
+      recommendedFormat: 'DOCX',
+      message: 'Some characters in your resume may not display correctly in PDF. Choose DOCX to keep every character. PDF export is paused to avoid changing your text.'
+    };
+  }
+  return { pdfSupported: true, recommendedFormat: 'PDF', message: null };
+}
+
 function toPdfSafeText(text: string): string {
-  return (text || '')
-    .replace(/[\r\n]+/g, ' ')
-    .replace(/\u2192/g, '->')
-    .replace(/[^\x20-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2022]/g, ' ');
+  const normalized = normalizePdfText(text);
+  if (hasUnsupportedPdfCharacters(normalized)) {
+    throw new Error(
+      'PDF export is paused because some characters may not display correctly. Export as DOCX to preserve every character; your original resume data has not been changed.'
+    );
+  }
+  return normalized;
 }
 
 /**
  * Standard PDF Generator using pdf-lib with clean margins & layout
  */
 export async function generatePdfResume(artifact: TailoredArtifact, resume: MasterResume): Promise<Blob> {
+  assertHumanReviewConfirmed(artifact);
   const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
   const resolved = resolveTailoredResumeForExportAndPreview(artifact, resume);
+  const isMasterResume = artifact.jobId === 'master-resume';
   const pdfDoc = await PDFDocument.create();
   let page = pdfDoc.addPage([612, 792]); // Standard US Letter (points)
   const { width, height } = page.getSize();
@@ -294,7 +448,7 @@ export async function generatePdfResume(artifact: TailoredArtifact, resume: Mast
 
   // Professional Summary
   if (resolved.summary) {
-    drawSectionHeader('Executive Summary');
+    drawSectionHeader('Professional Summary');
     const summaryLines = wrapText(toPdfSafeText(resolved.summary), contentWidth, 9, fontRegular);
     summaryLines.forEach((line) => {
       checkPageSpace(14);
@@ -312,7 +466,7 @@ export async function generatePdfResume(artifact: TailoredArtifact, resume: Mast
 
   // Core Competencies
   if (resolved.skills.length > 0) {
-    drawSectionHeader('Target Core Competencies');
+    drawSectionHeader(isMasterResume ? 'Core Competencies' : 'Target Core Competencies');
     const skillsLine = toPdfSafeText(resolved.skills.join('  •  '));
     const skillLines = wrapText(skillsLine, contentWidth, 8.5, fontRegular);
     skillLines.forEach((line) => {
@@ -331,7 +485,7 @@ export async function generatePdfResume(artifact: TailoredArtifact, resume: Mast
 
   // Professional Experience
   if (resolved.experiences.length > 0) {
-    drawSectionHeader('Tailored Professional Experience');
+    drawSectionHeader(isMasterResume ? 'Professional Experience' : 'Tailored Professional Experience');
     resolved.experiences.forEach(({ experience: exp, bullets }) => {
       checkPageSpace(45);
 
@@ -527,6 +681,23 @@ export async function generatePdfResume(artifact: TailoredArtifact, resume: Mast
     });
   }
 
+  if (resolved.additionalEvidence.length > 0) {
+    drawSectionHeader('Additional Career Evidence');
+    resolved.additionalEvidence.forEach((item) => {
+      wrapText(toPdfSafeText(item), contentWidth, 8.5, fontRegular).forEach((line) => {
+        checkPageSpace(13);
+        page.drawText(line, {
+          x: margin,
+          y: cursorY,
+          size: 8.5,
+          font: fontRegular,
+          color: rgb(0.15, 0.2, 0.25)
+        });
+        cursorY -= 12;
+      });
+    });
+  }
+
   const pdfBytes = await pdfDoc.save();
   return new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
 }
@@ -535,6 +706,7 @@ export async function generatePdfResume(artifact: TailoredArtifact, resume: Mast
  * Real DOCX Generator using the official 'docx' package
  */
 export async function generateDocxResume(artifact: TailoredArtifact, resume: MasterResume): Promise<Blob> {
+  assertHumanReviewConfirmed(artifact);
   const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx');
   const resolved = resolveTailoredResumeForExportAndPreview(artifact, resume);
   const children: Paragraph[] = [];
@@ -593,7 +765,7 @@ export async function generateDocxResume(artifact: TailoredArtifact, resume: Mas
   if (resolved.summary) {
     children.push(
       new Paragraph({
-        text: 'EXECUTIVE SUMMARY',
+        text: 'PROFESSIONAL SUMMARY',
         heading: HeadingLevel.HEADING_2,
         spacing: { before: 200, after: 100 }
       })
@@ -790,6 +962,20 @@ export async function generateDocxResume(artifact: TailoredArtifact, resume: Mas
           spacing: { after: 60 }
         })
       );
+    });
+  }
+
+  if (resolved.additionalEvidence.length > 0) {
+    children.push(new Paragraph({
+      text: 'ADDITIONAL CAREER EVIDENCE',
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 200, after: 100 }
+    }));
+    resolved.additionalEvidence.forEach((item) => {
+      children.push(new Paragraph({
+        children: [new TextRun({ text: item, size: 20 })],
+        spacing: { after: 60 }
+      }));
     });
   }
 

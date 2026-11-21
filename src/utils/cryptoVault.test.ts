@@ -12,6 +12,10 @@ import {
   bufferToBase64,
   sha256Hex,
   sanitizeStoredVaultEnvelopeMetadata,
+  writeStoredVaultEnvelope,
+  readStoredVaultEnvelope,
+  shouldPreferLocalVaultEnvelope,
+  isValidVaultEnvelope,
   hasDemoWorkspaceIdentity,
   stripDemoWorkspaceName,
   stripDemoWorkspaceEmail,
@@ -99,6 +103,115 @@ const mockCrypto = {
 Object.defineProperty(global, 'crypto', { value: mockCrypto, writable: true });
 
 describe('Crypto Vault Core', () => {
+  it('does not let a stale localStorage envelope overwrite a newer IndexedDB envelope', () => {
+    const baseEnvelope: VaultEnvelope = {
+      version: 5,
+      encrypted: true,
+      kdf: { algorithm: 'PBKDF2', iterations: 100000, salt: 'c2FsdA==', hash: 'SHA-256' },
+      recoveryKdf: { algorithm: 'PBKDF2', iterations: 100000, hash: 'SHA-256' },
+      iv: 'aXY=',
+      ciphertext: 'Y2lwaGVydGV4dA==',
+      meta: { id: 'timestamp-user', name: 'Timestamp User', email: 'time@example.com', biometricEnabled: false, updatedAt: '2026-11-19T10:00:00.000Z' }
+    };
+    const newerIndexedDb = { ...baseEnvelope, meta: { ...baseEnvelope.meta, updatedAt: '2026-11-20T10:00:00.000Z' } };
+    const newerLocal = { ...baseEnvelope, meta: { ...baseEnvelope.meta, updatedAt: '2026-11-21T10:00:00.000Z' } };
+    expect(shouldPreferLocalVaultEnvelope(baseEnvelope, newerIndexedDb)).toBe(false);
+    expect(shouldPreferLocalVaultEnvelope(newerLocal, baseEnvelope)).toBe(true);
+    expect(shouldPreferLocalVaultEnvelope(baseEnvelope, null)).toBe(true);
+  });
+
+  it('awaits and verifies the localStorage fallback when IndexedDB is unavailable', async () => {
+    const envelope: VaultEnvelope = {
+      version: 5,
+      encrypted: true,
+      kdf: { algorithm: 'PBKDF2', iterations: 100000, salt: 'c2FsdA==', hash: 'SHA-256' },
+      recoveryKdf: { algorithm: 'PBKDF2', iterations: 100000, hash: 'SHA-256' },
+      iv: 'aXY=',
+      ciphertext: 'Y2lwaGVydGV4dA==',
+      meta: { id: 'fallback-user', name: 'Fallback User', email: 'fallback@example.com', biometricEnabled: false, updatedAt: new Date().toISOString() }
+    };
+    await expect(writeStoredVaultEnvelope(envelope, 'byoc-vault-fallback-test')).resolves.toBe(true);
+    expect(readStoredVaultEnvelope('byoc-vault-fallback-test')).toEqual(envelope);
+    expect(localStorageMock.getItem('byoc-vault-fallback-test')).toBe(JSON.stringify(envelope));
+  });
+
+  it('continues to accept legacy v3/v4 vault envelopes while requiring separate recovery KDF metadata for v5', () => {
+    const base = {
+      encrypted: true as const,
+      kdf: { algorithm: 'PBKDF2' as const, iterations: 100000, salt: 'c2FsdA==', hash: 'SHA-256' as const },
+      iv: 'aXY=',
+      ciphertext: 'Y2lwaGVydGV4dA==',
+      meta: { id: 'user-1', name: 'Test User', email: 'test@example.com', biometricEnabled: false, updatedAt: '' }
+    };
+    expect(isValidVaultEnvelope({ ...base, version: 3 })).toBe(true);
+    expect(isValidVaultEnvelope({ ...base, version: 4, passphraseWrappedVaultKey: 'wrapped' })).toBe(true);
+    expect(isValidVaultEnvelope({
+      ...base, version: 5,
+      recoveryKdf: { algorithm: 'PBKDF2', iterations: 100000, hash: 'SHA-256' }
+    })).toBe(true);
+    expect(isValidVaultEnvelope({ ...base, version: 5 })).toBe(false);
+  });
+
+
+  it('opens a legacy v4 vault and upgrades its passphrase wrapper without changing career data', async () => {
+    lockVaultSession();
+    const data: DecryptedVaultData = {
+      masterResume: null,
+      jobs: [],
+      selectedJobId: null,
+      tailoredArtifacts: {},
+      applications: [],
+      unsavedQueue: [],
+      candidatePreferences: {}
+    };
+    const rawMvk = new Uint8Array(32).buffer;
+    const payloadBytes = new TextEncoder().encode(JSON.stringify(data));
+    const payloadBuffer = payloadBytes.buffer.slice(payloadBytes.byteOffset, payloadBytes.byteOffset + payloadBytes.byteLength);
+    (mockCrypto.subtle.decrypt as any)
+      .mockResolvedValueOnce(rawMvk)
+      .mockResolvedValueOnce(payloadBuffer);
+
+    const legacyEnvelope: VaultEnvelope = {
+      version: 4,
+      encrypted: true,
+      kdf: { algorithm: 'PBKDF2', iterations: 100000, salt: bufferToBase64(new Uint8Array(16)), hash: 'SHA-256' },
+      iv: bufferToBase64(new Uint8Array(12)),
+      ciphertext: bufferToBase64(new Uint8Array(32)),
+      passphraseWrappedVaultKey: bufferToBase64(new Uint8Array(64)),
+      wrappedVaultKey: bufferToBase64(new Uint8Array(64)),
+      recoverySalt: bufferToBase64(new Uint8Array(16)),
+      recoveryVerifier: 'legacy-verifier',
+      meta: { id: 'test-user', name: 'Test User', email: 'test@example.com', biometricEnabled: false, updatedAt: '' }
+    };
+
+    const unlocked = await decryptVault(legacyEnvelope, 'legacy passphrase');
+    expect(unlocked).toEqual(data);
+    const upgraded = await syncUnlockedVault(data, legacyEnvelope.meta);
+    expect(upgraded.version).toBe(5);
+    expect(upgraded.kdf.iterations).toBe(600000);
+    expect(upgraded.recoveryKdf?.iterations).toBe(100000);
+    lockVaultSession();
+  });
+
+  it('creates v5 vaults with a stronger passphrase KDF and separately recorded recovery KDF', async () => {
+    const data: DecryptedVaultData = {
+      masterResume: null,
+      jobs: [],
+      selectedJobId: null,
+      tailoredArtifacts: {},
+      applications: [],
+      unsavedQueue: [],
+      candidatePreferences: {}
+    };
+    const { envelope } = await encryptVault(data, 'correct horse battery staple', {
+      id: 'test-user', name: 'Test User', email: 'test@example.com',
+      biometricEnabled: false, updatedAt: new Date().toISOString()
+    }, 'BYOC-ABCD-EFGH-JKLM-NPQR');
+    expect(envelope.version).toBe(5);
+    expect(envelope.kdf.iterations).toBe(600000);
+    expect(envelope.recoveryKdf?.iterations).toBe(100000);
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     Object.keys(mockLocalStorage).forEach(k => delete mockLocalStorage[k]);
@@ -315,7 +428,7 @@ describe('Application Snapshot', () => {
       expect(snapshot.status).toBe('Saved');
       expect(snapshot.jobDescriptionRaw).toBe(job.jobDescriptionRaw);
       expect(snapshot.tailoredResumeSnapshot.jobTitle).toBe('Senior Engineer');
-      expect(snapshot.tailoredResumeSnapshot.authenticityGuaranteed).toBe(true);
+      expect(snapshot.tailoredResumeSnapshot.authenticityGuaranteed).toBe(false);
     });
   });
 });

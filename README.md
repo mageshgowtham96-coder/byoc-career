@@ -20,11 +20,12 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 
 ### Resume intake and Master Profile
 - Supported intake formats: PDF, DOCX, TXT, and MD.
-- Selectable-text extraction is supported; scanned/image-only PDFs and raster OCR are not.
+- DOCX/TXT/MD extraction is local. PDF intake uses a lightweight selectable-text parser and may fail on complex font encodings, unusual object streams or encrypted PDFs; scanned/image-only PDFs and raster OCR are not supported.
 - File size is limited to 10 MB. Corrupt or empty files are rejected.
-- Extracted facts are staged for user review before replacing the Master Resume.
+- Extracted facts are staged for user review before replacing the Master Resume. The source file itself is not modified or retained as a separate encrypted binary archive; extracted source text remains in the encrypted profile.
 - Experience bullets and skills are grounded in user-provided source material; missing facts must not be invented.
 - A guided Master Resume builder supports people who do not already have a CV. It asks role- and experience-specific questions locally, saves drafts inside the encrypted vault, and replaces the active profile only after the user confirms.
+- An optional Groq wording-optimization action proposes changes to the staged Master Resume. The user compares the headline, summary, experience bullets and project descriptions before accepting; a second confirmation is required to update the active Master Resume. The optimized profile remains structured and encrypted.
 - Optional English translation uses the existing Groq key only after an explicit click. Dedicated contact, employer, institution, date, skill, technology, issuer, and link fields are omitted; free-text summaries, role titles, bullets, and project descriptions may still contain personal or organization details. Users preview the translation and can restore the original-language draft.
 
 ### Job discovery
@@ -33,7 +34,7 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - **External portal fallback:** LinkedIn, Indeed, Naukri, Foundit, Glassdoor, Instahyre, and saved custom portals open their own search pages. For city-specific or missing vacancies, users can verify the portal listing, then import its description and original URL into BYOC. No authenticated scraping or automatic application is performed.
 - **No-key source assessment:** The Himalayas remote-jobs API has a public no-key endpoint and an open-source client repository, but its own documentation says browser JavaScript calls are blocked by CORS. Adding it directly to this client-only app would therefore require a backend/proxy, which conflicts with BYOC's local-first/no-backend design. JobSpy-based LinkedIn/Naukri/Indeed scraping is not adopted because it scrapes portals against their terms and is brittle.
 - **Adzuna:** Not active in this client-only build because protected server-side credentials would be required.
-- **Matching:** Candidate/job overlap is calculated locally from the Master Resume and job-description skills. This is BYOC's fit assessment; it does not establish that a vacancy is still open or that an employer is legitimate.
+- **Matching:** User-entered required skills are scored separately from optional preferred skills. Public-feed tags are stored as provider-listed skills because feeds do not reliably classify them as required or preferred; any overlap is labelled with that uncertainty. Market eligibility is classified only from the published location as explicit, regional, not stated, or not assessed; job-description mentions are not used as location proof. Experience depth is not assessed by the keyword score, and neither the score nor location label proves that a vacancy is still open or that an employer is legitimate.
 
 ### Public vacancy evidence
 - BYOC can check direct Greenhouse job-board URLs against Greenhouse's public Job Board API. It requires the exact posting ID plus matching title and company before reporting a matching public record.
@@ -44,8 +45,8 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 
 ### Vetting and tailoring
 - AI vetting is explicitly user-triggered. The selected job details and relevant Master Resume evidence are sent to Groq only after the user chooses **Run AI Vetting**.
-- Vetting is career-fit guidance. It does **not** independently verify employer identity, company legitimacy, vacancy status, or salary claims.
-- Three tailored variants are available: Leadership & Scale, Systems & Reliability, and ATS Alignment.
+- Vetting compares the supplied job description with candidate evidence. It does **not** independently verify employer identity, company legitimacy, vacancy status, culture, salary-market competitiveness, or hiring probability. Profile alignment is labelled as an AI estimate, not a verified match.
+- Tailored resume versions are selected from evidence actually present in the profile (work experience, projects/education, and ATS alignment); BYOC does not force leadership or systems-architecture variants onto unrelated roles.
 - AI-generated summaries, cover letters, screening answers, and interview prompts require user review.
 - Tailored application snapshots preserve the selected job description and generated materials. Moving a saved application to Applied requires explicit confirmation.
 
@@ -56,10 +57,11 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 
 ## 3. Privacy and Security
 
-- Career records and the Groq API key are stored in the local encrypted vault using AES-256-GCM. The current vault format derives wrapping keys with PBKDF2-HMAC-SHA256 (100,000 iterations).
+- Career records and the Groq API key are stored in the local encrypted vault using AES-256-GCM. Vault v5 uses PBKDF2-HMAC-SHA256 with 600,000 iterations for user passphrases and separately records the recovery-phrase KDF. Existing v3/v4 vaults remain readable and are upgraded after successful passphrase unlock.
 - A passphrase or Emergency Recovery Phrase is required to unlock the vault after a cold start.
 - Platform biometrics are an in-session convenience gate for an already-unlocked session. They do not unlock the encrypted vault and are not server-verified identity proof.
 - BYOC sends no career data to Groq merely because the app is opened. Job discovery uses public no-key feeds and external portal links; it does not send job-search terms to Groq. Each remaining AI action is user-triggered. Resume structuring sends the extracted resume text, which may contain contact information. Vetting sends the selected job and relevant profile evidence, without contact fields. Tailoring sends the selected job and resume evidence, including the candidate name, but not email, phone, or social-profile URLs.
+- Optional Master Resume optimization sends the structured headline, summary, skills, experience bullets, project descriptions, education, certifications and additional evidence. Dedicated contact fields and the original raw document text are excluded, but free-text career fields may themselves contain personal or organization details.
 - Groq processes requests under its own service terms. BYOC does not control the provider's processing or retention policies. Do not use AI features on a shared device if you are not comfortable sending the selected content to Groq.
 - BYOC does not silently fail over to another AI company. Resume/job data is sent only to the provider the user explicitly configured for that action. This avoids an unexpected change in data recipient. Groq 429 responses are retried only when a short `Retry-After` is supplied; other transient failures receive one bounded retry with jitter. Daily quota exhaustion is not retried in a loop.
 - Gemini's API offers a free tier on eligible models, but Google's published pricing page states that free-tier submitted content may be used to improve its products. Because BYOC can transmit personal resume data, Gemini is not enabled in this browser-only release. It would require a separately reviewed opt-in integration and clear data-use disclosure.

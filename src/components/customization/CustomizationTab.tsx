@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
+import { openExternalPortalUrl, shouldUseNativeExternalBrowser } from '../../services/externalBrowser';
 import { useWizardStore } from '../../store/useWizardStore';
+import { useAuthLocale } from '../../i18n/authLocale';
+import { getResumeExportGuidance } from '../../services/exporterService';
 import { tailorResumeWithGroq, draftQuestionnaireAnswer, formatGroqError } from '../../services/groqService';
 import { sanitizeExternalHttpUrl } from '../../services/jobSearchService';
 import {
@@ -7,6 +10,8 @@ import {
   resolveTailoredResumeForExportAndPreview
 } from '../../utils/tailoredBulletResolver';
 import type { TailoredArtifact, TailoredVariant } from '../../types';
+import { hasStructuredCareerEvidence } from '../../utils/resumeReadiness';
+import { copyToClipboardSafely } from '../../utils/copyToClipboardSafely';
 import {
   Wand2,
   Sparkles,
@@ -36,12 +41,14 @@ import {
 } from 'lucide-react';
 
 export const CustomizationTab: React.FC = () => {
+  const { t } = useAuthLocale();
   const {
     masterResume,
     selectedJobId,
     jobs,
     tailoredArtifacts,
     saveTailoredArtifact,
+    setTailoredArtifactReviewConfirmed,
     selectTailoredVariant,
     recordExportedMaterial,
     updateJobUrl,
@@ -82,19 +89,25 @@ export const CustomizationTab: React.FC = () => {
   const [draftListingUrl, setDraftListingUrl] = useState('');
   const [humanReviewedConfirmed, setHumanReviewedConfirmed] = useState(false);
 
-  const handleCopyChip = (key: string, value: string) => {
+  const handleCopyChip = async (key: string, value: string) => {
     if (!value.trim()) return;
-    navigator.clipboard.writeText(value);
+    if (currentArtifact?.variants.length && !currentArtifact.reviewConfirmed) {
+      addToast({ type: 'warning', title: 'Factual Review Required', message: 'Review the AI-generated wording and confirm its claims against your Master Resume and the supplied job description before copying.' });
+      return;
+    }
+    const copied = await copyToClipboardSafely(value);
+    if (!copied) {
+      setCopiedField(null);
+      addToast({ type: 'error', title: 'Copy Failed', message: 'Clipboard access was unavailable. Please select and copy the text manually.' });
+      return;
+    }
     setCopiedField(key);
     setTimeout(() => setCopiedField(null), 2000);
-    addToast({
-      type: 'success',
-      message: `Copied: ${value.length > 35 ? value.substring(0, 35) + '...' : value}`
-    });
+    addToast({ type: 'success', message: `Copied: ${value.length > 35 ? value.substring(0, 35) + '...' : value}` });
   };
 
   const handleCreateOfflineBaselineKit = () => {
-    if (!masterResume || !selectedJob) {
+    if (!masterResume || !hasResume || !selectedJob) {
       addToast({
         type: 'warning',
         message: 'Load a Master Resume in Intake and select a target job in Sourcing first.'
@@ -118,7 +131,7 @@ export const CustomizationTab: React.FC = () => {
       coverLetter: '',
       interviewPrepQuestions: [],
       generationTimestamp: new Date().toISOString(),
-      authenticityGuaranteed: true,
+      authenticityGuaranteed: false,
       exportedMaterials: []
     };
 
@@ -126,15 +139,18 @@ export const CustomizationTab: React.FC = () => {
   };
 
   // Action Gating Checks
-  const hasResume = Boolean(masterResume && (masterResume.rawText.length > 20 || masterResume.experiences.length > 0));
+  const hasResume = hasStructuredCareerEvidence(masterResume);
   const hasJob = Boolean(selectedJob);
+  const exportGuidance = currentArtifact && masterResume && currentArtifact.reviewConfirmed
+    ? getResumeExportGuidance(currentArtifact, masterResume)
+    : null;
 
   const handleGenerateTailoring = async () => {
     if (!hasResume) {
       addToast({
         type: 'warning',
         title: 'Action Gated',
-        message: 'Add your master resume in the Intake tab to unlock AI tailoring.'
+        message: 'Add structured career evidence in the Intake tab before generating tailored materials. Use the guided builder or optional AI structuring to review your profile first.'
       });
       return;
     }
@@ -147,6 +163,13 @@ export const CustomizationTab: React.FC = () => {
       return;
     }
 
+    if (!groqApiKey.trim()) {
+      setTailoringError('AI tailoring uses an optional Groq key. The offline baseline kit uses only your saved evidence and can be exported without an API key.');
+      setActiveSubTab('resume');
+      handleCreateOfflineBaselineKit();
+      addToast({ type: 'info', title: 'Offline Baseline Kit Ready', message: 'No AI key is needed. Review your saved evidence and export the baseline kit below.' });
+      return;
+    }
     setIsGenerating(true);
     setTailoringError(null);
     try {
@@ -159,7 +182,7 @@ export const CustomizationTab: React.FC = () => {
       addToast({
         type: 'success',
         title: 'Tailored Kit Synthesized',
-        message: '3 AI draft variations generated. Review all generated wording before use.'
+        message: `${artifact.variants.length} evidence-relevant draft variation${artifact.variants.length === 1 ? '' : 's'} generated. Review all generated wording before use.`
       });
     } catch (err: unknown) {
       const msg = formatGroqError(err, 'Tailoring generation failed.');
@@ -171,7 +194,7 @@ export const CustomizationTab: React.FC = () => {
   };
 
   const handleDraftScreeningAnswer = async () => {
-    if (!masterResume || !selectedJob || !groqApiKey) {
+    if (!masterResume || !hasResume || !selectedJob || !groqApiKey) {
       addToast({
         type: 'warning',
         title: 'Questionnaire Draft Unavailable',
@@ -204,10 +227,19 @@ export const CustomizationTab: React.FC = () => {
   };
 
   const handleExport = async (format: 'pdf' | 'docx' | 'txt') => {
-    if (!currentArtifact || !masterResume || !selectedJob) {
+    if (!currentArtifact || !masterResume || !hasResume || !selectedJob) {
       addToast({
         type: 'warning',
         message: 'Prepare or generate an application kit before exporting.'
+      });
+      return;
+    }
+
+    if (!currentArtifact.reviewConfirmed) {
+      addToast({
+        type: 'warning',
+        title: 'Factual Review Required',
+        message: 'Review the summary, skills, rewritten bullets and cover letter. Confirm candidate claims against your Master Profile and job-specific claims against the supplied job description before exporting.'
       });
       return;
     }
@@ -329,7 +361,7 @@ export const CustomizationTab: React.FC = () => {
             <span>AI Kit Customization & Sibling Variants</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            ATS alignment, 3 sibling variations, and source-mapped bullet replacements. Review all AI-written prose before use.
+            Role-relevant resume versions selected from available career evidence, plus source-mapped bullet replacements. Review all AI-written prose before use.
           </p>
         </div>
 
@@ -395,7 +427,7 @@ export const CustomizationTab: React.FC = () => {
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-mono font-bold flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                Source Evidence Checks Active
+                Bullet & Skill Evidence Checks
               </span>
               <span className="text-xs text-slate-400 hidden xs:inline">
                 AI drafts require your review
@@ -404,12 +436,13 @@ export const CustomizationTab: React.FC = () => {
             <h3 className="text-base sm:text-lg font-bold text-white">
               {currentArtifact
                 ? currentArtifact.variants && currentArtifact.variants.length > 0
-                  ? '3 Sibling Tailoring Variations Ready'
+                  ? `${currentArtifact.variants.length} Role-Relevant Variations Ready`
                   : 'Offline Baseline Kit Ready'
-                : 'Synthesize 3 Sibling Variations'}
+                : 'Create Role-Relevant Resume Variations'}
             </h3>
             <p className="text-xs text-slate-400 max-w-xl mt-1 leading-relaxed">
-              Generates 3 framing angles. Replacement bullets and listed skills are checked against your Master Resume; AI-written summaries, cover letters, and talking points still require your review before use.
+              Generates only the framing angles supported by your profile evidence and target role. Replacement bullets and listed skills are checked against your Master Resume; AI-written summaries, cover letters, and talking points still require your review before use. 
+                    <p className="mt-2 text-[10px] leading-relaxed text-slate-500">No request is sent until you choose Generate. The selected job details and structured Master Resume evidence (summary, skills, experience, education, projects, certifications and additional evidence) are sent to Groq using your configured key. Contact details and unstructured source-document text are excluded.</p>
             </p>
           </div>
 
@@ -419,10 +452,12 @@ export const CustomizationTab: React.FC = () => {
               disabled={isGenerating}
               title={
                 !hasResume
-                  ? 'Add your master resume in the Intake tab to unlock AI tailoring'
+                  ? 'Add structured career evidence in the Intake tab to unlock AI tailoring'
                   : !hasJob
                   ? 'Pick a target position in Sourcing to tailor your kit against'
-                  : 'Generate 3 Sibling Variants'
+                   : !groqApiKey.trim()
+                  ? t('Prepare the offline baseline kit (AI needs an optional Groq key)')
+                  : 'Generate role-relevant resume variations'
               }
               className={`flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-white font-bold text-sm shadow-xl transition active:scale-95 cursor-pointer ${
                 !hasResume || !hasJob
@@ -431,12 +466,15 @@ export const CustomizationTab: React.FC = () => {
               }`}
             >
               <Sparkles className={`w-4 h-4 ${!hasResume || !hasJob ? 'text-amber-400' : 'text-sky-300'} ${isGenerating ? 'animate-spin' : ''}`} />
-              <span>{isGenerating ? 'Synthesizing 3 Variations...' : currentArtifact ? 'Re-Generate 3 Variations' : 'Generate 3 Sibling Variants'}</span>
+              <span>{isGenerating ? 'Generating role-relevant variations...' : !groqApiKey.trim() ? t('Prepare Offline Baseline Kit') : currentArtifact ? 'Regenerate role-relevant variations' : 'Generate role-relevant resume variations'}</span>
             </button>
+            {!groqApiKey.trim() && hasResume && hasJob && (
+              <span className="text-[11px] text-sky-300 font-medium">{t('AI tailoring needs an optional Groq key. Choose the offline baseline kit to continue without one.')}</span>
+            )}
             {!hasResume && (
               <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" />
-                Add master resume in Intake to unlock AI tailoring
+                Add structured career evidence in Intake to unlock AI tailoring
               </span>
             )}
             {hasResume && !hasJob && (
@@ -470,7 +508,7 @@ export const CustomizationTab: React.FC = () => {
         </div>
       )}
 
-      {/* Multi-Option Customizer: 3 Sibling Variations Comparison Slab */}
+      {/* Role-relevant resume variation comparison */}
       {currentArtifact && currentArtifact.variants && currentArtifact.variants.length > 0 && (
         <div className="p-5 rounded-3xl bg-slate-800/80 border border-slate-700 space-y-3">
           <div className="flex items-center justify-between">
@@ -479,15 +517,15 @@ export const CustomizationTab: React.FC = () => {
                 Multi-Option Customizer
               </span>
               <h4 className="text-sm font-bold text-white">
-                Compare & Select Preferred Sibling Variation
+                Compare & Select Preferred Version
               </h4>
             </div>
             <span className="text-xs text-slate-400 font-mono">
-              3 Variations Generated
+              {currentArtifact.variants.length} Variations Generated
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pt-1">
             {currentArtifact.variants.map((variant) => {
               const isSelectedVariant = currentArtifact.selectedVariantId === variant.id;
               const variantPartition = partitionTailoredBullets(variant.optimizedBullets, masterResume);
@@ -595,6 +633,18 @@ export const CustomizationTab: React.FC = () => {
                 <p className="text-xs text-slate-200 leading-relaxed bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
                   {currentArtifact.tailoredSummary}
                 </p>
+                {currentArtifact.variants.length === 0 ? (
+                  <p className="mt-2 text-[10px] text-slate-500">Master Profile wording — no AI rewrite applied.</p>
+                ) : currentArtifact.summaryEvidence && currentArtifact.summaryEvidence.length > 0 ? (
+                  <div className="mt-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-1.5">
+                    <span className="text-[9px] uppercase font-mono font-bold text-emerald-300">Linked Master Profile evidence — review aid, not proof</span>
+                    {currentArtifact.summaryEvidence.map((reference) => (
+                      <p key={reference.id} className="text-[10px] leading-relaxed text-slate-400">{reference.text}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-[10px] text-amber-300">No source links attached to this saved draft. Verify every factual statement manually.</p>
+                )}
               </div>
 
               {/* Skills */}
@@ -807,7 +857,7 @@ export const CustomizationTab: React.FC = () => {
                 </span>
                 <button
                   type="button"
-                  disabled={!currentArtifact.coverLetter}
+                  disabled={!currentArtifact.coverLetter || (currentArtifact.variants.length > 0 && !currentArtifact.reviewConfirmed)}
                   onClick={() => handleCopyChip('coverLetterTab', currentArtifact.coverLetter || '')}
                   className="px-3 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 disabled:opacity-40 disabled:cursor-not-allowed text-indigo-300 text-[11px] font-semibold transition cursor-pointer flex items-center gap-1"
                 >
@@ -821,7 +871,7 @@ export const CustomizationTab: React.FC = () => {
                 </div>
               ) : (
                 <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 text-xs text-slate-400">
-                  No AI cover letter generated in this baseline offline kit. Configure your Groq key and click &quot;Generate 3 Sibling Variants&quot; above if you want a role-tailored cover letter draft.
+                  No AI cover letter generated in this baseline offline kit. Configure your Groq key and click &quot;Generate role-relevant resume variations&quot; above if you want a role-tailored cover letter draft.
                 </div>
               )}
             </div>
@@ -866,6 +916,17 @@ export const CustomizationTab: React.FC = () => {
 
           {/* Exporter Engine & Assisted-Apply Kit */}
           <div className="p-5 rounded-3xl bg-slate-800/90 border border-slate-700 shadow-lg space-y-5">
+            <label className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={Boolean(currentArtifact.reviewConfirmed)}
+                onChange={(event) => setTailoredArtifactReviewConfirmed(currentArtifact.jobId, event.target.checked)}
+                className="mt-0.5 accent-emerald-500"
+              />
+              <span className="text-[11px] leading-relaxed text-slate-300">
+                I reviewed this resume version and checked each claim against the linked Master Profile evidence and supplied job description. Evidence links are review aids, not proof; AI wording is not independent verification.
+              </span>
+            </label>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-2">
@@ -875,42 +936,48 @@ export const CustomizationTab: React.FC = () => {
                 <p className="text-[11px] text-slate-400">
                   Generates local .PDF, .DOCX, or .TXT files (with mobile Web Share support) for portal upload.
                 </p>
+                {exportGuidance && !exportGuidance.pdfSupported && (
+                  <p role="status" className="mt-2 max-w-xl rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-[11px] leading-relaxed text-sky-100">
+                    {t('Some characters in your resume are not supported by the built-in PDF fonts. Choose DOCX to preserve every character. PDF export is paused to prevent text loss.')} {t('Recommended for Tamil and other scripts')}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
                   onClick={() => handleExport('pdf')}
-                  disabled={isExporting !== null}
+                  disabled={isExporting !== null || !hasResume || !currentArtifact.reviewConfirmed || exportGuidance?.pdfSupported === false}
                   className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5 text-rose-400" />
-                  <span>{isExporting === 'pdf' ? 'Building...' : 'Export .PDF'}</span>
+                  <span>{isExporting === 'pdf' ? 'Building...' : t('Export .PDF')}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleExport('docx')}
-                  disabled={isExporting !== null}
+                  disabled={isExporting !== null || !currentArtifact.reviewConfirmed}
                   className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5 text-blue-400" />
-                  <span>{isExporting === 'docx' ? 'Building...' : 'Export .DOCX'}</span>
+                  <span>{isExporting === 'docx' ? 'Building...' : t('Export .DOCX')}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleExport('txt')}
-                  disabled={isExporting !== null}
+                  disabled={isExporting !== null || !currentArtifact.reviewConfirmed}
                   className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-medium transition cursor-pointer"
                 >
-                  .TXT
+                  {t('Export .TXT')}
                 </button>
 
                 {currentArtifact.coverLetter && (
                   <button
                     type="button"
                     onClick={() => handleCopyChip('coverLetterKit', currentArtifact.coverLetter)}
+                    disabled={!currentArtifact.reviewConfirmed}
                     className="px-3.5 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/35 border border-indigo-500/40 text-indigo-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                   >
                     {copiedField === 'coverLetterKit' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-sky-400" />}
@@ -919,6 +986,19 @@ export const CustomizationTab: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {currentArtifact.coverLetter && (
+              <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-3 space-y-1.5">
+                <span className="text-[9px] uppercase font-mono font-bold text-sky-300">Cover-letter source evidence</span>
+                {currentArtifact.coverLetterEvidence && currentArtifact.coverLetterEvidence.length > 0 ? (
+                  currentArtifact.coverLetterEvidence.map((reference) => (
+                    <p key={reference.id} className="text-[10px] leading-relaxed text-slate-400">{reference.text}</p>
+                  ))
+                ) : (
+                  <p className="text-[10px] text-amber-300">No source links attached to this saved cover letter. Verify every factual statement manually.</p>
+                )}
+              </div>
+            )}
 
             {currentArtifact.exportedMaterials && currentArtifact.exportedMaterials.length > 0 && (
               <div className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-1.5">
@@ -996,7 +1076,7 @@ export const CustomizationTab: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => void handleDraftScreeningAnswer()}
-                        disabled={isDraftingAnswer || !screeningQuestion.trim() || !masterResume || !selectedJob || !groqApiKey}
+                        disabled={isDraftingAnswer || !screeningQuestion.trim() || !hasResume || !selectedJob || !groqApiKey}
                         className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-45"
                       >
                         <Sparkles className="h-3.5 w-3.5" />
@@ -1235,6 +1315,12 @@ export const CustomizationTab: React.FC = () => {
                     {validListingUrl && (
                       <a
                         href={validListingUrl}
+                        onClick={(event) => {
+                          if (shouldUseNativeExternalBrowser()) {
+                            event.preventDefault();
+                            void openExternalPortalUrl(validListingUrl).catch((error) => console.error('Portal launch failed:', error));
+                          }
+                        }}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-sm"
@@ -1327,7 +1413,7 @@ export const CustomizationTab: React.FC = () => {
       ) : (
         <div className="p-6 sm:p-8 rounded-3xl bg-slate-800/40 border border-slate-800 text-center space-y-3">
           <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
-            No tailored artifact synthesized yet. Click &quot;Generate 3 Sibling Variants&quot; above (with a Groq key), or prepare an offline baseline kit using only your authentic Master Profile to export documents and launch Assisted-Apply without AI.
+            No tailored artifact synthesized yet. Click &quot;Generate role-relevant resume variations&quot; above (with a Groq key), or prepare an offline baseline kit using only your authentic Master Profile to export documents and launch Assisted-Apply without AI.
           </p>
           {hasResume && hasJob && (
             <button

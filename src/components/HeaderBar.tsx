@@ -2,10 +2,12 @@ import React from 'react';
 import { syncVaultFromStoreNow, useWizardStore } from '../store/useWizardStore';
 import { ChakraLogo } from './ChakraLogo';
 import { PWAInstallButton } from './PWAInstallButton';
+import { useAuthLocale } from '../i18n/authLocale';
 import { Zap, Key, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export const HeaderBar: React.FC = () => {
   const { groqApiKey, isLiveApiMode, setActiveTab, user, vaultPersistenceError } = useWizardStore();
+  const { t } = useAuthLocale();
 
   const isLiveActive = Boolean(groqApiKey && groqApiKey.trim().length > 0 && isLiveApiMode);
 
@@ -37,17 +39,17 @@ export const HeaderBar: React.FC = () => {
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
                 : 'bg-[#0F172A] border-slate-700 text-slate-300 hover:text-white'
             }`}
-            title="Configure Groq BYOK in Settings"
+            title={t('Configure Groq BYOK in Settings')}
           >
             {isLiveActive ? (
               <>
                 <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Groq Connected</span>
+                <span>{t('Groq Connected')}</span>
               </>
             ) : (
               <>
                 <Key className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden xs:inline">API Key Required</span>
+                <span className="hidden xs:inline">{t('API Key Required')}</span>
                 <span className="xs:hidden">BYOK</span>
               </>
             )}
@@ -60,13 +62,13 @@ export const HeaderBar: React.FC = () => {
               type="button"
               onClick={() => setActiveTab('settings')}
               className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-lg bg-[#0F172A] hover:bg-slate-800 border border-slate-800 text-slate-200 text-xs transition cursor-pointer whitespace-nowrap shrink-0"
-              title="Open Workspace Settings"
+              title={t('Open Workspace Settings')}
             >
               <span className="w-6 h-6 rounded-md bg-indigo-600 flex items-center justify-center text-[11px] font-bold text-white uppercase">
                 {user.name?.trim().charAt(0) || 'W'}
               </span>
               <span className="hidden sm:inline font-medium truncate max-w-[110px]">
-                {user.name?.trim() ? user.name.trim().split(' ')[0] : 'Workspace'}
+                {user.name?.trim() ? user.name.trim().split(' ')[0] : t('Workspace')}
               </span>
             </button>
           )}
@@ -85,14 +87,14 @@ export const HeaderBar: React.FC = () => {
                 className="inline-flex items-center gap-1.5 rounded-lg bg-rose-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/30"
               >
                 <RefreshCw className="h-3 w-3" />
-                Retry Save
+                {t('Retry Save')}
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('settings')}
                 className="rounded-lg border border-rose-400/30 px-2.5 py-1.5 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/15"
               >
-                Settings
+                {t('Settings')}
               </button>
             </div>
           </div>

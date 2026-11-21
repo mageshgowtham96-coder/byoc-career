@@ -1,107 +1,50 @@
-# BYOC (Build Your Own Career) — Project Completion Status
+# BYOC — Verification Status
 
-## Phase 1: Resume Ingestion and Master Profile
-- [x] **Resume Ingestion (PDF, DOCX, TXT, Paste)** — VERIFIED: Local stream extraction for selectable PDF (including hex-encoded text & FlateDecode streams), PKZIP/Deflate DOCX (`word/document.xml`), raw TXT/MD, and Manual Paste Fallback.
-- [x] **Text Extraction & Scanned Document Guard** — VERIFIED: Scanned raster PDF detection with honest fallback alerts when selectable text is under 10 words.
-- [x] **Master Profile Structuring (AI)** — VERIFIED: Optional Groq-assisted structuring (`parseResumeWithGroq`) with fallback merging to local parse.
-- [x] **Profile Editing & Approval** — VERIFIED: Inline editing in Review Gate before committing to Master Profile. Half-built resume detection & interactive milestone builder.
-- [x] **Secure Vault Persistence** — VERIFIED: AES-256-GCM authenticated encryption with PBKDF2-HMAC-SHA256 (100k rounds) key derivation. Volatile in-memory MVK session management.
+**Repository:** `mageshgowtham96-coder/byoc-career`  
+**Release-candidate branch:** `feat/byoc-release-candidate-verified`  
+**Pull request:** [#19 — BYOC: product integrity and end-to-end completion](https://github.com/mageshgowtham96-coder/byoc-career/pull/19)  
+**Status:** Draft, unmerged. PR #19 is currently based on the PR #10 PDF workspace branch; it is not a change to `main`.
 
-## Phase 2: Job Sourcing and Intelligence
-- [x] **Job Discovery & Import** — VERIFIED: Multi-source search (Remotive Live, Remote OK Live, Jobicy Live, User Import).
-- [x] **Provider Adapters & Health** — VERIFIED: Modular provider adapters with error reporting and live status disclosures.
-- [x] **Honest Evidence Match Scoring** — VERIFIED: Match scoring calculated strictly against verified resume evidence (keyword matching & required skills). Zero fabricated scores.
-- [x] **Location & Workplace Filtering** — VERIFIED: Country-specific filtering (IN, US, GB, CA, DE, SG, AE, GLOBAL) with worldwide remote support and rejection collision detection.
+This document reports implementation and verification evidence. A passing build is not treated as proof that every user workflow is complete.
 
-## Phase 3: ATS Analysis and Resume Customization
-- [x] **Customization Tab Suite** — VERIFIED: Full `CustomizationTab.tsx` component integrated with job selection, variant preview, and kit generation.
-- [x] **Three Sibling Resume Variants** — VERIFIED: Generates Variant A (Leadership & Scale), Variant B (Systems & Reliability), and Variant C (ATS Match & Delivery) via Groq AI.
-- [x] **Tailored Kit Editing & Preview** — VERIFIED: Full variant switcher, bullet partition/verification resolver (`tailoredBulletResolver.ts`), and cover letter editing.
-- [x] **Material Export (DOCX, TXT, PDF)** — VERIFIED: Export service integrated via `exporterService.ts` for clean DOCX, formatted TXT, and PDF generation.
-- [x] **Evidence-Based ATS Analysis** — VERIFIED: Match rationale and skill highlight verification against Master Profile.
+## Implemented on the release-candidate branch
 
-## Phase 4: Application Questionnaire Assistance
-- [x] **Screening Question Assistance** — VERIFIED: `draftQuestionnaireAnswer` service grounded strictly in candidate evidence with citation tracking and length/factuality guards.
+- Local-first career workspace with AES-256-GCM encrypted vault persistence.
+- Versioned vault v5 migration: 600,000 PBKDF2 iterations for passphrases and a separately recorded KDF for the high-entropy recovery phrase; v3/v4 compatibility paths and tests are retained.
+- Resume intake for DOCX, basic selectable-text PDF, TXT, Markdown and manual paste. DOCX extraction reads the main document and selected related XML parts, including tables and supported headers/footers/notes. It is a local parser, not a complete Microsoft Word rendering engine.
+- Resume review and correction before activation; profile sections include experience, education, projects, skills, certifications and additional career evidence.
+- Guided Master Resume creation for people without an existing resume, including students and career changers.
+- Optional Groq-assisted resume structuring and optional Master Resume wording optimization. Optimization is a staged proposal with before/after review; the active Master Resume changes only after user confirmation. The optimized result is retained as structured Master Resume fields in the encrypted vault, not as a TXT-only record.
+- Master Resume DOCX and PDF export. PDF export refuses unsupported Unicode rather than silently dropping characters; DOCX supports Unicode. The current PDF exporter creates a newly styled document and does not preserve an uploaded document's original visual layout.
+- Job discovery from the supported public feeds and external portal shortcuts. Coverage is not exhaustive, especially for local India vacancies.
+- Job fit display is explicitly labelled keyword overlap. Required, preferred and provider-listed skills are distinct; feed tags are not assumed mandatory. Experience depth is not assessed. Market eligibility is recorded separately from the score using published-location evidence only (explicit, regional, not stated or not assessed); job-description mentions are not treated as location proof.
+- AI vetting and tailoring are user-triggered. Unsupported employer, salary-market, culture and growth claims are labelled as unverified or not assessed. Tailored summaries and non-empty cover letters require valid source-evidence IDs resolved against the structured Master Profile; interview questions carry per-question evidence references and rewritten bullets are source-mapped. The UI displays linked source text. These links are review aids, not semantic proof, so human factual review remains mandatory.
+- Application tracking and local document workflows remain available without requiring a BYOC-hosted backend.
 
-## Phase 5: Application Tracking and Prep-Zone
-- [x] **Application Pipeline Tracking** — VERIFIED: Full status workflow (Saved, Applied, Screening, Interview, Offer, Rejected, Archived) with notes, follow-up reminders, and historical timeline logs.
-- [x] **Prep-Zone Suite (`PrepZone.tsx`)** — VERIFIED: Integrated page with Domain Role Practice, company/role-specific interview rounds blueprint, evidence-anchored AI questions, reverse-interview prompts, and compensation negotiation anchors.
-- [x] **Interactive Practice & Flashcards** — VERIFIED: Category filters (Architecture, Technical, Behavioral, Leadership), difficulty tiers, framework guides, and evidence copying.
+## Important boundaries
 
-## Design Integration (Stitch System)
-- [x] **Visual System (Obsidian Telemetry + Aether HUD)** — VERIFIED: Deep obsidian background (`#070B14`), electric cyan/indigo accents, emerald success indicators, amber warnings, and JetBrains Mono telemetry typography.
-- [x] **Design Token System** — IMPLEMENTED: `src/styles/designTokens.ts` + `src/styles/designTokens.css` with semantic color tokens, typography, spacing, radius, shadows, and z-index.
-- [x] **CSS Integration** — IMPLEMENTED: `src/index.css` imports design tokens via `@import './styles/designTokens.css'`.
-- [x] **Responsive Layouts** — VERIFIED: Safe-area aware, mobile navigation shell, touch-friendly targets, and modal/drawer behavior.
+- PDF text extraction remains a custom lightweight parser. It is not reliable for every PDF construction, including some complex CID/font encodings, encrypted PDFs, unusual object streams and scanned documents. OCR is not included.
+- Original uploaded file bytes are not retained as a separate encrypted binary archive by the current intake flow. BYOC does not modify the user's source file; extracted source text is retained in the encrypted profile.
+- Master Resume optimization rewrites presentation wording from structured profile evidence. Source mapping, record-count checks and user review reduce risk, but AI wording is not mathematically guaranteed to preserve meaning. Job-tailored summary/cover-letter evidence references are persisted in the encrypted artifact, updated on variant selection and invalidated when the Master Profile changes.
+- A successful DOCX/PDF export is not proof of layout fidelity for every office suite or device.
+- Job discovery does not cover every portal or every local vacancy. External portal shortcuts are destinations, not live integrated feeds.
+- No automatic applications, authenticated portal scraping, BYOC cloud sync or Gmail inbox access.
+- Cross-workflow integration coverage now exercises matching, evidence-linked tailoring, reviewed DOCX/PDF export, tracking and encrypted reload. DOCX intake tests exercise the real staging action and encrypted approval lifecycle. No physical Android device smoke test or visual layout comparison across office suites has been performed in this verification cycle.
+- The current APK pipeline produces a debug APK, not a signed production release.
 
-## AI Provider Architecture
-- [x] **Provider Abstraction** — IMPLEMENTED: `src/utils/providerAbstraction.ts` with Groq, OpenRouter, and Gemini implementations.
-- [x] **Groq Provider** — IMPLEMENTED: Full integration with existing `groqService.ts`, model discovery, and chat completion.
-- [x] **OpenRouter Provider** — IMPLEMENTED: `OpenRouterProvider` class with availability check and chat completion via OpenRouter API.
-- [x] **Gemini Provider** — IMPLEMENTED: `GeminiProvider` class using `@google/genai` SDK with proper client-side integration.
-- [x] **Provider Manager** — IMPLEMENTED: `ProviderManager` with fallback chain (Groq → OpenRouter → Gemini) and explicit user selection.
-- [x] **Provider Tests** — IMPLEMENTED: `src/utils/providerAbstraction.test.ts` with configuration and client-usability tests (converted to Vitest).
+## Verification policy
 
-## Security & Reliability
-- [x] **Cryptographic Vault Engine** — VERIFIED: AES-256-GCM + PBKDF2 100,000 rounds. Emergency Recovery Phrase unwrapping and session locking.
-- [x] **Biometric Session Shield** — VERIFIED: In-session WebAuthn/biometric screen lock with vault key verification.
-- [x] **Zero Plaintext Credentials** — VERIFIED: API keys (Groq, OpenRouter, Gemini) and personal profile data stored exclusively inside encrypted vault envelope.
-- [x] **Passphrase Rate Limiting** — IMPLEMENTED: `src/utils/rateLimit.ts` with progressive delays (3 attempts → 30s, 5 → 2min, 10 → 15min, >10 → 1hr).
-- [x] **Rate Limit Tests** — IMPLEMENTED: `src/utils/rateLimit.test.ts` covering lockout, cooldown, reset, and manual clearance (converted to Vitest).
-- [x] **Lockout UI** — IMPLEMENTED: `getLockoutDescription()` provides human-readable lockout state.
+A release candidate is only considered verified when the exact current PR head has all of the following:
 
-## Quality Assurance
-- [x] **TypeScript Compilation** — VERIFIED: Strict TypeScript configuration (`tsconfig.json`) passes.
-- [x] **Unit & Integration Tests** — VERIFIED: Comprehensive test suite in `src/utils/cryptoVault.test.ts` covering vault cryptography, PDF extraction, DOCX extraction, job search matching, migration logic, and Groq error handling (converted to Vitest).
-- [x] **Additional Test Coverage** — IMPLEMENTED:
-  - `src/utils/rateLimit.test.ts` — Rate limiting behavior (converted to Vitest)
-  - `src/utils/providerAbstraction.test.ts` — Provider configurations and client-usability (converted to Vitest)
-  - `src/services/exporterService.test.ts` — Export structure validation with meaningful assertions (converted to Vitest)
-- [x] **Test Framework** — FIXED: All tests now use **Vitest** consistently (`vitest` dev dependency added, test command updated to `vitest run`).
-- [x] **Production Build** — VERIFIED: Vite build configuration with Capacitor Android output (`vite.config.ts`, `capacitor.config.json`).
-- [x] **Android Compatibility** — VERIFIED: Capacitor Android project configured with secure WebView settings (`android/app`, `android/build.gradle`).
+1. TypeScript check.
+2. Full Vitest suite, including actual generated DOCX archive extraction and approval-path tests.
+3. Production web build.
+4. Android debug APK build and artifact upload.
+5. Inspection of the APK artifact and recorded SHA-256.
+6. Post-implementation review of the changed data flows and newly introduced logic.
 
-## CI/CD
-- [x] **GitHub Actions Workflow** — PROVIDED: `GITHUB_ACTIONS_CI_WORKFLOW.yml` with lint, test, build pipeline.
-- [x] **Workflow Location** — CI workflow available for manual addition at `.github/workflows/ci.yml` (GitHub API limitation prevents auto-creation on private repo).
-- [x] **Pipeline Stages**: Lint & Unit Tests → Production Build → Full Check Pipeline.
-- [x] **Dependency Lockfile** — PENDING: `package-lock.json` will be generated on first `npm ci` in CI.
+CI results from an earlier commit do not verify a later commit. Physical Android installation and live API smoke tests must be reported separately from CI.
 
-## Android & Device Readiness
-- [x] **Capacitor Configuration** — VERIFIED: `capacitor.config.json` with HTTPS scheme, no cleartext, no debug logging.
-- [x] **Android Project** — VERIFIED: `android/app`, `android/build.gradle`, `android/variables.gradle`, `android/settings.gradle`.
-- [x] **Asset Generation** — VERIFIED: `scripts/generate_icons.js` for adaptive icons.
-- [x] **APK Build** — NOT VERIFIED: Requires Android Studio + Gradle environment (not available in this session).
+## Branch protection
 
-## Documentation
-- [x] **README.md** — VERIFIED: Architecture, features, build instructions, external credentials.
-- [x] **PROJECT_COMPLETION_STATUS.md** — UPDATED: Current phase-by-phase verification.
-- [x] **FINAL_ACCEPTANCE_REPORT.md** — CREATED: Complete evidence-based audit.
-- [x] **GITHUB_ACTIONS_CI_WORKFLOW.yml** — CREATED: CI workflow for manual GitHub addition.
-
----
-
-## Verification Status Summary
-
-| Category | Status | Notes |
-|----------|--------|-------|
-| **5 Product Phases** | ✅ IMPLEMENTED | All functional components exist |
-| **Unit Tests** | ✅ IMPLEMENTED | ~95+ tests across vault, rate limit, providers, exports (all Vitest) |
-| **Integration Tests** | ✅ IMPLEMENTED | Vault crypto, migration, job search, Groq validation |
-| **Design System** | ✅ IMPLEMENTED | Tokens + CSS + component integration |
-| **Vault Security** | ✅ IMPLEMENTED | AES-256-GCM + PBKDF2 + Rate limiting |
-| **AI Provider Architecture** | ✅ IMPLEMENTED | Groq, OpenRouter, Gemini with manager |
-| **Export Reliability** | ✅ IMPLEMENTED | DOCX/TXT/PDF with error handling + meaningful tests |
-| **Responsive Layouts** | ✅ IMPLEMENTED | Safe-area, mobile, touch targets |
-| **Android Config** | ✅ IMPLEMENTED | Capacitor + Android project |
-| **Android APK Build** | ⚠️ NOT VERIFIED | Requires Android Studio + Gradle |
-| **Browser Rendering** | ⚠️ NOT VERIFIED | Requires actual browser/Playwright |
-| **Live API Queries** | ⚠️ NOT VERIFIED | Requires production API keys |
-| **End-to-End Journey** | ⚠️ PARTIAL | All phases functional; full journey not tested with live data |
-| **GitHub Actions CI** | ⚠️ PROVIDED | File ready; manual addition required (private repo API limitation) |
-| **Test Framework** | ✅ FIXED | All tests now use Vitest consistently |
-| **Dependencies** | ✅ DECLARED | Vitest, jsdom, @vitest/coverage-v8 in devDependencies |
-
----
-
-**Status Summary**: All 5 core product phases, security vault mechanisms, AI provider architecture, design system specifications, career workflow stages, quality gates, and CI/CD configuration are fully implemented. Test framework standardized to Vitest. The application is complete and ready for production use. Remaining verifications (Android APK, live API, browser rendering, CI execution) require environment-specific execution outside this session.
+PR #19 remains unmerged. No changes are made directly to `main`, and no merge is performed without the repository owner's explicit approval.

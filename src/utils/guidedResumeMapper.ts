@@ -55,6 +55,7 @@ export function buildMasterResumeFromCareerDraft(
   const certifications = (draft.certifications || [])
     .filter((certification) => Boolean(certification.name.trim() || certification.issuer.trim()))
     .map((certification) => ({ ...certification }));
+  const additionalEvidence = (draft.additionalEvidence || []).map((item) => item.trim()).filter(Boolean);
 
   const headline =
     draft.targetRole?.trim() ||
@@ -84,7 +85,8 @@ export function buildMasterResumeFromCareerDraft(
     ...draft.skills,
     ...education.flatMap((item) => [item.degree, item.field, item.institution, item.gradYear, item.gpa || '']),
     ...projects.flatMap((project) => [project.title, project.description, ...project.technologies]),
-    ...certifications.flatMap((certification) => [certification.name, certification.issuer, certification.issueDate])
+    ...certifications.flatMap((certification) => [certification.name, certification.issuer, certification.issueDate]),
+    ...additionalEvidence
   ].map((value) => String(value || '').trim()).filter(Boolean).join('\n');
 
   const wordCount = rawText ? rawText.split(/\s+/).filter(Boolean).length : 0;
@@ -112,6 +114,7 @@ export function buildMasterResumeFromCareerDraft(
     education,
     projects,
     certifications,
+    additionalEvidence,
     currentRole: draft.currentRole || '',
     sourceLanguage: draft.sourceLanguage || 'English',
     sourceLanguageOther: draft.sourceLanguageOther || '',
@@ -138,6 +141,7 @@ export function createCareerDraftFromMasterResume(profile: MasterResume): Career
   const technicalSkills = Array.isArray(profile.skills?.technical) ? profile.skills.technical : [];
   const projects = Array.isArray(profile.projects) ? profile.projects : [];
   const certifications = Array.isArray(profile.certifications) ? profile.certifications : [];
+  const additionalEvidence = Array.isArray(profile.additionalEvidence) ? profile.additionalEvidence : [];
   return {
     personalDetails: {
       fullName: contactInfo.name || '',
@@ -179,6 +183,7 @@ export function createCareerDraftFromMasterResume(profile: MasterResume): Career
     })),
     projects: projects.map((item) => ({ ...item, technologies: [...(item.technologies || [])] })),
     certifications: certifications.map((item) => ({ ...item })),
+    additionalEvidence: [...additionalEvidence],
     isAutoFilled: false,
     lastExtractedTimestamp: null,
     rawSourceText: profile.rawText

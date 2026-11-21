@@ -1,0 +1,95 @@
+import { describe, expect, it } from 'vitest';
+import type { MasterResume } from '../types';
+import { createMasterResumeExportArtifact, generateDocxResume, generatePdfResume, getResumeExportGuidance } from './exporterService';
+import { extractResumeFile } from './extractionService';
+
+const createApprovedMasterResume = (name = 'Asha Rao'): MasterResume => ({
+  rawText: 'Original uploaded resume text stays in the structured encrypted profile.',
+  contactInfo: { name, email: 'asha@example.com', phone: '+91 90000 00000', location: 'Chennai, India', linkedin: '', github: '', portfolio: '' },
+  headline: 'Commerce Graduate | Data Analysis',
+  summary: 'Commerce graduate with project experience in data analysis and reporting.',
+  skills: { technical: ['SQL'], soft: ['Communication'], tools: ['Excel'], domains: ['Data Analysis'] },
+  experiences: [{
+    id: 'exp-1', company: 'Community Co-op', role: 'Operations Intern', startDate: '2025', endDate: '2025',
+    location: 'Chennai', bullets: ['Prepared weekly operational reports using Excel.'], isCurrent: false
+  }],
+  education: [{ id: 'edu-1', institution: 'City University', degree: 'Bachelor of Commerce', field: 'Commerce', gradYear: '2026' }],
+  projects: [{ id: 'proj-1', title: 'Retail Sales Analysis', description: 'Reviewed monthly sales trends using Excel and SQL.', technologies: ['Excel', 'SQL'] }],
+  certifications: [],
+  additionalEvidence: ['Languages: Tamil — Native; English — Professional working proficiency.'],
+  stats: { wordCount: 60, pageCount: 1, charCount: 400, lastParsedDate: '2026-11-20T00:00:00.000Z', sourceFileName: 'asha-resume.docx' }
+});
+
+describe('Master Resume document export integration', () => {
+  it('exports a real DOCX and re-imports its Unicode and career content without using raw-text storage', async () => {
+    const resume = createApprovedMasterResume('ஆஷா ராவ்');
+    resume.summary = 'தமிழ் மொழியில் வாடிக்கையாளர் சேவை மற்றும் செயல்பாட்டு அறிக்கைகள்.';
+    resume.experiences[0].bullets = ['தமிழில் வாடிக்கையாளர் கேள்விகளுக்கு பதிலளித்து பதிவுகளை பராமரித்தார்.'];
+    resume.projects[0].title = 'தமிழ் விற்பனை பகுப்பாய்வு';
+    const artifact = createMasterResumeExportArtifact(resume);
+    expect(getResumeExportGuidance(artifact, resume)).toMatchObject({ pdfSupported: false, recommendedFormat: 'DOCX' });
+    const docx = await generateDocxResume(artifact, resume);
+    expect(docx.size).toBeGreaterThan(0);
+
+    const docxBytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error || new Error('Could not read generated DOCX blob.'));
+      reader.readAsArrayBuffer(docx);
+    });
+    // JSDOM's File does not expose arrayBuffer(); model the browser File contract used by the extractor.
+    const file = {
+      name: 'asha-master-resume.docx',
+      size: docxBytes.byteLength,
+      arrayBuffer: async () => docxBytes
+    } as unknown as File;
+    const imported = await extractResumeFile(file);
+    expect(imported.success, imported.error || 'DOCX re-import failed without an error message').toBe(true);
+    expect(imported.rawText).toContain('ஆஷா ராவ்');
+    expect(imported.rawText).toContain('தமிழ் மொழியில் வாடிக்கையாளர் சேவை');
+    expect(imported.rawText).toContain('தமிழில் வாடிக்கையாளர் கேள்விகளுக்கு');
+    expect(imported.rawText).toContain('தமிழ் விற்பனை பகுப்பாய்வு');
+    expect(imported.rawText).toContain('Reviewed monthly sales trends using Excel and SQL.');
+    await expect(generatePdfResume(artifact, resume)).rejects.toThrow(/Export as DOCX to preserve every character/i);
+    expect(imported.rawText).toContain('PROFESSIONAL SUMMARY');
+    expect(imported.rawText).not.toContain('EXECUTIVE SUMMARY');
+    expect(imported.rawText).toContain('PROFESSIONAL EXPERIENCE');
+    expect(imported.rawText).not.toContain('TAILORED PROFESSIONAL EXPERIENCE');
+    expect(imported.rawText).toContain('Tamil — Native');
+    expect(resume.rawText).toBe('Original uploaded resume text stays in the structured encrypted profile.');
+    expect(artifact.jobId).toBe('master-resume');
+  });
+
+  it('exports a readable PDF that BYOC can re-import as career evidence', async () => {
+    const resume = createApprovedMasterResume();
+    const artifact = createMasterResumeExportArtifact(resume);
+    const pdf = await generatePdfResume(artifact, resume);
+    expect(pdf.size).toBeGreaterThan(0);
+    expect(pdf.type).toBe('application/pdf');
+
+    const pdfBytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error || new Error('Could not read generated PDF blob.'));
+      reader.readAsArrayBuffer(pdf);
+    });
+    const file = {
+      name: 'asha-master-resume.pdf',
+      size: pdfBytes.byteLength,
+      arrayBuffer: async () => pdfBytes
+    } as unknown as File;
+    const imported = await extractResumeFile(file);
+    expect(imported.success, imported.error || 'PDF re-import failed without an error message').toBe(true);
+    expect(imported.rawText).toContain('Asha Rao');
+    expect(imported.rawText).toContain('Prepared weekly operational reports');
+    expect(imported.rawText).toContain('Retail Sales Analysis');
+  });
+
+  it('refuses lossy PDF export for unsupported scripts while leaving DOCX export available', async () => {
+    const resume = createApprovedMasterResume('தமிழ் வேட்பாளர்');
+    const artifact = createMasterResumeExportArtifact(resume);
+    await expect(generatePdfResume(artifact, resume)).rejects.toThrow(/Export as DOCX to preserve every character/i);
+    const docx = await generateDocxResume(artifact, resume);
+    expect(docx.size).toBeGreaterThan(0);
+  });
+});

@@ -13,6 +13,7 @@ import { ToastContainer } from './components/ToastContainer';
 import { WifiOff } from 'lucide-react';
 import type { ActiveTab } from './types';
 import { includeVisitedTab } from './utils/visitedTabs';
+import { AuthLocaleContext, persistStoredAuthLocale, readStoredAuthLocale, translateUiText, type AuthLocale } from './i18n/authLocale';
 
 // Load each workspace only when the user first opens it. Previously visited tabs
 // remain mounted (hidden) so switching tabs does not discard unfinished UI state.
@@ -36,9 +37,14 @@ const TabLoadingFallback: React.FC = () => (
 );
 
 export default function App() {
+  const [locale, setLocale] = useState<AuthLocale>(() => readStoredAuthLocale());
   const { activeTab, vaultPersistenceError } = useWizardStore();
   const [isOffline, setIsOffline] = React.useState(!navigator.onLine);
   const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<ActiveTab>>(() => new Set([activeTab]));
+
+  useEffect(() => {
+    persistStoredAuthLocale(locale);
+  }, [locale]);
 
   useEffect(() => {
     setVisitedTabs((current) => includeVisitedTab(current, activeTab));
@@ -74,9 +80,11 @@ export default function App() {
   }, []);
 
   return (
-    <LocalAuthGate>
+    <AuthLocaleContext.Provider value={{ locale, setLocale, t: (source) => translateUiText(locale, source) }}>
+      <LocalAuthGate>
       <BiometricSecurityGate>
-        <div className="min-h-screen bg-[#070B14] text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white relative">
+        <div lang={locale}
+        className="min-h-screen bg-[#070B14] text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white relative">
           {/* Real-time Offline Connectivity Banner */}
           {isOffline && (
             <div className="bg-amber-500 text-slate-950 px-4 py-1.5 text-xs font-bold text-center flex items-center justify-center gap-2 sticky top-0 z-50">
@@ -130,6 +138,7 @@ export default function App() {
           </div>
         </div>
       </BiometricSecurityGate>
-    </LocalAuthGate>
+      </LocalAuthGate>
+    </AuthLocaleContext.Provider>
   );
 }
