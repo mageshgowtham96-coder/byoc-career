@@ -193,6 +193,7 @@ describe('public employer board adapters', () => {
       location: 'Chennai, India',
       jobDescriptionRaw: '',
       metadataSummary: 'Data & Analytics',
+      fitScore: null,
       fitStatusText: 'Full description not downloaded (low-data refresh)',
       url: 'https://boards.greenhouse.io/capco/jobs/77'
     });
