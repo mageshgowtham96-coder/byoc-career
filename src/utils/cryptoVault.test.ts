@@ -42,12 +42,7 @@ import {
   emailVault
 } from '../services/emailSyncService';
 import {
-  AdzunaJobAdapter,
   DEFAULT_PORTAL_SHORTCUTS,
-  JobicyJobAdapter,
-  LiveJobSearchEngine,
-  PublicFeedsJobAdapter,
-  RemoteOkJobAdapter,
   buildPortalShortcutUrl,
   calculateHonestMatch,
   isWorldwideCountryCode,
@@ -278,14 +273,14 @@ describe('Legacy Migration', () => {
     it('detects legacy plaintext with sensitive data', () => {
       const rawStore = JSON.stringify({
         state: {
-          geminiApiKey: 'gsk_test123',
+          geminiApiKey: 'AIza_test123',
           masterResume: { contactInfo: { name: 'Test User' } },
           jobs: [{ title: 'Engineer' }],
         }
       });
       const result = extractLegacyPlaintextFromRawStore(rawStore);
       expect(result.detected).toBe(true);
-      expect(result.sensitiveData.geminiApiKey).toBe('gsk_test123');
+      expect(result.sensitiveData.geminiApiKey).toBe('AIza_test123');
     });
 
     it('returns empty for clean store', () => {
