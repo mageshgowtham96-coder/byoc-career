@@ -10,17 +10,12 @@ import { emailVault } from '../../services/emailSyncService';
 import { safeRemoveItem } from '../../utils/storagePersistence';
 import {
   Settings,
-  Zap,
-  Key,
   Shield,
   Download,
   Trash2,
   LogOut,
   CheckCircle2,
   AlertCircle,
-  Eye,
-  EyeOff,
-  Cpu,
   Fingerprint,
   Mail,
   RefreshCw,
