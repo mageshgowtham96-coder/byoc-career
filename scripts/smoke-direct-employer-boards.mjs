@@ -41,6 +41,7 @@ function jobLocation(job) {
 
 let lastWorkableRequestAt = 0;
 let totalResponseBytes = 0;
+const allJobs = [];
 for (const board of boards) {
   if (board.provider === 'Workable' && lastWorkableRequestAt > 0) {
     const waitMs = Math.max(0, 1500 - (Date.now() - lastWorkableRequestAt));
@@ -58,6 +59,7 @@ for (const board of boards) {
   const payload = parseJsonp(body, board.callback);
   assert.ok(Array.isArray(payload.jobs), `${board.provider} ${board.board} response has no jobs array`);
   assert.ok(payload.jobs.length > 0, `${board.provider} ${board.board} returned no public jobs`);
+  allJobs.push(...payload.jobs.map((job) => ({ ...job, __source: `${board.provider} / ${board.board}` })));
   const indiaMarkers = [
     'india', 'bengaluru', 'bangalore', 'hyderabad', 'chennai', 'pune',
     'mumbai', 'gurugram', 'gurgaon', 'noida', 'new delhi', 'kolkata',
@@ -72,3 +74,23 @@ for (const board of boards) {
 }
 
 process.stdout.write(`LIVE SOURCE TOTAL: ${(totalResponseBytes / (1024 * 1024)).toFixed(2)} MiB across ${boards.length} boards\n`);
+
+const stopWords = new Set(['and', 'the', 'for', 'with', 'from', 'senior', 'junior', 'lead', 'associate', 'specialist', 'manager']);
+const roleTitles = [...new Set(allJobs
+  .map((job) => String(job.title || job.name || '').trim())
+  .filter((title) => title.length >= 8 && title.length <= 90))]
+  .slice(0, 10);
+assert.equal(roleTitles.length, 10, `Expected at least 10 distinct live role titles; found ${roleTitles.length}`);
+
+for (const roleTitle of roleTitles) {
+  const terms = roleTitle.toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length >= 3 && !stopWords.has(term));
+  assert.ok(terms.length > 0, `Could not derive search terms from live role title: ${roleTitle}`);
+  const matches = allJobs.filter((job) => {
+    const searchable = [job.title, job.name, job.description, job.full_description, job.department]
+      .filter(Boolean).join(' ').toLowerCase();
+    return terms.every((term) => searchable.includes(term));
+  });
+  assert.ok(matches.length > 0, `Live role search returned no results for "${roleTitle}"`);
+  process.stdout.write(`LIVE ROLE SEARCH PASS: "${roleTitle}" -> ${matches.length} matching postings (sample source: ${matches[0].__source})\n`);
+}
+process.stdout.write('LIVE ROLE SEARCH TOTAL: 10/10 role queries returned at least one posting\\n');
