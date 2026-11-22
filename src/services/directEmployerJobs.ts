@@ -14,9 +14,11 @@ export interface DirectEmployerBoard {
 
 /**
  * First-party employer boards, not aggregators.
- * Initial India directory entries are sourced from the public careers endpoints
- * documented by the employer ATS platforms. Additions must be verified before
- * they are included here.
+ * Board slugs were seeded from the public India employer directories published
+ * by Deriverge (CC BY 4.0, 20 Nov 2026):
+ * https://deriverge.com/tools/companies-using-greenhouse/india/
+ * https://deriverge.com/tools/companies-using-workable/india/
+ * Each response is still validated at runtime; additions must be re-verified.
  */
 export const DIRECT_EMPLOYER_BOARD_DIRECTORY: DirectEmployerBoard[] = [
   { id: 'direct_greenhouse_capco', company: 'Capco', provider: 'greenhouse', boardToken: 'capco', careersUrl: 'https://job-boards.greenhouse.io/capco', market: 'IN' },
