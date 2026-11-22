@@ -34,6 +34,43 @@ const evidence: JobVerificationEvidence = {
   employerIdentityVerified: false
 };
 
+
+describe('Gemini-only vault activation and logout', () => {
+  afterEach(() => {
+    useWizardStore.setState({ geminiApiKey: '', isAuthenticated: false, masterResume: null, jobs: [], selectedJobId: null, tailoredArtifacts: {}, applications: [], unsavedQueue: [], vaultPersistenceError: null });
+  });
+
+  it('includes the verified Gemini key in encrypted vault data and no retired provider field', () => {
+    const state = { ...useWizardStore.getState(), geminiApiKey: 'AIza-test-key' };
+    const vaultData = buildVaultDataFromState(state);
+    expect(vaultData.geminiApiKey).toBe('AIza-test-key');
+    expect(vaultData).not.toHaveProperty('groqApiKey');
+  });
+
+  it('logs out by locking the workspace and clearing the in-memory Gemini key and career data', () => {
+    useWizardStore.setState({
+      geminiApiKey: 'AIza-test-key',
+      isAuthenticated: true,
+      masterResume: { rawText: 'Private resume' } as any,
+      jobs: [job],
+      selectedJobId: job.id,
+      tailoredArtifacts: { [job.id]: {} as any },
+      applications: [],
+      unsavedQueue: [],
+      vaultPersistenceError: null
+    });
+
+    useWizardStore.getState().signOut();
+
+    expect(useWizardStore.getState().isAuthenticated).toBe(false);
+    expect(useWizardStore.getState().geminiApiKey).toBe('');
+    expect(useWizardStore.getState().masterResume).toBeNull();
+    expect(useWizardStore.getState().jobs).toEqual([]);
+    expect(useWizardStore.getState().selectedJobId).toBeNull();
+    expect(useWizardStore.getState().tailoredArtifacts).toEqual({});
+  });
+});
+
 describe('clear Master Resume cleanup', () => {
   it('clears the rollback snapshot as well as the active and staged profiles', () => {
     const saved = { rawText: 'Previous resume', contactInfo: { name: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' }, headline: '', summary: '', skills: { technical: [], soft: [], tools: [], domains: [] }, experiences: [], education: [], projects: [], certifications: [], additionalEvidence: [], stats: { wordCount: 2, pageCount: 1, charCount: 15, lastParsedDate: '', sourceFileName: '' } } as any;
