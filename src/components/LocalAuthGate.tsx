@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { validateGeminiApiKey } from '../services/geminiApiKeyService';
 import { AUTH_COPY, AUTH_LANGUAGES, type AuthLocale, useAuthLocale, translateUiText } from '../i18n/authLocale';
 import {
   useWizardStore,
@@ -69,7 +70,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
     user,
     isAuthenticated,
     setUser,
-    setIsLiveApiMode,
     addToast
   } = useWizardStore();
 
@@ -124,10 +124,10 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const [passphrase, setPassphrase] = useState('');
   const [showPassphrase, setShowPassphrase] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState(
-    needsLegacyEncryptionMigration ? (legacyCapture?.sensitiveData.groqApiKey || '') : ''
+  const [geminiApiKeyInput, setApiKeyInput] = useState(
+    needsLegacyEncryptionMigration ? (legacyCapture?.sensitiveData.geminiApiKey || '') : ''
   );
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [showGeminiApiKey, setShowApiKey] = useState(false);
   const [enableBiometricOnSignup, setEnableBiometricOnSignup] = useState(false);
   const [error, setError] = useState(
     legacyDraftCapture.status === 'error'
@@ -199,9 +199,8 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
     stripDemoWorkspaceEmail(legacyCapture?.user?.email) ||
     '';
 
-  const emptyVaultPayload = (groqKey: string = ''): DecryptedVaultData => ({
-    groqApiKey: groqKey,
-    geminiApiKey: '',
+  const emptyVaultPayload = (geminiKey: string = ''): DecryptedVaultData => ({
+    geminiApiKey: geminiKey,
     masterResume: null,
     emailInteractions: [],
     jobs: [],
@@ -278,13 +277,11 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         updatedAt: new Date().toISOString()
       };
 
-      let initialVaultData = emptyVaultPayload(apiKeyInput.trim());
+      await validateGeminiApiKey(geminiApiKeyInput);
+      let initialVaultData = emptyVaultPayload(geminiApiKeyInput.trim());
       if (step === 'migrate' && legacyCapture?.detected) {
         const merged = mergeLegacyIntoDecryptedVault(initialVaultData, legacyCapture.sensitiveData);
         initialVaultData = merged.merged;
-        if (apiKeyInput.trim()) {
-          initialVaultData.groqApiKey = apiKeyInput.trim();
-        }
       }
 
       // Preserve any existing plaintext intake form draft inside the new encrypted vault
@@ -340,7 +337,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       })!;
 
       restoreVaultDataToStore(initialVaultData, newUser);
-      setIsLiveApiMode(true);
 
       // Scrub legacy plaintext only after encrypted vault write & restoration verification succeeded
       if (step === 'migrate' || legacyCapture?.detected) {
@@ -417,6 +413,12 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       let decrypted = await decryptVault(envelope, passphrase.trim());
+      if (geminiApiKeyInput.trim()) {
+        await validateGeminiApiKey(geminiApiKeyInput);
+        decrypted = { ...decrypted, geminiApiKey: geminiApiKeyInput.trim() };
+      } else if (!decrypted.geminiApiKey?.trim()) {
+        throw new Error('Enter your Gemini API key on the login screen to activate BYOC.');
+      }
       let mergedLegacy = false;
 
       if (legacyCapture?.detected && hasSensitiveLegacyData(legacyCapture)) {
@@ -853,7 +855,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                   {hasLegacyEmails ? ' · Email Records' : ''}
                   {legacyCapture?.sensitiveData.jobs?.length ? ` · ${legacyCapture.sensitiveData.jobs.length} Jobs` : ''}
                   {legacyCapture?.sensitiveData.applications?.length ? ` · ${legacyCapture.sensitiveData.applications.length} Applications` : ''}
-                  {legacyCapture?.sensitiveData.groqApiKey ? ' · API Key' : ''}.
+                  {legacyCapture?.sensitiveData.geminiApiKey ? ' · API Key' : ''}.
                 </p>
               </div>
             )}
@@ -919,36 +921,36 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-semibold text-slate-300">
-                      Groq API Key (Optional)
+                      Gemini API Key (Required)
                     </label>
                     <a
-                      href="https://console.groq.com/keys"
+                      href="https://aistudio.google.com/apikey"
                       target="_blank"
                       rel="noreferrer"
                       className="text-[11px] text-sky-400 hover:underline"
                     >
-                      Get Free Key &rarr;
+                      Get Gemini API Key &rarr;
                     </a>
                   </div>
                   <div className="relative">
                     <input
-                      type={showApiKey ? 'text' : 'password'}
-                      value={apiKeyInput}
+                      type={showGeminiApiKey ? 'text' : 'password'}
+                      value={geminiApiKeyInput}
                       onChange={(e) => setApiKeyInput(e.target.value)}
-                      placeholder="gsk_... (Can be added later in Settings)"
+                      placeholder="AIza... (Required to activate BYOC)"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono focus:outline-none focus:border-sky-500 pr-10"
                     />
                     <button
                       type="button"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+                      onClick={() => setShowApiKey(!showGeminiApiKey)}
+                      aria-label={showGeminiApiKey ? 'Hide API key' : 'Show API key'}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
                     >
-                      {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showGeminiApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-1">
-                    Encrypted inside your vault envelope. Offline unlock never requires Groq.
+                    Validated before activation and encrypted inside your local vault. BYOC uses Gemini as its only AI provider.
                   </p>
                 </div>
 
@@ -978,7 +980,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                     </>
                   ) : (
                     <>
-                      <span>{step === 'migrate' ? 'Encrypt & Migrate Workspace' : t('create')}</span>
+                      <span>{step === 'migrate' ? 'Verify Gemini & Encrypt Workspace' : 'Verify Gemini & Activate BYOC'}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -1081,6 +1083,19 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       <p className="text-[11px] text-slate-500 mt-1">
                         Decrypts offline without contacting external servers.
                       </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">Gemini API Key (leave blank if already saved in this vault)</label>
+                      <input
+                        type="password"
+                        value={geminiApiKeyInput}
+                        onChange={(event) => setGeminiApiKeyInput(event.target.value)}
+                        placeholder="AIza..."
+                        autoComplete="off"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono focus:outline-none focus:border-sky-500"
+                      />
+                      <p className="text-[11px] text-slate-500 mt-1">A newly entered key is verified and saved encrypted before BYOC opens.</p>
                     </div>
 
                     <button
