@@ -1,7 +1,9 @@
 import type { JobPosting } from '../types';
 
 export const DIRECT_EMPLOYER_REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
+export const DIRECT_EMPLOYER_REFRESH_RETRY_INTERVAL_MS = 30 * 60 * 1000;
 export const DIRECT_EMPLOYER_REFRESH_STORAGE_KEY = 'byoc_direct_employer_jobs_last_refresh_v1';
+export const DIRECT_EMPLOYER_REFRESH_ATTEMPT_STORAGE_KEY = 'byoc_direct_employer_jobs_last_attempt_v1';
 
 export interface DirectEmployerBoard {
   id: string;
@@ -259,6 +261,7 @@ export interface DirectEmployerRefreshStorage {
 }
 
 let lastSuccessfulRefreshInMemory: number | null = null;
+let lastRefreshAttemptInMemory: number | null = null;
 
 function getDefaultStorage(): DirectEmployerRefreshStorage | null {
   try {
@@ -272,21 +275,47 @@ export function isDirectEmployerRefreshDue(
   now = Date.now(),
   storage: DirectEmployerRefreshStorage | null = getDefaultStorage()
 ): boolean {
-  if (!storage) {
-    return lastSuccessfulRefreshInMemory === null
-      || now < lastSuccessfulRefreshInMemory
-      || now - lastSuccessfulRefreshInMemory >= DIRECT_EMPLOYER_REFRESH_INTERVAL_MS;
-  }
+  let lastSuccess: number | null = null;
+  let lastAttempt: number | null = null;
   try {
-    const stored = storage.getItem(DIRECT_EMPLOYER_REFRESH_STORAGE_KEY);
-    if (!stored) return true;
-    const last = Number(stored);
-    if (!Number.isFinite(last) || last <= 0 || last > now) return true;
-    return now - last >= DIRECT_EMPLOYER_REFRESH_INTERVAL_MS;
+    if (storage) {
+      const successValue = storage.getItem(DIRECT_EMPLOYER_REFRESH_STORAGE_KEY);
+      const attemptValue = storage.getItem(DIRECT_EMPLOYER_REFRESH_ATTEMPT_STORAGE_KEY);
+      lastSuccess = successValue ? Number(successValue) : null;
+      lastAttempt = attemptValue ? Number(attemptValue) : null;
+    } else {
+      lastSuccess = lastSuccessfulRefreshInMemory;
+      lastAttempt = lastRefreshAttemptInMemory;
+    }
   } catch {
-    return lastSuccessfulRefreshInMemory === null
-      || now < lastSuccessfulRefreshInMemory
-      || now - lastSuccessfulRefreshInMemory >= DIRECT_EMPLOYER_REFRESH_INTERVAL_MS;
+    lastSuccess = lastSuccessfulRefreshInMemory;
+    lastAttempt = lastRefreshAttemptInMemory;
+  }
+
+  const successfulRefreshIsRecent = lastSuccess !== null
+    && Number.isFinite(lastSuccess)
+    && lastSuccess > 0
+    && lastSuccess <= now
+    && now - lastSuccess < DIRECT_EMPLOYER_REFRESH_INTERVAL_MS;
+  if (successfulRefreshIsRecent) return false;
+
+  const failedAttemptIsRecent = lastAttempt !== null
+    && Number.isFinite(lastAttempt)
+    && lastAttempt > 0
+    && lastAttempt <= now
+    && now - lastAttempt < DIRECT_EMPLOYER_REFRESH_RETRY_INTERVAL_MS;
+  return !failedAttemptIsRecent;
+}
+
+export function markDirectEmployerRefreshAttempted(
+  now = Date.now(),
+  storage: DirectEmployerRefreshStorage | null = getDefaultStorage()
+): void {
+  lastRefreshAttemptInMemory = now;
+  try {
+    storage?.setItem(DIRECT_EMPLOYER_REFRESH_ATTEMPT_STORAGE_KEY, String(now));
+  } catch {
+    // A failed metadata write must not make job discovery fail.
   }
 }
 
