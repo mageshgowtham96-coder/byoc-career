@@ -33,8 +33,11 @@ describe('validateGeminiApiKey', () => {
     }), { status: 401, headers: { 'Content-Type': 'application/json' } }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(validateGeminiApiKey('AIza-private-value')).rejects.toThrow(/Gemini API key was rejected/i);
-    await expect(validateGeminiApiKey('AIza-private-value')).rejects.not.toThrow(/AIza-private-value/);
+    let capturedError: unknown;
+    try { await validateGeminiApiKey('AIza-private-value'); } catch (error) { capturedError = error; }
+    expect(capturedError).toBeInstanceOf(Error);
+    expect((capturedError as Error).message).toMatch(/Gemini API key was rejected/i);
+    expect((capturedError as Error).message).not.toContain('AIza-private-value');
   });
 
   it('rejects a successful HTTP response with no generated text', async () => {
