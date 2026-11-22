@@ -52,7 +52,7 @@ jobs:
         run: test -s dist/index.html
 
   android-apk:
-    # APK packaging is deferred; pull requests run tests, live board checks and web build only.
+    # APK packaging is deferred until explicitly requested for a release.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     name: Build Android debug APK
     runs-on: ubuntu-latest
