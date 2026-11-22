@@ -3,15 +3,15 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VettingTab } from './VettingTab';
 import { useWizardStore } from '../../store/useWizardStore';
-import { vetJobWithGroq } from '../../services/groqService';
+import { vetJobWithGemini } from '../../services/geminiCareerService';
 import { verifyJobPosting } from '../../services/jobVerificationService';
 import type { JobPosting, JobVerificationEvidence } from '../../types';
 
 vi.mock('../../store/useWizardStore', () => ({ useWizardStore: vi.fn() }));
 vi.mock('../../services/jobVerificationService', () => ({ verifyJobPosting: vi.fn() }));
-vi.mock('../../services/groqService', () => ({
-  vetJobWithGroq: vi.fn(),
-  formatGroqError: vi.fn(() => 'Vetting failed')
+vi.mock('../../services/geminiCareerService', () => ({
+  vetJobWithGemini: vi.fn(),
+  formatGeminiError: vi.fn(() => 'Vetting failed')
 }));
 
 const job = {
@@ -50,11 +50,11 @@ describe('VettingTab privacy gate', () => {
       masterResume: null,
       updateJobVetting: vi.fn(),
       updateJobVerification,
-      groqApiKey: 'test-groq-key',
+      geminiApiKey: 'test-gemini-key',
       setActiveTab: vi.fn(),
       addToast: vi.fn()
     } as never);
-    vi.mocked(vetJobWithGroq).mockResolvedValue({
+    vi.mocked(vetJobWithGemini).mockResolvedValue({
       recommendation: 'Selective Apply'
     } as never);
   });
@@ -93,12 +93,12 @@ describe('VettingTab privacy gate', () => {
     expect(updateJobVerification).toHaveBeenCalledWith(job.id, evidence);
   });
 
-  it('does not send job or candidate data to Groq until the user explicitly starts the audit', async () => {
+  it('does not send job or candidate data to Gemini until the user explicitly starts the audit', async () => {
     await act(async () => {
       root.render(<VettingTab />);
     });
 
-    expect(vetJobWithGroq).not.toHaveBeenCalled();
+    expect(vetJobWithGemini).not.toHaveBeenCalled();
     expect(container.textContent).toContain('Run AI Vetting');
 
     const runButton = Array.from(container.querySelectorAll('button')).find((button) =>
@@ -110,6 +110,6 @@ describe('VettingTab privacy gate', () => {
       runButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(vetJobWithGroq).toHaveBeenCalledTimes(1);
+    expect(vetJobWithGemini).toHaveBeenCalledTimes(1);
   });
 });
