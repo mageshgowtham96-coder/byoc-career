@@ -3,6 +3,7 @@ import { openExternalPortalUrl, shouldUseNativeExternalBrowser } from '../../ser
 import { useWizardStore } from '../../store/useWizardStore';
 import { useAuthLocale } from '../../i18n/authLocale';
 import { getRoleSuggestions } from '../../utils/roleSuggestions';
+import { isDirectEmployerRefreshDue } from '../../services/directEmployerJobs';
 import { getCandidateDiscoverySignals } from '../../utils/resumeReadiness';
 import {
   jobSearchEngine,
@@ -183,6 +184,27 @@ export const SourcingTab: React.FC = () => {
     }
   };
 
+  // Refresh public employer boards on first entry and whenever Android/browser
+  // returns to the foreground after the 12-hour interval. Android may suspend
+  // background JavaScript, so this is a best-effort foreground refresh.
+  const liveSearchRunnerRef = React.useRef(handleRunLiveSearch);
+  liveSearchRunnerRef.current = handleRunLiveSearch;
+  React.useEffect(() => {
+    const refreshWhenActive = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible'
+        && isDirectEmployerRefreshDue()) {
+        void liveSearchRunnerRef.current();
+      }
+    };
+    refreshWhenActive();
+    document.addEventListener('visibilitychange', refreshWhenActive);
+    window.addEventListener('focus', refreshWhenActive);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshWhenActive);
+      window.removeEventListener('focus', refreshWhenActive);
+    };
+  }, [masterResume, jobs.length]);
+
   const filteredJobs = React.useMemo(() => {
     const locFilter = isWorldwide ? '' : optionalLocation.trim();
     return jobs
@@ -201,7 +223,7 @@ export const SourcingTab: React.FC = () => {
         const source = (job.source || '').toLowerCase();
         // Hide legacy Groq-discovered candidates retained in older local vaults; do not delete user data.
         if (source.includes('groq')) return false;
-        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live', 'arbeitnow live'].includes(source);
+        const isLiveFeedJob = isLiveDiscoveredJobSource(job.source);
         const isLiveDiscoveredJob = isLiveDiscoveredJobSource(job.source);
         if (isLiveDiscoveredJob && postedWithinDays > 0 && !isPostedWithinDays(job.postedDate, postedWithinDays)) return false;
         if (!isWorldwide && isLiveFeedJob) {
