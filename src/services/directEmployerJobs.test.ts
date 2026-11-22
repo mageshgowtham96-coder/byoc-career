@@ -90,38 +90,45 @@ describe('retired feed cleanup and safe board reconciliation', () => {
   });
 });
 
+function mockSandboxedJsonpPayload(payload: unknown) {
+  let frame: HTMLIFrameElement | null = null;
+  const append = document.body.appendChild.bind(document.body);
+  vi.spyOn(document.body, 'appendChild').mockImplementation((node: Node) => {
+    frame = node as HTMLIFrameElement;
+    const tokenMatch = frame.srcdoc.match(/__byocJsonp:\\s*("[^"]+")/);
+    if (!tokenMatch) throw new Error('Sandboxed JSONP message token was not found.');
+    const token = JSON.parse(tokenMatch[1]) as string;
+    const source = frame.contentWindow;
+    const appended = append(node);
+    window.setTimeout(() => {
+      window.dispatchEvent(new MessageEvent('message', {
+        source,
+        data: { __byocJsonp: token, payload }
+      }));
+    }, 0);
+    return appended;
+  });
+  return { getFrame: () => frame };
+}
+
 describe('public employer board adapters', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it('maps a live Workable India posting through its public JSONP endpoint without an API key', async () => {
-    let scriptSrc = '';
-    vi.spyOn(document.head, 'appendChild').mockImplementation((node: Node) => {
-      const script = node as HTMLScriptElement;
-      scriptSrc = script.src;
-      const callbackName = new URL(script.src).searchParams.get('callback');
-      window.setTimeout(() => {
-        const callback = callbackName
-          ? (window as unknown as Record<string, unknown>)[callbackName]
-          : undefined;
-        if (typeof callback === 'function') {
-          (callback as (payload: unknown) => void)({
-            name: 'Weekday AI',
-            jobs: [{
-              id: 'job-123', shortcode: 'wk123',
-              title: 'Customer Support Associate',
-              city: 'Bengaluru', state: 'Karnataka', country: 'India',
-              workplace_type: 'hybrid',
-              description: '<p>Support customers.</p>',
-              application_url: 'https://apply.workable.com/weekday-1/j/wk123',
-              published_on: '2026-11-20T10:00:00Z'
-            }]
-          });
-        }
-      }, 0);
-      return node;
+  it('maps a live Workable India posting through a sandboxed public JSONP endpoint', async () => {
+    const sandbox = mockSandboxedJsonpPayload({
+      name: 'Weekday AI',
+      jobs: [{
+        id: 'job-123', shortcode: 'wk123',
+        title: 'Customer Support Associate',
+        city: 'Bengaluru', state: 'Karnataka', country: 'India',
+        workplace_type: 'hybrid',
+        description: '<p>Support customers.</p>',
+        application_url: 'https://apply.workable.com/weekday-1/j/wk123',
+        published_on: '2026-11-20T10:00:00Z'
+      }]
     });
 
     const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'workable')!;
@@ -135,31 +142,21 @@ describe('public employer board adapters', () => {
       workplaceType: 'Hybrid',
       source: 'Weekday AI Careers (Workable)'
     });
-    expect(scriptSrc).toContain('www.workable.com/api/accounts/weekday-1?details=true&callback=');
+    expect(sandbox.getFrame()?.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(sandbox.getFrame()?.srcdoc).toContain('www.workable.com/api/accounts/weekday-1?details=true&callback=');
+    expect(document.querySelectorAll('iframe')).toHaveLength(0);
   });
 
   it('rejects non-India locations, unsafe URLs and malformed Workable records', async () => {
-    vi.spyOn(document.head, 'appendChild').mockImplementation((node: Node) => {
-      const script = node as HTMLScriptElement;
-      const callbackName = new URL(script.src).searchParams.get('callback');
-      window.setTimeout(() => {
-        const callback = callbackName
-          ? (window as unknown as Record<string, unknown>)[callbackName]
-          : undefined;
-        if (typeof callback === 'function') {
-          (callback as (payload: unknown) => void)({
-            name: 'Weekday AI',
-            jobs: [
-              { id: '0', title: 'Analyst', city: 'Indianapolis', state: 'Indiana', country: 'USA', application_url: 'https://apply.workable.com/weekday-1/j/0' },
-              { id: '1', title: 'Analyst', city: 'London', country: 'United Kingdom', application_url: 'https://apply.workable.com/weekday-1/j/1' },
-              { id: '2', title: 'Analyst', city: 'Chennai', country: 'India', application_url: 'javascript:alert(1)' },
-              { id: '3', title: 'Analyst', city: 'Chennai', country: 'India', application_url: 'https://apply.workable.com/weekday-1/j/3' },
-              null
-            ]
-          });
-        }
-      }, 0);
-      return node;
+    mockSandboxedJsonpPayload({
+      name: 'Weekday AI',
+      jobs: [
+        { id: '0', title: 'Analyst', city: 'Indianapolis', state: 'Indiana', country: 'USA', application_url: 'https://apply.workable.com/weekday-1/j/0' },
+        { id: '1', title: 'Analyst', city: 'London', country: 'United Kingdom', application_url: 'https://apply.workable.com/weekday-1/j/1' },
+        { id: '2', title: 'Analyst', city: 'Chennai', country: 'India', application_url: 'javascript:alert(1)' },
+        { id: '3', title: 'Analyst', city: 'Chennai', country: 'India', application_url: 'https://apply.workable.com/weekday-1/j/3' },
+        null
+      ]
     });
 
     const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'workable')!;
@@ -168,30 +165,15 @@ describe('public employer board adapters', () => {
     expect(jobs[0].id).toContain('-3');
   });
 
-  it('maps a Greenhouse board through its documented JSONP endpoint and cleans up its callback', async () => {
-    let scriptSrc = '';
-    let callbackName = '';
-    vi.spyOn(document.head, 'appendChild').mockImplementation((node: Node) => {
-      const script = node as HTMLScriptElement;
-      scriptSrc = script.src;
-      callbackName = new URL(script.src).searchParams.get('callback') || '';
-      window.setTimeout(() => {
-        const callback = callbackName
-          ? (window as unknown as Record<string, unknown>)[callbackName]
-          : undefined;
-        if (typeof callback === 'function') {
-          (callback as (payload: unknown) => void)({
-            jobs: [{
-              id: 77, title: 'Data Analyst',
-              location: { name: 'Chennai, India' },
-              content: '&lt;p&gt;Build reports with SQL.&lt;/p&gt;',
-              absolute_url: 'https://boards.greenhouse.io/capco/jobs/77',
-              first_published: '2026-11-20T10:00:00Z'
-            }]
-          });
-        }
-      }, 0);
-      return node;
+  it('maps a Greenhouse board through its documented JSONP endpoint inside a sandbox', async () => {
+    const sandbox = mockSandboxedJsonpPayload({
+      jobs: [{
+        id: 77, title: 'Data Analyst',
+        location: { name: 'Chennai, India' },
+        content: '&lt;p&gt;Build reports with SQL.&lt;/p&gt;',
+        absolute_url: 'https://boards.greenhouse.io/capco/jobs/77',
+        first_published: '2026-11-20T10:00:00Z'
+      }]
     });
 
     const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'greenhouse' && item.boardToken === 'capco')!;
@@ -205,31 +187,19 @@ describe('public employer board adapters', () => {
       jobDescriptionRaw: 'Build reports with SQL.',
       url: 'https://boards.greenhouse.io/capco/jobs/77'
     });
-    expect(scriptSrc).toContain('/v1/boards/capco/jobs?content=true&callback=');
-    expect((window as unknown as Record<string, unknown>)[callbackName]).toBeUndefined();
+    expect(sandbox.getFrame()?.srcdoc).toContain('/v1/boards/capco/jobs?content=true&callback=');
+    expect(document.querySelectorAll('iframe')).toHaveLength(0);
   });
 
   it('drops a Greenhouse posting only when the employer explicitly supplies an expired application deadline', async () => {
-    vi.spyOn(document.head, 'appendChild').mockImplementation((node: Node) => {
-      const script = node as HTMLScriptElement;
-      const callbackName = new URL(script.src).searchParams.get('callback');
-      window.setTimeout(() => {
-        const callback = callbackName
-          ? (window as unknown as Record<string, unknown>)[callbackName]
-          : undefined;
-        if (typeof callback === 'function') {
-          (callback as (payload: unknown) => void)({
-            jobs: [{
-              id: 78, title: 'Expired Analyst',
-              location: { name: 'Bengaluru, India' },
-              content: 'Old opening',
-              absolute_url: 'https://boards.greenhouse.io/capco/jobs/78',
-              application_deadline: '2000-01-01T00:00:00Z'
-            }]
-          });
-        }
-      }, 0);
-      return node;
+    mockSandboxedJsonpPayload({
+      jobs: [{
+        id: 78, title: 'Expired Analyst',
+        location: { name: 'Bengaluru, India' },
+        content: 'Old opening',
+        absolute_url: 'https://boards.greenhouse.io/capco/jobs/78',
+        application_deadline: '2000-01-01T00:00:00Z'
+      }]
     });
 
     const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'greenhouse' && item.boardToken === 'capco')!;
