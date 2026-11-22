@@ -237,7 +237,7 @@ export async function analyzeResumeDocumentWithGemini(
   if (!apiKey.trim()) throw new Error('Add a Gemini API key in Settings before analyzing this document.');
   if (file && file.size > MAX_FILE_BYTES) throw new Error('The document exceeds BYOC\'s 10 MB analysis limit.');
   const client = new GoogleGenAI({ apiKey: apiKey.trim() });
-  const parts: Array<Record<string, unknown>> = [{ text: SYSTEM_INSTRUCTIONS }];
+  const parts: any[] = [{ text: SYSTEM_INSTRUCTIONS }];
 
   if (file && file.name.toLowerCase().endsWith('.pdf')) {
     const bytes = new Uint8Array(await file.arrayBuffer());
