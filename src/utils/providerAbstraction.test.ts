@@ -54,15 +54,15 @@ describe('Provider Abstraction', () => {
     it('gemini config has models list', () => {
       const config = getProviderConfig('gemini');
       expect(Array.isArray(config.models)).toBe(true);
-      expect(config.models).toContain('gemini-3.6-flash');
+      expect(config.models).toContain('gemini-3.8-flash');
     });
   });
 
   describe('Client-Usability Check', () => {
-    it('does not advertise Gemini as usable in the browser-only release', () => {
+    it('advertises Gemini as usable for explicit user-triggered document requests', () => {
       expect(isProviderClientUsable('groq')).toBe(true);
       expect(isProviderClientUsable('openrouter')).toBe(false);
-      expect(isProviderClientUsable('gemini')).toBe(false);
+      expect(isProviderClientUsable('gemini')).toBe(true);
     });
   });
 
