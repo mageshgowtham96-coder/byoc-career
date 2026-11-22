@@ -188,10 +188,24 @@ Experience
 Fraud Analyst - Example Bank - 2022 - Present
 - Reviewed payment alerts and documented case notes.`);
     const readiness = assessResumeReadiness(parsed);
-    expect(readiness.completenessPercent).toBe(80);
-    expect(readiness.missingSections).toContain('three or more relevant skills or competencies');
+    expect(readiness.completenessPercent).toBe(100);
+    expect(readiness.missingSections).not.toContain('three or more relevant skills or competencies');
     expect(readiness.missingSections).not.toContain('work experience');
   });
+  it('does not require skills or certifications when a resume contains other usable evidence', () => {
+    const profile = parseRawResumeToStructured(`Asha Rao
+asha@example.com
+Professional Summary
+Community organizer with experience coordinating local learning events.
+Experience
+Community Coordinator - Learning Centre - 2023 - Present
+- Coordinated weekly learning sessions for local students.`);
+    expect(profile.skills.technical).toEqual([]);
+    expect(profile.certifications).toEqual([]);
+    expect(assessResumeReadiness(profile).missingSections).not.toContain('three or more relevant skills or competencies');
+    expect(assessResumeReadiness(profile).completenessPercent).toBe(100);
+  });
+
   it('recognizes a student profile with education and projects as meaningful resume evidence without employment history', () => {
     const student = parseRawResumeToStructured(`Asha Rao
 asha.rao@example.com
