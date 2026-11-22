@@ -6,8 +6,7 @@ import {
   parseRawResumeToStructured,
   validateExtractedSchema
 } from '../../services/extractionService';
-import { formatGroqError, optimizeMasterResumeWithGroq } from '../../services/groqService';
-import { analyzeResumeDocumentWithGemini } from '../../services/documentIntelligenceService';
+import { analyzeResumeDocumentWithGemini, optimizeMasterResumeWithGemini } from '../../services/documentIntelligenceService';
 import { createMasterResumeExportArtifact, dispatchExportFile, generateDocxResume, generatePdfResume, getResumeExportGuidance } from '../../services/exporterService';
 import { safeRemoveItem, wipeCachedFormData } from '../../utils/storagePersistence';
 import { ExtractionLoadingSkeleton } from './ExtractionLoadingSkeleton';
@@ -42,7 +41,6 @@ export const IntakeTab: React.FC = () => {
     restorePreviousMasterResume,
     careerFormDraft,
     setCareerFormDraft,
-    groqApiKey,
     geminiApiKey,
     stagedParsedResume,
     setStagedParsedResume,
@@ -295,7 +293,7 @@ export const IntakeTab: React.FC = () => {
   };
 
   const handleOptimizeMasterResume = async () => {
-    if (!stagedParsedResume || !groqApiKey || isOptimizingMaster) return;
+    if (!stagedParsedResume || !geminiApiKey || isOptimizingMaster) return;
     setIsOptimizingMaster(true);
     setOptimizationError(null);
     setOptimizedMasterPreview(null);
@@ -306,10 +304,10 @@ export const IntakeTab: React.FC = () => {
         headline: editableHeadline,
         summary: editableStagedSummary
       });
-      const optimized = await optimizeMasterResumeWithGroq(reviewedSource, groqApiKey);
+      const optimized = await optimizeMasterResumeWithGemini(reviewedSource, geminiApiKey);
       setOptimizedMasterPreview(optimized);
     } catch (err: unknown) {
-      const message = formatGroqError(err, 'Master Resume optimization failed.');
+      const message = err instanceof Error ? err.message : 'Gemini Master Resume optimization failed.';
       setOptimizationError(message);
       addToast({ type: 'error', title: 'Optimization Failed', message });
     } finally {
@@ -711,22 +709,22 @@ export const IntakeTab: React.FC = () => {
           <div className="mb-5 rounded-2xl border border-violet-500/25 bg-violet-500/5 p-4 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
               <div>
-                <h4 className="text-xs font-bold text-violet-200">Optional Master Resume Optimization</h4>
+                <h4 className="text-xs font-bold text-violet-200">Optional Master Resume Optimization (Gemini)</h4>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                  Ask Groq to improve wording and clarity using your structured profile only. Dedicated contact fields and original uploaded text are excluded; personal details typed into free-text bullets, project descriptions or other evidence may still be sent. This is optional and never replaces your source automatically.
+                  Ask Gemini to improve wording and clarity using your structured profile only. Dedicated contact fields and original uploaded text are excluded; personal details typed into free-text bullets, project descriptions or other evidence may still be sent. This is optional and never replaces your source automatically.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => void handleOptimizeMasterResume()}
-                disabled={!groqApiKey || isOptimizingMaster || isAiStructuring || isProcessing}
+                disabled={!geminiApiKey || isOptimizingMaster || isAiStructuring || isProcessing}
                 className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-violet-400/30 bg-violet-500/15 px-3 py-2 text-xs font-semibold text-violet-100 hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 {isOptimizingMaster ? 'Optimizing…' : 'Suggest improvements'}
               </button>
             </div>
-            {!groqApiKey && <p className="text-[11px] text-amber-300">This additional feature uses your existing Groq key. The local Master Resume workflow remains available without it.</p>}
+            {!geminiApiKey && <p className="text-[11px] text-amber-300">Add a Gemini key in Settings to enable optional wording suggestions. Your original source document is not re-sent for this step.</p>}
             {optimizationError && <p role="alert" className="text-[11px] text-rose-300">{optimizationError}</p>}
             {optimizedMasterPreview && (
               <div className="space-y-3 rounded-xl border border-violet-400/25 bg-slate-950/60 p-3">
