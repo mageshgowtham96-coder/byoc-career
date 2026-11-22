@@ -10,6 +10,7 @@ import { analyzeResumeDocumentWithGemini, optimizeMasterResumeWithGemini } from 
 import { createMasterResumeExportArtifact, dispatchExportFile, generateDocxResume, generatePdfResume, getResumeExportGuidance } from '../../services/exporterService';
 import { safeRemoveItem, wipeCachedFormData } from '../../utils/storagePersistence';
 import { ExtractionLoadingSkeleton } from './ExtractionLoadingSkeleton';
+import { DocumentFollowUpPanel } from './DocumentFollowUpPanel';
 import { ChakraLogo } from '../ChakraLogo';
 import { GuidedMasterResumeBuilder } from './GuidedMasterResumeBuilder';
 import { createCareerDraftFromMasterResume } from '../../utils/guidedResumeMapper';
@@ -313,6 +314,18 @@ export const IntakeTab: React.FC = () => {
     } finally {
       setIsOptimizingMaster(false);
     }
+  };
+
+  const handleDocumentFollowUpAnswers = (answers: Array<{ question: string; answer: string }>) => {
+    if (!stagedParsedResume) return;
+    const additions = answers.map(({ question, answer }) => `User-provided detail — ${question} Answer: ${answer}`);
+    const updated = {
+      ...stagedParsedResume,
+      additionalEvidence: [...(stagedParsedResume.additionalEvidence || []), ...additions]
+    };
+    setStagedParsedResume(updated);
+    setLocalStagedProfile(updated);
+    addToast({ type: 'success', title: 'Your answers were added', message: 'Your responses are marked as user-provided evidence and remain distinct from document-extracted facts.' });
   };
 
   const handleAcceptOptimizedMaster = () => {
@@ -662,7 +675,7 @@ export const IntakeTab: React.FC = () => {
               </article>
             ))}
           </div>
-          {stagedParsedResume.documentInsights.followUpQuestions.length > 0 && <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><h5 className="text-xs font-bold text-amber-200">Questions based on what this document does not say</h5><ul className="mt-2 space-y-2">{stagedParsedResume.documentInsights.followUpQuestions.map((item) => <li key={item.id}><p className="text-xs font-medium text-white">{item.question}</p>{item.reason && <p className="mt-0.5 text-[11px] text-slate-400">{item.reason}</p>}</li>)}</ul></div>}
+          <DocumentFollowUpPanel questions={stagedParsedResume.documentInsights.followUpQuestions} onSubmit={handleDocumentFollowUpAnswers} />
           {stagedParsedResume.documentInsights.warnings.length > 0 && <ul className="space-y-1 text-[11px] text-amber-200">{stagedParsedResume.documentInsights.warnings.map((warning, index) => <li key={index}>• {warning}</li>)}</ul>}
         </section>
       )}
