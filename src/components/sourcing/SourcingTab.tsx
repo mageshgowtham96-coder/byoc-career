@@ -224,7 +224,7 @@ export const SourcingTab: React.FC = () => {
         };
       })
       .filter((job) => {
-        if (!matchesJobSearchTerms(searchQuery, job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.jobDescriptionRaw)) return false;
+        if (!matchesJobSearchTerms(searchQuery, job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.metadataSummary, job.jobDescriptionRaw)) return false;
         const source = (job.source || '').toLowerCase();
         // Hide legacy Groq-discovered candidates retained in older local vaults; do not delete user data.
         if (source.includes('groq')) return false;
@@ -234,7 +234,7 @@ export const SourcingTab: React.FC = () => {
         if (!isWorldwide && isLiveFeedJob) {
           const matchesLoc = matchesRemoteCountryAndLocation(
             job.location,
-            `${job.title} ${job.jobDescriptionRaw}`,
+            `${job.title} ${job.metadataSummary || ''} ${job.jobDescriptionRaw}`,
             candidatePreferences?.country,
             locFilter,
             candidatePreferences?.includeWorldwideRemote !== false
