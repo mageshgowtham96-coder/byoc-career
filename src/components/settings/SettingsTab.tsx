@@ -35,6 +35,8 @@ export const SettingsTab: React.FC = () => {
   const {
     groqApiKey,
     setGroqApiKey,
+    geminiApiKey,
+    setGeminiApiKey,
     setIsLiveApiMode,
     user,
     toggleBiometricEnrollment,
@@ -49,6 +51,10 @@ export const SettingsTab: React.FC = () => {
   } = useWizardStore();
 
   const [inputKey, setInputKey] = useState(groqApiKey);
+  const [inputGeminiKey, setInputGeminiKey] = useState(geminiApiKey);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [isTestingGemini, setIsTestingGemini] = useState(false);
+  const [geminiTestResult, setGeminiTestResult] = useState<{ success: boolean; msg: string } | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null);
@@ -64,6 +70,10 @@ export const SettingsTab: React.FC = () => {
   useEffect(() => {
     setInputKey(groqApiKey);
   }, [groqApiKey]);
+
+  useEffect(() => {
+    setInputGeminiKey(geminiApiKey);
+  }, [geminiApiKey]);
 
   useEffect(() => {
     if (settingsFocusSection === 'backup') {
@@ -95,6 +105,44 @@ export const SettingsTab: React.FC = () => {
         type: 'info',
         message: 'Groq API Key cleared from vault. Local non-AI tools remain available.'
       });
+    }
+  };
+
+  const handleSaveGeminiKey = async () => {
+    const trimmed = inputGeminiKey.trim();
+    setGeminiApiKey(trimmed);
+    const synced = await syncVaultFromStoreNow();
+    addToast({
+      type: trimmed ? 'success' : 'info',
+      title: trimmed ? 'Gemini API Key Saved' : 'Gemini API Key Cleared',
+      message: trimmed
+        ? (synced ? 'Encrypted in your private device vault. Gemini is available for document analysis.' : 'Gemini key is active for this session.')
+        : 'Gemini document analysis is disabled. Local document extraction remains available.'
+    });
+  };
+
+  const handleTestGemini = async () => {
+    const trimmed = inputGeminiKey.trim();
+    if (!trimmed) {
+      setGeminiTestResult({ success: false, msg: 'Enter a Gemini API key first.' });
+      return;
+    }
+    setIsTestingGemini(true);
+    setGeminiTestResult(null);
+    try {
+      const { GoogleGenAI } = await import('@google/genai');
+      const client = new GoogleGenAI({ apiKey: trimmed });
+      await client.models.generateContent({ model: 'gemini-3.6-flash', contents: 'Reply with the single word READY.' });
+      setGeminiApiKey(trimmed);
+      const synced = await syncVaultFromStoreNow();
+      setGeminiTestResult({
+        success: true,
+        msg: synced ? 'Gemini connection verified and key saved in the encrypted device vault.' : 'Gemini connection verified; key is active for this session.'
+      });
+    } catch (err) {
+      setGeminiTestResult({ success: false, msg: err instanceof Error ? err.message : 'Gemini connection failed.' });
+    } finally {
+      setIsTestingGemini(false);
     }
   };
 
@@ -335,10 +383,40 @@ export const SettingsTab: React.FC = () => {
 
         <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-400">
           <span>
-            Groq BYOK handles vetting, tailoring, and evidence-anchored prep with strict zero-fabrication prompts. Gemini remains disabled in this browser-only build; adding another provider requires explicit consent and a reviewed secure integration.
+            Groq BYOK handles vetting, tailoring, and evidence-anchored prep with strict zero-fabrication prompts. Gemini is enabled only for explicitly initiated document analysis; the user must configure a separate Gemini key and approve each document submission.
           </span>
           <span className="text-emerald-400 font-mono text-[11px] shrink-0">Live BYOK Architecture</span>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-cyan-500/25 bg-[#0F172A] p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-500/25 bg-cyan-500/15 text-cyan-300"><Cpu className="h-4 w-4" /></div>
+            <div>
+              <h3 className="text-sm font-bold text-white">Gemini Document Intelligence</h3>
+              <p className="text-xs text-slate-400">Reads original PDF pages, including scanned/image-based pages, and builds document-specific sections.</p>
+            </div>
+          </div>
+          <span className={geminiApiKey ? "text-xs font-semibold text-emerald-300" : "text-xs font-semibold text-amber-300"}>
+            {geminiApiKey ? 'Gemini key configured' : 'Optional · key not set'}
+          </span>
+        </div>
+        <div>
+          <label htmlFor="settings-gemini-key" className="mb-1.5 block text-xs font-semibold text-slate-300">Gemini API Key (encrypted in this device's vault)</label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative flex-1">
+              <input id="settings-gemini-key" type={showGeminiKey ? 'text' : 'password'} value={inputGeminiKey} onChange={(event) => setInputGeminiKey(event.target.value)} placeholder="AIza..." className="w-full rounded-xl border border-slate-700 bg-[#070B14] px-3.5 py-2.5 pr-10 font-mono text-xs text-white focus:border-cyan-500 focus:outline-none" />
+              <button type="button" aria-label={showGeminiKey ? 'Hide Gemini API key' : 'Show Gemini API key'} onClick={() => setShowGeminiKey(!showGeminiKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">{showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
+            </div>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => void handleSaveGeminiKey()} className="rounded-xl bg-cyan-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-cyan-500">Save Key</button>
+              <button type="button" onClick={() => void handleTestGemini()} disabled={isTestingGemini} className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-50">{isTestingGemini ? 'Testing…' : 'Test Connection'}</button>
+            </div>
+          </div>
+        </div>
+        {geminiTestResult && <div role="status" className={geminiTestResult.success ? "rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300" : "rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300"}>{geminiTestResult.msg}</div>}
+        <p className="text-[11px] leading-relaxed text-slate-400">BYOC sends the selected document to Google only when you explicitly click Analyze document. The key stays in the encrypted local vault, but requests are made directly from this device. Check Google's current Gemini API data-use terms before sending personal documents; free-tier content may be used to improve Google products, while paid-tier terms differ. BYOC does not silently fail over to another provider.</p>
       </section>
 
       {/* Hardware Biometric Security Shield */}
@@ -602,7 +680,8 @@ export const SettingsTab: React.FC = () => {
               <ul className="space-y-1.5 text-slate-400">
                 <li>• <strong className="text-slate-200">Supported Local Extraction:</strong> Processes <span className="font-mono text-slate-200">.txt</span>, <span className="font-mono text-slate-200">.md</span>, standard compressed XML <span className="font-mono text-slate-200">.docx</span>, and basic selectable-text <span className="font-mono text-slate-200">.pdf</span> files up to 10MB 100% locally on-device.</li>
                 <li>• <strong className="text-slate-200">Unsupported Formats (No OCR):</strong> Raster image OCR (PNG/JPG/scanned PDFs), encrypted PDFs, and complex CID/custom-font PDF glyph maps remain unsupported. When readable text cannot be extracted, BYOC directs you to the Manual Paste Fallback box.</li>
-                <li>• <strong className="text-slate-200">Groq BYOK (Active AI Provider):</strong> Create a free or paid key at <span className="font-mono text-sky-400">console.groq.com</span> and paste it above. Gemini is not active in this client-only build; its free tier has separate quotas and data-use terms. Without a Groq key (or if Groq is unreachable/rate-limited), all local vault, sourcing, offline baseline export, Assisted-Apply, and tracking workflows remain functional offline.</li>
+                <li>• <strong className="text-slate-200">Gemini Document Analysis:</strong> Configure a Gemini API key in the separate Gemini section. BYOC sends the original PDF for visual and text understanding only after an explicit user action; DOCX/TXT/MD are extracted locally and sent as text. Free-tier data-use terms and quotas differ from paid-tier terms.</li>
+                <li>• <strong className="text-slate-200">Groq for other AI tasks:</strong> Existing vetting, tailoring and interview-preparation workflows still use the separately configured Groq key. The Master Resume document-ingestion path no longer depends on Groq.</li>
               </ul>
             </>
           )}

@@ -43,8 +43,45 @@ export interface CertificationItem {
   issueDate: string;
 }
 
+export interface DocumentEvidenceQuote {
+  quote: string;
+  page?: number;
+  field: string;
+}
+
+export interface DocumentSectionInsight {
+  id: string;
+  title: string;
+  status: 'found' | 'partial' | 'not_found';
+  summary: string;
+  items: string[];
+  confidence: 'high' | 'medium' | 'low';
+  evidence: DocumentEvidenceQuote[];
+}
+
+export interface DocumentFollowUpQuestion {
+  id: string;
+  question: string;
+  reason: string;
+  relatedSection: string;
+}
+
+export interface DocumentIntelligence {
+  documentTitle: string;
+  documentSummary: string;
+  documentType: string;
+  sections: DocumentSectionInsight[];
+  followUpQuestions: DocumentFollowUpQuestion[];
+  warnings: string[];
+  analyzedAt: string;
+  provider: 'gemini';
+  model: string;
+}
+
 export interface MasterResume {
   rawText: string;
+  /** Evidence-led document analysis used to render document-specific intake sections. */
+  documentInsights?: DocumentIntelligence;
   contactInfo: ContactInfo;
   headline: string;
   summary: string;

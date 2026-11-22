@@ -62,7 +62,7 @@ describe('Provider Abstraction', () => {
     it('does not advertise Gemini as usable in the browser-only release', () => {
       expect(isProviderClientUsable('groq')).toBe(true);
       expect(isProviderClientUsable('openrouter')).toBe(false);
-      expect(isProviderClientUsable('gemini')).toBe(false);
+      expect(isProviderClientUsable('gemini')).toBe(true);
     });
   });
 

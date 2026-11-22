@@ -6,15 +6,15 @@ import { DocumentsTab } from './DocumentsTab';
 import { extractResumeFile } from '../../services/extractionService';
 import { inspectPdf } from '../../services/pdfWorkspaceService';
 
-const { mockAskPdfQuestion, mockGroqApiKey, mockSaveBlobToDownloads, mockOpenSavedFileExternally } = vi.hoisted(() => ({
-  mockAskPdfQuestion: vi.fn(),
-  mockGroqApiKey: { value: 'test-groq-key' },
+const { mockAskDocumentQuestion, mockGeminiApiKey, mockSaveBlobToDownloads, mockOpenSavedFileExternally } = vi.hoisted(() => ({
+  mockAskDocumentQuestion: vi.fn(),
+  mockGeminiApiKey: { value: 'test-gemini-key' },
   mockSaveBlobToDownloads: vi.fn(),
   mockOpenSavedFileExternally: vi.fn()
 }));
 
 vi.mock('../../store/useWizardStore', () => ({
-  useWizardStore: () => ({ groqApiKey: mockGroqApiKey.value, addToast: vi.fn() })
+  useWizardStore: () => ({ geminiApiKey: mockGeminiApiKey.value, addToast: vi.fn() })
 }));
 vi.mock('../../services/extractionService', () => ({
   extractResumeFile: vi.fn()
@@ -27,8 +27,8 @@ vi.mock('../../services/pdfWorkspaceService', () => ({
   rotatePdfPage: vi.fn(),
   reorderPdfPages: vi.fn()
 }));
-vi.mock('../../services/pdfQuestionService', () => ({
-  askPdfQuestion: mockAskPdfQuestion
+vi.mock('../../services/documentIntelligenceService', () => ({
+  askDocumentQuestionWithGemini: mockAskDocumentQuestion
 }));
 vi.mock('../../services/exporterService', () => ({
   saveBlobToDownloads: mockSaveBlobToDownloads,
@@ -42,7 +42,7 @@ describe('DocumentsTab privacy and explicit AI interaction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.restoreAllMocks();
-    mockGroqApiKey.value = 'test-groq-key';
+    mockGeminiApiKey.value = 'test-gemini-key';
     mockSaveBlobToDownloads.mockResolvedValue({ uri: 'content://downloads/byoc/resume.pdf', filename: 'resume.pdf' });
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:byoc-pdf') });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() });
@@ -54,7 +54,7 @@ describe('DocumentsTab privacy and explicit AI interaction', () => {
       fileName: 'resume.pdf', fileSize: 1024, pageCount: 1,
       title: 'Resume', author: '', subject: '', creator: ''
     });
-    mockAskPdfQuestion.mockResolvedValue('The document lists Excel and SQL.');
+    mockAskDocumentQuestion.mockResolvedValue('The document lists Excel and SQL.');
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -65,14 +65,14 @@ describe('DocumentsTab privacy and explicit AI interaction', () => {
     container.remove();
   });
 
-  it('does not send document content to Groq when the workspace opens', async () => {
+  it('does not send the original document to Gemini when the workspace opens', async () => {
     await act(async () => { root.render(<DocumentsTab />); });
     expect(container.textContent).toContain('Local by default');
-    expect(container.textContent).toContain('sent to Groq only when you submit a question');
-    expect(mockAskPdfQuestion).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('original PDF and your question are sent to Google only when you submit a question');
+    expect(mockAskDocumentQuestion).not.toHaveBeenCalled();
   });
 
-  it('sends extracted text only after the user submits a question', async () => {
+  it('sends the original PDF only after the user submits a question', async () => {
     await act(async () => { root.render(<DocumentsTab />); });
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(['%PDF-1.7'], 'resume.pdf', { type: 'application/pdf' });
@@ -84,23 +84,23 @@ describe('DocumentsTab privacy and explicit AI interaction', () => {
     valueSetter?.call(textarea, 'Which skills are listed?');
     await act(async () => { textarea.dispatchEvent(new Event('input', { bubbles: true })); });
 
-    const askButton = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('Ask Groq'));
+    const askButton = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('Ask Gemini'));
     expect(askButton).toBeTruthy();
     await act(async () => { askButton?.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
-    expect(mockAskPdfQuestion).toHaveBeenCalledOnce();
-    expect(mockAskPdfQuestion).toHaveBeenCalledWith('Which skills are listed?', 'Candidate skills: Excel and SQL.', 'test-groq-key');
+    expect(mockAskDocumentQuestion).toHaveBeenCalledOnce();
+    expect(mockAskDocumentQuestion).toHaveBeenCalledWith(file, 'Candidate skills: Excel and SQL.', 'Which skills are listed?', 'test-gemini-key');
     expect(container.textContent).toContain('The document lists Excel and SQL.');
   });
-  it('keeps document chat unavailable without a Groq key while local PDF tools remain visible', async () => {
-    mockGroqApiKey.value = '';
+  it('keeps document chat unavailable without a Gemini key while local PDF tools remain visible', async () => {
+    mockGeminiApiKey.value = '';
     await act(async () => { root.render(<DocumentsTab />); });
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(['%PDF-1.7'], 'resume.pdf', { type: 'application/pdf' });
     Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] });
     await act(async () => { fileInput.dispatchEvent(new Event('change', { bubbles: true })); });
     expect(container.textContent).toContain('Page tools');
-    expect(container.textContent).toContain('Configure Groq in Settings');
-    expect(mockAskPdfQuestion).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Configure Gemini in Settings');
+    expect(mockAskDocumentQuestion).not.toHaveBeenCalled();
   });
 
   it('shows a readable text preview and native open/save actions on Android', async () => {

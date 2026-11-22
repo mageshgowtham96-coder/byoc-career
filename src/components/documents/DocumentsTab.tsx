@@ -7,7 +7,7 @@ import {
 import { useWizardStore } from '../../store/useWizardStore';
 import { useAuthLocale } from '../../i18n/authLocale';
 import { extractResumeFile } from '../../services/extractionService';
-import { askPdfQuestion } from '../../services/pdfQuestionService';
+import { askDocumentQuestionWithGemini } from '../../services/documentIntelligenceService';
 import { openSavedFileExternally, saveBlobToDownloads } from '../../services/exporterService';
 import {
   createPdfBlob, extractPdfPages, inspectPdf, mergePdfs, reorderPdfPages, rotatePdfPage,
@@ -19,7 +19,7 @@ interface ChatEntry { question: string; answer: string; }
 
 export const DocumentsTab: React.FC = () => {
   const { t } = useAuthLocale();
-  const { groqApiKey, addToast } = useWizardStore();
+  const { geminiApiKey, addToast } = useWizardStore();
   const [file, setFile] = useState<File | null>(null);
   const [inspection, setInspection] = useState<PdfInspection | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -155,19 +155,15 @@ export const DocumentsTab: React.FC = () => {
 
   const handleAsk = async () => {
     if (!file || busy || !question.trim()) return;
-    if (!groqApiKey.trim()) {
-      setError('Add and test your Groq API key in Settings before using document chat. Local PDF tools remain available.');
-      return;
-    }
-    if (!extractedText) {
-      setError('This PDF has no locally extracted text. Document chat needs readable text; scanned-PDF OCR is not available yet.');
+    if (!geminiApiKey.trim()) {
+      setError('Add and test your Gemini API key in Settings before using document chat. Local PDF tools remain available.');
       return;
     }
     const submittedQuestion = question.trim();
     setBusy(true);
     setError('');
     try {
-      const answer = await askPdfQuestion(submittedQuestion, extractedText, groqApiKey);
+      const answer = await askDocumentQuestionWithGemini(file, extractedText, submittedQuestion, geminiApiKey);
       setChat((items) => [...items, { question: submittedQuestion, answer }]);
       setQuestion('');
     } catch (err) {
@@ -205,7 +201,7 @@ export const DocumentsTab: React.FC = () => {
 
       <div className="flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-100/90">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-        <p><strong>{t('Local by default.')}</strong> PDF operations and text extraction happen on this device. BYOC does not save this document or chat automatically. Extracted text is sent to Groq only when you submit a question below.</p>
+        <p><strong>{t('Local by default.')}</strong> PDF operations and text extraction happen on this device. BYOC does not save this document or chat automatically. The original PDF and your question are sent to Google only when you submit a question below.</p>
       </div>
 
       {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
@@ -275,13 +271,13 @@ export const DocumentsTab: React.FC = () => {
 
             <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-white"><MessageCircle className="h-4 w-4 text-violet-300" />{t('Ask this PDF')}</h2>
-              <p className="mt-2 text-xs leading-relaxed text-slate-400">Optional AI assistance using your existing Groq key. When you submit, the extracted document text and your question are sent to Groq. Do not include documents you do not want to share with that provider. AI answers can be incomplete or wrong; verify important details against the PDF.</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-400">Optional AI assistance using Gemini. When you submit, the original PDF (including its page images) and your question are sent to Google. Do not include documents you do not want to share with that provider. AI answers can be incomplete or wrong; verify important details against the PDF.</p>
               <div className="mt-3 space-y-2">
                 {chat.map((entry, index) => <div key={index} className="space-y-1 rounded-lg bg-slate-950/70 p-3 text-xs"><p className="font-semibold text-sky-200">You: {entry.question}</p><p className="whitespace-pre-wrap text-slate-200">{entry.answer}</p></div>)}
               </div>
               <textarea value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={2000} rows={3} placeholder="What skills or qualifications are listed?" className="mt-3 w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-600" />
-              <button type="button" disabled={busy || !question.trim() || !extractedText} onClick={() => void handleAsk()} className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Ask Groq</button>
-              {!groqApiKey && <p className="mt-2 text-[11px] text-amber-200">Configure Groq in Settings to enable document chat. Local PDF tools do not need it.</p>}
+              <button type="button" disabled={busy || !question.trim() || !file} onClick={() => void handleAsk()} className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-indigo-500 px-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Ask Gemini</button>
+              {!geminiApiKey && <p className="mt-2 text-[11px] text-amber-200">Configure Gemini in Settings to enable document chat. Local PDF tools do not need it.</p>}
             </section>
 
             <a href={previewUrl} download={inspection?.fileName || 'BYOC_Document.pdf'} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 text-sm font-semibold text-slate-200 hover:bg-slate-800"><Download className="h-4 w-4" />{t('Download current PDF')}</a>
