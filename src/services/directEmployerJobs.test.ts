@@ -3,7 +3,6 @@ import type { JobPosting } from '../types';
 import {
   DIRECT_EMPLOYER_BOARD_DIRECTORY,
   DIRECT_EMPLOYER_REFRESH_INTERVAL_MS,
-  DIRECT_EMPLOYER_REFRESH_STORAGE_KEY,
   fetchDirectEmployerBoard,
   isDirectEmployerRefreshDue,
   isRetiredAggregatedFeedJob,
