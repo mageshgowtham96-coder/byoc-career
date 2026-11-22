@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { extractResumeFile, parseRawResumeToStructured, validateExtractedSchema } from './extractionService';
-import { assessResumeReadiness } from '../utils/resumeReadiness';
+import { assessResumeReadiness, getCandidateDiscoverySignals, hasStructuredCareerEvidence } from '../utils/resumeReadiness';
 import { useWizardStore, buildVaultDataFromState } from '../store/useWizardStore';
 import { encryptVault, decryptVault } from '../utils/cryptoVault';
 
@@ -204,6 +204,42 @@ Community Coordinator - Learning Centre - 2023 - Present
     expect(profile.certifications).toEqual([]);
     expect(assessResumeReadiness(profile).missingSections).not.toContain('three or more relevant skills or competencies');
     expect(assessResumeReadiness(profile).completenessPercent).toBe(100);
+  });
+
+  it('retains arbitrary document-discovered sections as structured candidate evidence', () => {
+    const profile = parseRawResumeToStructured(`Asha Rao
+asha@example.com
+Professional Summary
+Community organizer with experience coordinating learning events.`);
+    profile.documentInsights = {
+      documentTitle: 'Asha career profile',
+      documentSummary: 'Community experience and public speaking.',
+      documentType: 'Career profile',
+      sections: [{
+        id: 'community-impact',
+        title: 'Community Impact',
+        status: 'found',
+        summary: 'Community leadership evidence',
+        fields: [
+          { label: 'Initiative', value: 'Started a neighbourhood reading circle', evidence: [{ quote: 'Started a neighbourhood reading circle', field: 'Initiative' }] },
+          { label: 'Audience', value: '30 local students', evidence: [{ quote: 'Supported 30 local students', field: 'Audience' }] }
+        ],
+        items: [],
+        confidence: 'high',
+        evidence: [{ quote: 'Started a neighbourhood reading circle', field: 'Initiative' }]
+      }],
+      followUpQuestions: [],
+      warnings: [],
+      analyzedAt: new Date().toISOString(),
+      provider: 'gemini',
+      model: 'test-model'
+    };
+    const signals = getCandidateDiscoverySignals(profile);
+    expect(signals).toContain('Community Impact');
+    expect(signals).toContain('Initiative');
+    expect(signals).toContain('Started a neighbourhood reading circle');
+    expect(signals).toContain('30 local students');
+    expect(hasStructuredCareerEvidence(profile)).toBe(true);
   });
 
   it('recognizes a student profile with education and projects as meaningful resume evidence without employment history', () => {
