@@ -40,6 +40,7 @@ function jobLocation(job) {
 }
 
 let lastWorkableRequestAt = 0;
+let totalResponseBytes = 0;
 for (const board of boards) {
   if (board.provider === 'Workable' && lastWorkableRequestAt > 0) {
     const waitMs = Math.max(0, 1500 - (Date.now() - lastWorkableRequestAt));
@@ -51,7 +52,10 @@ for (const board of boards) {
   });
   if (board.provider === 'Workable') lastWorkableRequestAt = Date.now();
   assert.equal(response.ok, true, `${board.provider} ${board.board} returned HTTP ${response.status}`);
-  const payload = parseJsonp(await response.text(), board.callback);
+  const body = await response.text();
+  const responseBytes = Buffer.byteLength(body, 'utf8');
+  totalResponseBytes += responseBytes;
+  const payload = parseJsonp(body, board.callback);
   assert.ok(Array.isArray(payload.jobs), `${board.provider} ${board.board} response has no jobs array`);
   assert.ok(payload.jobs.length > 0, `${board.provider} ${board.board} returned no public jobs`);
   const indiaMarkers = [
@@ -64,5 +68,7 @@ for (const board of boards) {
     return indiaMarkers.some((marker) => normalizedLocation.includes(` ${marker} `));
   });
   assert.ok(indiaJobs.length > 0, `${board.provider} ${board.board} returned no India-located postings`);
-  process.stdout.write(`LIVE SOURCE PASS: ${board.provider} / ${board.board}: ${payload.jobs.length} open postings, ${indiaJobs.length} India-located\n`);
+  process.stdout.write(`LIVE SOURCE PASS: ${board.provider} / ${board.board}: ${payload.jobs.length} open postings, ${indiaJobs.length} India-located, ${(responseBytes / 1024).toFixed(0)} KiB\n`);
 }
+
+process.stdout.write(`LIVE SOURCE TOTAL: ${(totalResponseBytes / (1024 * 1024)).toFixed(2)} MiB across ${boards.length} boards\n`);
