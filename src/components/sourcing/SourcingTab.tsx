@@ -215,12 +215,15 @@ export const SourcingTab: React.FC = () => {
     return jobs
       .map((job) => {
         const match = calculateHonestMatch(job, masterResume);
+        const summaryOnlyEmployerJob = isLiveDiscoveredJobSource(job.source) && !job.jobDescriptionRaw.trim();
         return {
           ...job,
-          fitScore: match.score,
-          fitStatusText: match.statusText,
-          matchedKeywords: match.matchedKeywords,
-          missingKeywords: match.missingKeywords
+          fitScore: summaryOnlyEmployerJob ? null : match.score,
+          fitStatusText: summaryOnlyEmployerJob
+            ? 'Full description not downloaded (low-data mode)'
+            : match.statusText,
+          matchedKeywords: summaryOnlyEmployerJob ? [] : match.matchedKeywords,
+          missingKeywords: summaryOnlyEmployerJob ? [] : match.missingKeywords
         };
       })
       .filter((job) => {
@@ -274,7 +277,9 @@ export const SourcingTab: React.FC = () => {
     addToast({
       type: 'info',
       title: 'Target Position Set',
-      message: `Selected ${job.title} at ${job.company} for Vetting & Customization.`
+      message: isLiveDiscoveredJobSource(job.source) && !job.jobDescriptionRaw.trim()
+        ? `Selected ${job.title}. The public feed uses low-data summaries; open the employer posting and paste its full description into BYOC before fit analysis or tailoring.`
+        : `Selected ${job.title} at ${job.company} for Vetting & Customization.`
     });
   };
 
@@ -984,7 +989,11 @@ export const SourcingTab: React.FC = () => {
                           {job.fitStatusText || 'Match not assessed'}
                         </span>
                         <span className="text-[9px] text-slate-500 mt-0.5 block">
-                          {!resumeIngested ? 'Upload resume in Intake' : 'No job skill criteria specified'}
+                          {!resumeIngested
+                            ? 'Upload resume in Intake'
+                            : isLiveDiscoveredJobSource(job.source) && !job.jobDescriptionRaw.trim()
+                              ? 'Open employer listing and paste description for analysis'
+                              : 'No job skill criteria specified'}
                         </span>
                       </div>
                     )}
@@ -1041,9 +1050,13 @@ export const SourcingTab: React.FC = () => {
                   </p>
                 )}
 
-                {/* Raw JD Preview */}
+                {/* Full descriptions are deferred in the low-data employer feed. */}
                 <p className="text-xs text-slate-400 line-clamp-2 mb-4 leading-relaxed bg-slate-900/40 p-2.5 rounded-xl border border-slate-800">
-                  {job.jobDescriptionRaw}
+                  {job.jobDescriptionRaw || (job.metadataSummary
+                    ? `Employer details: ${job.metadataSummary}. Full description was not downloaded to reduce mobile data use.`
+                    : isLiveDiscoveredJobSource(job.source)
+                      ? 'Full job description was not downloaded to reduce mobile data use. Open the employer posting to read it.'
+                      : '')}
                 </p>
 
                 {/* Action Buttons */}
