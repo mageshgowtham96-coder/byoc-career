@@ -106,6 +106,16 @@ function mapWorkplaceType(value: unknown, location: string): JobPosting['workpla
   return 'Unspecified';
 }
 
+function mapExperienceLevel(value: unknown): JobPosting['experienceLevel'] {
+  const text = String(value || '').toLowerCase();
+  if (/intern|entry|junior|graduate|fresher/.test(text)) return 'Entry';
+  if (/staff|principal/.test(text)) return 'Staff';
+  if (/lead|manager|head/.test(text)) return 'Lead';
+  if (/senior|sr\\b|\\b5\\+/.test(text)) return 'Senior';
+  if (/mid|intermediate|experienced/.test(text)) return 'Mid';
+  return 'Unspecified';
+}
+
 function createPosting(
   board: DirectEmployerBoard,
   rawId: unknown,
@@ -115,12 +125,17 @@ function createPosting(
   rawUrl: unknown,
   rawDate: unknown,
   rawWorkplace?: unknown,
-  rawApplicationDeadline?: unknown
+  rawApplicationDeadline?: unknown,
+  rawMetadataSummary?: unknown,
+  rawDepartment?: unknown,
+  rawExperience?: unknown
 ): JobPosting | null {
   const title = typeof rawTitle === 'string' ? rawTitle.trim() : '';
   const url = safeUrl(rawUrl);
   const location = typeof rawLocation === 'string' ? rawLocation.trim() : '';
   const description = cleanText(rawDescription);
+  const metadataSummary = cleanText(rawMetadataSummary, 1200);
+  const department = cleanText(rawDepartment, 160);
   if (!title || !url || !location || !isIndiaLocation(location)) return null;
   // Only an explicit employer-published past deadline proves expiry.
   // Missing or malformed deadlines are never guessed to be expired.
@@ -138,14 +153,17 @@ function createPosting(
     salary: 'Undisclosed',
     postedDate: normalizeDate(rawDate),
     jobDescriptionRaw: description,
+    metadataSummary,
+    ...(department ? { department } : {}),
     url,
     source: `${board.company} Careers (${board.provider === 'greenhouse' ? 'Greenhouse' : 'Workable'})`,
     skillsRequired: [],
     skillsListed: [],
     fitScore: null,
+    fitStatusText: description ? undefined : 'Full description not downloaded (low-data refresh)',
     matchedKeywords: [],
     missingKeywords: [],
-    experienceLevel: 'Unspecified'
+    experienceLevel: mapExperienceLevel(rawExperience)
   };
 }
 
@@ -226,14 +244,14 @@ function fetchJsonp(url: string, providerName: string): Promise<unknown> {
 
 function fetchGreenhouseBoard(boardToken: string): Promise<unknown> {
   return fetchJsonp(
-    `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(boardToken)}/jobs?content=true`,
+    `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(boardToken)}/jobs`,
     'Greenhouse'
   );
 }
 
 function fetchWorkableBoard(boardToken: string): Promise<unknown> {
   return fetchJsonp(
-    `https://www.workable.com/api/accounts/${encodeURIComponent(boardToken)}?details=true`,
+    `https://www.workable.com/api/accounts/${encodeURIComponent(boardToken)}`,
     'Workable'
   );
 }
@@ -275,7 +293,9 @@ export async function fetchDirectEmployerBoard(board: DirectEmployerBoard): Prom
       return createPosting(
         board, item.id, item.title, location, item.content,
         item.absolute_url, item.first_published || item.updated_at,
-        undefined, item.application_deadline
+        undefined, item.application_deadline,
+        Array.isArray(item.departments) ? item.departments.map((entry: unknown) => isRecord(entry) ? entry.name : '').filter(Boolean).join(' · ') : '',
+        undefined, ''
       );
     }).filter((job): job is JobPosting => job !== null);
   }
@@ -287,12 +307,16 @@ export async function fetchDirectEmployerBoard(board: DirectEmployerBoard): Prom
   return payload.jobs.map((item: unknown) => {
     if (!isRecord(item)) return null;
     const location = workableLocation(item);
-    const description = item.full_description || item.description || '';
     const rawUrl = item.application_url || item.url || item.shortlink;
+    const metadataSummary = [
+      item.department, item.industry, item.function,
+      item.experience, item.education, item.employment_type
+    ].filter((value) => typeof value === 'string' && value.trim()).join(' · ');
     return createPosting(
       board, item.shortcode || item.id || rawUrl, item.title, location,
-      description, rawUrl, item.published_on || item.created_at,
-      item.workplace_type || item.telecommuting
+      '', rawUrl, item.published_on || item.created_at,
+      item.workplace_type || item.telecommuting,
+      undefined, metadataSummary, item.department, item.experience
     );
   }).filter((job): job is JobPosting => job !== null);
 }
