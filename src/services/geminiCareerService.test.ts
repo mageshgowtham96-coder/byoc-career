@@ -43,22 +43,11 @@ describe('Gemini retry policy', () => {
 });
 
 describe('Gemini model selection', () => {
-  it('prefers the current production GPT-OSS model over older catalog entries', () => {
-    expect(selectGeminiChatModel([
-      'whisper-large-v3',
-      'llama-3.3-70b-versatile',
-      'openai/gpt-oss-120b',
-      'openai/gpt-oss-20b'
-    ])).toBe('openai/gpt-oss-120b');
+  it('selects only the single configured Gemini model', () => {
+    expect(selectGeminiChatModel(['gemini-3.6-flash'])).toBe('gemini-3.6-flash');
   });
-
-  it('uses GPT-OSS 20B when 120B is not enabled for the key', () => {
-    expect(selectGeminiChatModel(['whisper-large-v3', 'openai/gpt-oss-20b']))
-      .toBe('openai/gpt-oss-20b');
-  });
-
-  it('never chooses a speech model or a retired Llama model as fallback', () => {
-    expect(selectGeminiChatModel(['whisper-large-v3', 'llama-3.3-70b-versatile'])).toBeNull();
+  it('does not fall back to an unconfigured or unrelated model', () => {
+    expect(selectGeminiChatModel(['gemini-3.5-flash-lite'])).toBeNull();
   });
 });
 
@@ -72,10 +61,10 @@ describe('Gemini chat request resilience', () => {
       })
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: { get: () => null },
-        json: async () => ({ choices: [{ message: { content: '{"ok":true}' }, finish_reason: 'stop' }] })
+        json: async () => ({ candidates: [{ content: { parts: [{ text: '{"ok":true}' }] }, finishReason: 'STOP' }] })
       });
 
-    const request = callGeminiChat('system', 'user', 'test-key', 'openai/gpt-oss-120b');
+    const request = callGeminiChat('system', 'user', 'test-key', 'gemini-3.6-flash');
     await vi.advanceTimersByTimeAsync(1000);
     await expect(request).resolves.toBe('{"ok":true}');
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -86,7 +75,7 @@ describe('Gemini chat request resilience', () => {
       ok: false, status: 429, headers: { get: () => null },
       text: async () => '{"error":{"message":"quota exceeded"}}'
     });
-    await expect(callGeminiChat('system', 'user', 'test-key', 'openai/gpt-oss-120b'))
+    await expect(callGeminiChat('system', 'user', 'test-key', 'gemini-3.6-flash'))
       .rejects.toMatchObject({ code: 'RATE_LIMITED', status: 429 });
     expect(fetchMock).toHaveBeenCalledOnce();
   });
@@ -95,13 +84,13 @@ describe('Gemini chat request resilience', () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: { get: () => null },
-        json: async () => ({ choices: [{ message: { content: '{"partial":' }, finish_reason: 'length' }] })
+        json: async () => ({ candidates: [{ content: { parts: [{ text: '{"partial":' }] }, finishReason: 'MAX_TOKENS' }] })
       })
       .mockResolvedValueOnce({
         ok: true, status: 200, headers: { get: () => null },
-        json: async () => ({ choices: [{ message: { content: '{"partial":' }, finish_reason: 'length' }] })
+        json: async () => ({ candidates: [{ content: { parts: [{ text: '{"partial":' }] }, finishReason: 'MAX_TOKENS' }] })
       });
-    await expect(callGeminiChat('system', 'user', 'test-key', 'openai/gpt-oss-120b'))
+    await expect(callGeminiChat('system', 'user', 'test-key', 'gemini-3.6-flash'))
       .rejects.toMatchObject({ code: 'OUTPUT_TRUNCATED' });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
