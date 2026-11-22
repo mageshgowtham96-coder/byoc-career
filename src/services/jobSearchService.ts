@@ -743,7 +743,8 @@ export class LiveJobSearchEngine {
     };
 
     const refreshDue = isDirectEmployerRefreshDue();
-    if (refreshDue) markDirectEmployerRefreshAttempted();
+    const directBoardMarketSelected = isWorldwideCountryCode(normalizedParams.country) || normalizedParams.country === 'IN';
+    if (refreshDue && directBoardMarketSelected) markDirectEmployerRefreshAttempted();
     const queriedSources: string[] = ['Local Stored Positions'];
     const providerStatuses: JobProviderStatus[] = [{
       id: 'local_store',
