@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { MasterResume } from '../types';
 import { extractResumeFile } from './extractionService';
+import { validateOptimizedMasterResume } from './groqService';
 
 export interface DocumentEvidenceQuote {
   quote: string;
@@ -302,4 +303,35 @@ export async function askDocumentQuestionWithGemini(
   const answer = text(parsed.answer, 5000);
   if (!answer) throw new Error('Gemini returned no valid answer. Your document remains unchanged.');
   return answer;
+}
+
+export async function optimizeMasterResumeWithGemini(
+  source: MasterResume,
+  apiKey: string
+): Promise<MasterResume> {
+  if (!apiKey.trim()) throw new Error('Add a Gemini API key in Settings before requesting resume suggestions.');
+  const systemPrompt = `You are a conservative resume editor. Improve clarity, grammar, structure and role-relevant emphasis using ONLY the supplied candidate evidence. Never invent or infer employers, dates, metrics, qualifications, skills, duties or achievements. Do not change IDs or the number/order of experience or project records or bullets. Keep every bullet's factual meaning. Return JSON only with this shape: {"sourceHeadline":"exact supplied headline","headline":"proposed headline","sourceSummary":"exact supplied summary","summary":"proposed summary","experiences":[{"id":"existing-id","bullets":[{"source":"exact source bullet copied verbatim","proposed":"rewritten bullet"}]}],"projects":[{"id":"existing-id","sourceDescription":"exact source description copied verbatim","description":"rewritten description"}]}. Every source field must be copied exactly so the proposal can be mapped back to its source. Keep all claims strictly within source evidence. If a field cannot be safely improved, return it unchanged.`;
+  const userPrompt = JSON.stringify({
+    headline: source.headline,
+    summary: source.summary,
+    skills: source.skills,
+    experiences: source.experiences.map(({ id, role, company, startDate, endDate, bullets }) => ({ id, role, company, startDate, endDate, bullets })),
+    projects: source.projects.map(({ id, title, description, technologies }) => ({ id, title, description, technologies })),
+    education: source.education,
+    certifications: source.certifications,
+    additionalEvidence: source.additionalEvidence || []
+  });
+  if (userPrompt.length > MAX_TEXT_CHARS) {
+    throw new Error('This structured Master Resume is too large for one optimization request. Your local profile is unchanged; review or split the content and try again.');
+  }
+
+  const client = new GoogleGenAI({ apiKey: apiKey.trim() });
+  const response = await client.models.generateContent({
+    model: MODEL,
+    contents: [{ role: 'user', parts: [{ text: systemPrompt }, { text: userPrompt }] }],
+    config: { temperature: 0.15, maxOutputTokens: 7000, responseMimeType: 'application/json' }
+  });
+  if (!response.text?.trim()) throw new Error('Gemini returned an empty resume suggestion.');
+  const parsed = parseJsonResponse(response.text);
+  return validateOptimizedMasterResume(parsed, source);
 }
