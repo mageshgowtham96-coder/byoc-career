@@ -97,7 +97,7 @@ describe('dynamic typo-tolerant search matching', () => {
 
 describe('isLiveDiscoveredJobSource', () => {
   it.each([
-    ['Groww Careers (Greenhouse)', true],
+    ['Capco Careers (Greenhouse)', true],
     ['Weekday AI Careers (Workable)', true],
     ['Remotive Live', false],
     ['Remote OK Live', false],
@@ -248,7 +248,7 @@ describe('non-blocking feed rate limits', () => {
     const working = {
       id: 'working-provider', name: 'Working Provider', isConfigured: true, requiresAuth: false,
       search: vi.fn(async () => [{
-        ...savedJob, id: 'live-fraud', company: 'Live Finance', source: 'Groww Careers (Greenhouse)',
+        ...savedJob, id: 'live-fraud', company: 'Live Finance', source: 'Capco Careers (Greenhouse)',
         url: 'https://example.com/live-fraud'
       }])
     };
@@ -274,7 +274,7 @@ describe('LiveJobSearchEngine skill classification', () => {
       postedDate: '2026-11-19',
       jobDescriptionRaw: 'Build accessible interfaces.',
       url: 'https://example.com/jobs/frontend',
-      source: 'Groww Careers (Greenhouse)',
+      source: 'Capco Careers (Greenhouse)',
       skillsRequired: [],
       skillsListed: ['React'],
       fitScore: null,
@@ -313,7 +313,7 @@ describe('mergeDiscoveredJobs', () => {
 
   it('deduplicates the same employer and title across feeds', () => {
     const saved = makeJob('saved-1', 'Fraud Analyst');
-    const duplicate = { ...makeJob('feed-1', 'Fraud Analyst'), source: 'Groww Careers (Greenhouse)' };
+    const duplicate = { ...makeJob('feed-1', 'Fraud Analyst'), source: 'Capco Careers (Greenhouse)' };
     expect(mergeDiscoveredJobs([saved], [duplicate])).toEqual([saved]);
   });
 
