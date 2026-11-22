@@ -154,6 +154,22 @@ describe('public employer board adapters', () => {
     expect(document.querySelectorAll('iframe')).toHaveLength(0);
   });
 
+  it('appends nested India country codes when Workable supplies only a location string', async () => {
+    mockSandboxedJsonpPayload({
+      name: 'Weekday AI',
+      jobs: [{
+        id: 'wk-nested',
+        title: 'Operations Associate',
+        location: { location_str: 'Coimbatore', country_code: 'IN' },
+        application_url: 'https://apply.workable.com/weekday-1/j/wk-nested'
+      }]
+    });
+    const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'workable')!;
+    const jobs = await fetchDirectEmployerBoard(board);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].location).toBe('Coimbatore, India');
+  });
+
   it('rejects non-India locations, unsafe URLs and malformed Workable records', async () => {
     mockSandboxedJsonpPayload({
       name: 'Weekday AI',
