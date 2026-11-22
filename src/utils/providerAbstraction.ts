@@ -103,7 +103,7 @@ export const PROVIDER_CONFIGS = {
   },
   gemini: {
     name: 'Gemini',
-    models: ['gemini-3.5-flash-lite'],
+    models: ['gemini-3.6-flash'],
     timeoutMs: 30000
   }
 } as const;
