@@ -339,10 +339,8 @@ export interface AppToast {
 
 export type JobSourcePortal =
   | 'All'
-  | 'Remotive Live'
-  | 'Remote OK Live'
-  | 'Jobicy Live'
-  | 'Arbeitnow Live'
+  | 'Greenhouse'
+  | 'Lever'
   | 'User Import'
   | 'LinkedIn'
   | 'Glassdoor'
