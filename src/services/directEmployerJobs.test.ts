@@ -144,6 +144,7 @@ describe('public employer board adapters', () => {
       jobDescriptionRaw: '',
       metadataSummary: 'Customer Experience · Customer Support · Support · Entry-level · High school · Full-time',
       experienceLevel: 'Entry',
+      fitScore: null,
       fitStatusText: 'Full description not downloaded (low-data refresh)',
       source: 'Weekday AI Careers (Workable)'
     });
