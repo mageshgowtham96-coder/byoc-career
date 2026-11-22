@@ -1298,7 +1298,6 @@ useWizardStore.subscribe((state, prevState) => {
   }
   const changed =
     state.geminiApiKey !== prevState.geminiApiKey ||
-    state.geminiApiKey !== prevState.geminiApiKey ||
     state.masterResume !== prevState.masterResume ||
     state.previousMasterResume !== prevState.previousMasterResume ||
     state.careerFormDraft !== prevState.careerFormDraft ||
