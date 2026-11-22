@@ -139,10 +139,14 @@ Team appreciation - 2021
 LANGUAGES
 Kannada (native), English - working level
 `;
-    const file = new File([flawedResume], 'flawed-layout-resume.txt', { type: 'text/plain' });
+    const file = {
+      name: 'flawed-layout-resume.txt',
+      size: new TextEncoder().encode(flawedResume).length,
+      text: async () => flawedResume
+    } as File;
     const extracted = await extractResumeFile(file);
 
-    expect(extracted.success).toBe(true);
+    expect(extracted.success, extracted.error).toBe(true);
     expect(extracted.rawText).toContain('2022 - Current');
     expect(extracted.rawText).toContain('No measured savings recorded.');
     expect(extracted.rawText).toContain('Kannada (native)');
