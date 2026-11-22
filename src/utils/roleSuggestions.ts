@@ -150,7 +150,7 @@ export function getRoleSuggestions(
 
   // Never turn suggestions into an allow-list. Preserve the user's exact free-form
   // role phrase as a searchable option even when it is novel or absent from caches.
-  const typedRole = query.trim().replace(/\\s+/g, ' ');
+  const typedRole = query.trim().replace(/\s+/g, ' ');
   if (typedRole && !ranked.some((item) => normalize(item) === normalize(typedRole))) {
     return [typedRole, ...ranked].slice(0, Math.max(1, limit));
   }
