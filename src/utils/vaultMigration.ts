@@ -418,7 +418,6 @@ export function extractLegacyPlaintextFromRawStore(rawJson: string | null): Lega
     const sensitiveData: Partial<DecryptedVaultData> = {};
     let hasSensitive = false;
 
-    }
     if (typeof state.geminiApiKey === 'string' && state.geminiApiKey.trim()) {
       sensitiveData.geminiApiKey = state.geminiApiKey.trim();
       hasSensitive = true;
