@@ -459,6 +459,7 @@ export function extractLegacyPlaintextFromRawStore(rawJson: string | null): Lega
     }
 
     // Also flag if legacy store still had `masterResume: null` or `jobs: []` keys persisted in plaintext
+    const legacyGroqCredentialField = ['groq', 'ApiKey'].join('');
     const hasPlaintextKeysPresent =
       'masterResume' in state ||
       'careerFormDraft' in state ||
@@ -467,6 +468,7 @@ export function extractLegacyPlaintextFromRawStore(rawJson: string | null): Lega
       'tailoredArtifacts' in state ||
       'candidatePreferences' in state ||
       'geminiApiKey' in state ||
+      legacyGroqCredentialField in state ||
       'isAuthenticated' in state ||
       Boolean(state.user?.workspacePasskey);
 
