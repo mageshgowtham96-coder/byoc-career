@@ -410,7 +410,7 @@ export const SourcingTab: React.FC = () => {
             <span>{t('Opportunity Sourcing & Role Upgrade Engine')}</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            {t('Discover roles with autonomous tier upgrade highlighting and raw description caching.')}
+            {t('Discover employer listings with local role search and evidence-based analysis when a full description is available.')}
           </p>
         </div>
 
@@ -574,7 +574,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-          <strong className="text-slate-200">Live Query Status:</strong> BYOC reads public, no-key Greenhouse and Workable employer career boards directly. The initial directory covers selected Indian employers, not every company or job portal. Results are ranked locally against your Master Resume; original employer application links are preserved. You can still paste a job description from any external portal.
+          <strong className="text-slate-200">Live Query Status:</strong> BYOC reads public, no-key Greenhouse and Workable employer career boards directly. The initial directory covers selected Indian employers, not every company or job portal. Refreshes download lightweight job metadata only to conserve mobile data; full descriptions are not fetched automatically. Role search runs locally against titles and published metadata. Fit analysis and tailoring require the full description from the employer page or a pasted job description.
         </div>
 
         {/* External Portal Shortcuts (Shortcut Only — No Live API) */}
