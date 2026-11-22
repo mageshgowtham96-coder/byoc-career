@@ -85,3 +85,12 @@ describe('getRoleSuggestions', () => {
     expect(new Set(results.map((item) => item.toLowerCase())).size).toBe(results.length);
   });
 });
+describe('open-ended role discovery', () => {
+  it('keeps a new occupation searchable even when it is absent from the vocabulary and cached jobs', () => {
+    expect(getRoleSuggestions('Marine Biologist')).toContain('Marine Biologist');
+  });
+
+  it('keeps multi-word and punctuation-heavy role names intact as a free-form option', () => {
+    expect(getRoleSuggestions('C++ Embedded Systems Engineer')[0]).toBe('C++ Embedded Systems Engineer');
+  });
+});
