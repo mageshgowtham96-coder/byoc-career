@@ -241,7 +241,11 @@ export function mergeDocumentUnderstanding(
     education: education.length ? education : local.education,
     projects: projects.length ? projects : local.projects,
     certifications: certifications.length ? certifications : local.certifications,
-    additionalEvidence: mergeStrings(parsed.additionalEvidence, local.additionalEvidence || []),
+    additionalEvidence: Array.from(new Set([
+      ...(local.additionalEvidence || []),
+      ...strings(parsed.additionalEvidence),
+      ...documentInsights.sections.flatMap((section) => section.fields.map((field) => `${section.title} — ${field.label}: ${field.value}`))
+    ])),
     documentInsights
   };
 }
