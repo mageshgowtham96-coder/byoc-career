@@ -103,6 +103,41 @@ Kannada (native), English - working level`;
     expect(JSON.stringify(understood)).not.toContain('increased revenue by');
   });
 
+  it('normalizes arbitrary section fields and preserves them as candidate evidence', () => {
+    const result = mergeDocumentUnderstanding({
+      contactInfo: { name: 'Jane Doe' },
+      sections: [{
+        id: 'community',
+        title: 'Community Impact',
+        status: 'found',
+        summary: 'Community work listed in the source.',
+        fields: [
+          {
+            label: 'Initiative',
+            value: 'Started a neighbourhood reading circle',
+            evidence: [{ quote: 'Started a neighbourhood reading circle', field: 'Initiative' }]
+          },
+          {
+            label: 'Participants',
+            value: '30 local students',
+            evidence: [{ quote: 'Supported 30 local students', field: 'Participants' }]
+          }
+        ],
+        items: [],
+        confidence: 'high',
+        evidence: []
+      }]
+    }, localProfile);
+
+    expect(result.documentInsights?.sections[0].fields).toHaveLength(2);
+    expect(result.documentInsights?.sections[0].fields[0]).toMatchObject({
+      label: 'Initiative',
+      value: 'Started a neighbourhood reading circle'
+    });
+    expect(result.additionalEvidence).toContain('Community Impact — Initiative: Started a neighbourhood reading circle');
+    expect(result.additionalEvidence).toContain('Community Impact — Participants: 30 local students');
+  });
+
   it('does not fill absent fields with invented values', () => {
     const result = mergeDocumentUnderstanding({
       contactInfo: {},
