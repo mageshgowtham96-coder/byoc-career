@@ -12,7 +12,7 @@ const baseJob: JobPosting = {
   postedDate: '2026-11-18',
   jobDescriptionRaw: 'Build reports using SQL and Power BI.',
   url: 'https://boards.greenhouse.io/acme/jobs/123456',
-  source: 'Groq Browser Search',
+  source: 'Legacy Imported Source',
   skillsRequired: ['SQL', 'Power BI'],
   fitScore: null,
   matchedKeywords: [],
