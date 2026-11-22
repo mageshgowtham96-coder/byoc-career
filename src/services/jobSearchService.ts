@@ -749,7 +749,8 @@ export class LiveJobSearchEngine {
 
     const refreshDue = isDirectEmployerRefreshDue();
     const directBoardMarketSelected = isWorldwideCountryCode(normalizedParams.country) || normalizedParams.country === 'IN';
-    if (refreshDue && directBoardMarketSelected) markDirectEmployerRefreshAttempted();
+    const hasDirectBoardProviders = this.providers.some((provider) => provider.id.startsWith('direct_'));
+    if (refreshDue && directBoardMarketSelected && hasDirectBoardProviders) markDirectEmployerRefreshAttempted();
     const queriedSources: string[] = ['Local Stored Positions'];
     const providerStatuses: JobProviderStatus[] = [{
       id: 'local_store',
@@ -763,7 +764,7 @@ export class LiveJobSearchEngine {
     // is opened after the interval, this foreground search performs the refresh.
     // Between refreshes, searches use the encrypted local job cache.
     const providerResults: Array<{ jobs: JobPosting[]; queried: boolean; error?: string; status: JobProviderStatus }> = await mapWithConcurrency(this.providers, 2, async (provider) => {
-      if (!refreshDue) {
+      if (!refreshDue && provider.id.startsWith('direct_')) {
         return {
           jobs: [] as JobPosting[],
           queried: false,
