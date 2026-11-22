@@ -1191,15 +1191,21 @@ export class LiveJobSearchEngine {
     }
 
     const refreshedJobs = providerResults.flatMap((result) => result.jobs);
+    const configuredBoardIds = new Set(DIRECT_EMPLOYER_BOARD_DIRECTORY.map((board) => board.id));
     const successfulBoardIds = providerResults
-      .filter((result) => result.status.status === 'queried')
+      .filter((result) => result.status.status === 'queried' && configuredBoardIds.has(result.status.id))
       .map((result) => result.status.id);
     if (refreshDue && successfulBoardIds.length > 0) {
       markDirectEmployerRefreshCompleted();
     }
-    const reconciledJobs = refreshDue && successfulBoardIds.length > 0
-      ? reconcileDirectEmployerJobs(existingJobs, refreshedJobs, successfulBoardIds)
-      : existingJobs.filter((job) => !isRetiredAggregatedFeedJob(job));
+    const reconciledJobs = !refreshDue
+      ? existingJobs.filter((job) => !isRetiredAggregatedFeedJob(job))
+      : successfulBoardIds.length > 0
+        ? reconcileDirectEmployerJobs(existingJobs, refreshedJobs, successfulBoardIds)
+        : deduplicateJobs([
+            ...existingJobs.filter((job) => !isRetiredAggregatedFeedJob(job)),
+            ...refreshedJobs
+          ]);
     const uniqueJobs = deduplicateJobs(reconciledJobs);
     const scoredJobs = uniqueJobs.map((job) => {
       const honestMatch = calculateHonestMatch(job, masterResume);
