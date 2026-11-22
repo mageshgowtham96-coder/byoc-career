@@ -179,8 +179,6 @@ interface WizardState {
   // API Config & Key Presence
   geminiApiKey: string;
   setGeminiApiKey: (key: string) => void;
-  geminiApiKey: string;
-  setGeminiApiKey: (key: string) => void;
   isLiveApiMode: boolean;
   setIsLiveApiMode: (live: boolean) => void;
 
@@ -262,7 +260,6 @@ interface WizardState {
 
 export function buildVaultDataFromState(state: WizardState): VaultDataWithPreviousResume {
   return {
-    geminiApiKey: state.geminiApiKey || '',
     geminiApiKey: state.geminiApiKey || '',
     masterResume: state.masterResume || null,
     previousMasterResume: state.previousMasterResume || null,
@@ -433,7 +430,6 @@ export const useWizardStore = create<WizardState>()(
           isAuthenticated: false,
           isBiometricLocked: false,
           geminiApiKey: '',
-          geminiApiKey: '',
           masterResume: null,
           previousMasterResume: null,
           stagedParsedResume: null,
@@ -449,8 +445,6 @@ export const useWizardStore = create<WizardState>()(
       },
 
       // API
-      geminiApiKey: '',
-      setGeminiApiKey: (key) => set({ geminiApiKey: key }),
       geminiApiKey: '',
       setGeminiApiKey: (key) => set({ geminiApiKey: key }),
       isLiveApiMode: true,
@@ -1263,7 +1257,7 @@ export function restoreVaultDataToStore(
   useWizardStore.setState({
     user: sanitizeUserMetadata(currentUser),
     geminiApiKey: data.geminiApiKey || '',
-    geminiApiKey: data.geminiApiKey || '',
+    isLiveApiMode: Boolean(data.geminiApiKey),
     masterResume: data.masterResume || null,
     previousMasterResume: (data as VaultDataWithPreviousResume).previousMasterResume || null,
     careerFormDraft: data.careerFormDraft ? sanitizeCareerFormState(data.careerFormDraft) : null,
