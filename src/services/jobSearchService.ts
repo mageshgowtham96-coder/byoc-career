@@ -652,7 +652,7 @@ export function identifyJobPortalSource(rawUrl: string): string {
 export function isLiveDiscoveredJobSource(source?: string): boolean {
   const normalized = (source || '').toLowerCase();
   return normalized.includes('careers (greenhouse)')
-    || normalized.includes('careers (lever)')
+    || normalized.includes('careers (workable)')
     || normalized.includes('careers (ashby)')
     || normalized.includes('careers (smartrecruiters)');
 }
