@@ -111,14 +111,9 @@ export function assessResumeReadiness(resume: MasterResume | null | undefined): 
   if (hasContributionEvidence) score += 15;
   else if (hasCareerEvidence) missingSections.push('specific contribution or project details');
 
-  const competencies = new Set([
-    ...(resume.skills?.technical || []),
-    ...(resume.skills?.soft || []),
-    ...(resume.skills?.tools || []),
-    ...(resume.skills?.domains || [])
-  ].map((skill) => skill.trim().toLowerCase()).filter(Boolean));
-  if (competencies.size >= 3) score += 20;
-  else missingSections.push('three or more relevant skills or competencies');
+  // Skills and other optional categories are not completeness requirements.
+  // Completeness is based on the presence of usable evidence, not a fixed resume template.
+  score += 20;
 
   return { completenessPercent: Math.min(100, score), missingSections };
 }
