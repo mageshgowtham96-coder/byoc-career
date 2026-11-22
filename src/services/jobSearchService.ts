@@ -46,6 +46,8 @@ export interface JobProviderAdapter {
 
 export interface JobSearchResult {
   jobs: JobPosting[];
+  /** Complete locally retained collection after successful-board reconciliation. */
+  cachedJobs?: JobPosting[];
   totalFound: number;
   sourcesQueried: string[];
   providerStatuses: JobProviderStatus[];
@@ -1242,6 +1244,7 @@ export class LiveJobSearchEngine {
     filtered.sort((a, b) => (b.fitScore ?? -1) - (a.fitScore ?? -1));
     return {
       jobs: filtered,
+      cachedJobs: reconciledJobs,
       totalFound: filtered.length,
       sourcesQueried: queriedSources,
       providerStatuses,
