@@ -3,8 +3,8 @@
  *
  * Purpose: Clean provider-agnostic architecture for AI model integration.
  * Strategy:
- *   - Primary provider: Groq (user-configured API key)
- *   - Experimental adapters: OpenRouter and Gemini (not enabled in BYOC's user-facing browser workflow)
+ *   - Groq remains available for existing career workflows
+ *   - Gemini is enabled for explicit multimodal document-understanding requests
  *   - Provider switching requires explicit user approval — never silent
  *   - All providers share the same chat completion interface contract
  *   - API keys stored exclusively in AES-256-GCM encrypted vault
@@ -103,7 +103,7 @@ export const PROVIDER_CONFIGS = {
   },
   gemini: {
     name: 'Gemini',
-    models: ['gemini-3.6-flash'],
+    models: ['gemini-3.8-flash'],
     timeoutMs: 30000
   }
 } as const;
@@ -121,9 +121,9 @@ export function getProviderConfig<K extends keyof typeof PROVIDER_CONFIGS>(name:
 export function isProviderClientUsable(name: keyof typeof PROVIDER_CONFIGS): boolean {
   const cfg = PROVIDER_CONFIGS[name];
   if (!cfg) return false;
-  // Gemini is intentionally disabled in BYOC's browser-only release until a
-  // server-side proxy or explicit browser-key risk acceptance is implemented.
-  return name === 'groq';
+  // Gemini is enabled for explicit user-triggered client-side requests. The UI
+  // must disclose provider transmission and keys remain in the encrypted vault.
+  return name === 'groq' || name === 'gemini';
 }
 
 /**
