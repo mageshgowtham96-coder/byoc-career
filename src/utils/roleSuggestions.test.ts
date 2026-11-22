@@ -74,9 +74,9 @@ describe('getRoleSuggestions', () => {
     expect(getRoleSuggestions('React Eng', null, [cachedJob('Reactive Engineer')])).not.toContain('Reactive Engineer');
   });
 
-  it('does not suggest for one character and keeps unknown searches unrestricted', () => {
+  it('does not suggest for one character and preserves unknown searches as free-form options', () => {
     expect(getRoleSuggestions('f')).toEqual([]);
-    expect(getRoleSuggestions('niche-title-not-in-catalogue')).toEqual([]);
+    expect(getRoleSuggestions('niche-title-not-in-catalogue')).toContain('niche-title-not-in-catalogue');
   });
 
   it('returns a bounded, de-duplicated list', () => {
