@@ -256,6 +256,13 @@ function fetchWorkableBoard(boardToken: string): Promise<unknown> {
   );
 }
 
+function normalizeWorkableCountry(country: unknown, countryCode: unknown): string {
+  const countryText = typeof country === 'string' ? country.trim() : '';
+  const code = typeof countryCode === 'string' ? countryCode.trim().toUpperCase() : '';
+  if (countryText.toUpperCase() === 'IN' || code === 'IN') return 'India';
+  return countryText;
+}
+
 function workableLocation(item: Record<string, any>): string {
   const locations = Array.isArray(item.locations) ? item.locations : [];
   const entries = locations.map((location: unknown) => {
@@ -263,7 +270,7 @@ function workableLocation(item: Record<string, any>): string {
     return [
       location.city,
       location.state || location.region,
-      location.country_name || location.country || (location.country_code === 'IN' ? 'India' : '')
+      normalizeWorkableCountry(location.country_name || location.country, location.country_code)
     ].filter((part) => typeof part === 'string' && part.trim()).join(', ');
   }).filter(Boolean);
   const primary = isRecord(item.location)
@@ -272,14 +279,13 @@ function workableLocation(item: Record<string, any>): string {
           item.location.city,
           item.location.state
         ].filter(Boolean).join(', '));
-        const nestedCountry = item.location.country_name || item.location.country
-          || (item.location.country_code === 'IN' ? 'India' : '');
+        const nestedCountry = normalizeWorkableCountry(item.location.country_name || item.location.country, item.location.country_code);
         return nestedCountry && !locationText.toLowerCase().includes(String(nestedCountry).toLowerCase())
           ? [locationText, nestedCountry].filter(Boolean).join(', ')
           : locationText;
       })()
     : item.location;
-  const country = typeof item.country === 'string' ? (item.country.toUpperCase() === 'IN' ? 'India' : item.country) : (item.country_code === 'IN' ? 'India' : '');
+  const country = normalizeWorkableCountry(item.country, item.country_code);
   const city = typeof item.city === 'string' ? item.city : '';
   const state = typeof item.state === 'string' ? item.state : '';
   const fallback = [city, state, country].filter(Boolean).join(', ');
