@@ -48,16 +48,21 @@ function isRecord(value: unknown): value is Record<string, any> {
 
 function cleanText(value: unknown, maxLength = 8000): string {
   if (typeof value !== 'string') return '';
-  return value
+  let decoded = value;
+  // Greenhouse descriptions can arrive with HTML escaped once or twice.
+  for (let pass = 0; pass < 2; pass += 1) {
+    decoded = decoded
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'");
+  }
+  return decoded
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, maxLength);
