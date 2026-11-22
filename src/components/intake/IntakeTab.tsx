@@ -670,6 +670,7 @@ export const IntakeTab: React.FC = () => {
                   </span>
                 </div>
                 {section.summary && <p className="mt-2 text-xs leading-relaxed text-slate-300">{section.summary}</p>}
+                {section.fields?.length > 0 && <dl className="mt-2 space-y-2">{section.fields.map((field, index) => <div key={index} className="rounded-lg bg-slate-900/70 p-2"><dt className="text-[10px] font-semibold uppercase tracking-wide text-cyan-300">{field.label}</dt><dd className="mt-1 whitespace-pre-wrap text-xs text-slate-100">{field.value}</dd>{field.evidence?.length > 0 && <ul className="mt-1 space-y-1">{field.evidence.map((quote, quoteIndex) => <li key={quoteIndex} className="text-[10px] text-slate-400">“{quote.quote}” {quote.page ? `· page ${quote.page}` : ''}</li>)}</ul>}</div>)}</dl>}
                 {section.items.length > 0 && <ul className="mt-2 space-y-1">{section.items.map((item, index) => <li key={index} className="text-xs text-slate-200">• {item}</li>)}</ul>}
                 {section.evidence.length > 0 && <details className="mt-2 border-t border-slate-800 pt-2"><summary className="cursor-pointer text-[10px] font-semibold text-cyan-300">Source evidence ({section.evidence.length})</summary><ul className="mt-2 space-y-2">{section.evidence.map((evidence, index) => <li key={index} className="text-[11px] text-slate-400">“{evidence.quote}” {evidence.page ? <span className="text-cyan-300">· page {evidence.page}</span> : null}</li>)}</ul></details>}
               </article>
