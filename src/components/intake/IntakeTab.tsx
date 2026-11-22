@@ -6,7 +6,8 @@ import {
   parseRawResumeToStructured,
   validateExtractedSchema
 } from '../../services/extractionService';
-import { formatGroqError, parseResumeWithGroq, optimizeMasterResumeWithGroq } from '../../services/groqService';
+import { formatGroqError, optimizeMasterResumeWithGroq } from '../../services/groqService';
+import { analyzeResumeDocumentWithGemini } from '../../services/documentIntelligenceService';
 import { createMasterResumeExportArtifact, dispatchExportFile, generateDocxResume, generatePdfResume, getResumeExportGuidance } from '../../services/exporterService';
 import { safeRemoveItem, wipeCachedFormData } from '../../utils/storagePersistence';
 import { ExtractionLoadingSkeleton } from './ExtractionLoadingSkeleton';
@@ -42,6 +43,7 @@ export const IntakeTab: React.FC = () => {
     careerFormDraft,
     setCareerFormDraft,
     groqApiKey,
+    geminiApiKey,
     stagedParsedResume,
     setStagedParsedResume,
     confirmStagedResume,
@@ -54,6 +56,7 @@ export const IntakeTab: React.FC = () => {
   } = useWizardStore();
 
   const [isDragging, setIsDragging] = useState(false);
+  const [sourceDocumentFile, setSourceDocumentFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingFileName, setProcessingFileName] = useState('Resume_Document.pdf');
   const [scannedFallbackActive, setScannedFallbackActive] = useState(false);
@@ -102,6 +105,7 @@ export const IntakeTab: React.FC = () => {
       fileInputRef.current.value = '';
     }
     setManualPasteText('');
+    setSourceDocumentFile(null);
     setScannedFallbackActive(false);
     setEditableStagedSummary('');
     setEditableHeadline('');
@@ -141,6 +145,7 @@ export const IntakeTab: React.FC = () => {
   const handleFileDrop = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0];
+    setSourceDocumentFile(file);
 
     setIsProcessing(true);
     setOptimizedMasterPreview(null);
@@ -152,12 +157,27 @@ export const IntakeTab: React.FC = () => {
       const result = await extractResumeFile(file);
 
       if (!result.success || result.isScannedImage) {
-        setScannedFallbackActive(true);
-        addToast({
-          type: 'warning',
-          title: result.isScannedImage ? 'Scanned Document Detected' : 'Document Ingestion Alert',
-          message: result.error || 'No selectable text stream was found. Please paste your resume text below in the manual fallback.'
-        });
+        const isPdf = file.name.toLowerCase().endsWith('.pdf');
+        if (isPdf && geminiApiKey.trim()) {
+          const emptyLocalProfile = parseRawResumeToStructured('', file.name, 0, result.pageCount || 1, 0);
+          setStagedParsedResume(emptyLocalProfile);
+          setLocalStagedProfile(emptyLocalProfile);
+          setShowReplaceMasterConfirm(false);
+          setAiStructuringError(null);
+          setEditableStagedSummary('');
+          setEditableHeadline('');
+          setEditableName('');
+          setEditableEmail('');
+          setScannedFallbackActive(false);
+          addToast({ type: 'info', title: 'PDF Ready for Document Analysis', message: 'Local text extraction was incomplete. Gemini can inspect the original PDF pages when you explicitly start document analysis.' });
+        } else {
+          setScannedFallbackActive(true);
+          addToast({
+            type: 'warning',
+            title: result.isScannedImage ? 'Scanned Document Detected' : 'Document Ingestion Alert',
+            message: result.error || 'No selectable text stream was found. Configure Gemini document analysis or paste your resume text.'
+          });
+        }
       } else if (result.parsedProfile) {
         setStagedParsedResume(result.parsedProfile);
         setLocalStagedProfile(result.parsedProfile);
@@ -197,6 +217,7 @@ export const IntakeTab: React.FC = () => {
     }
 
     setIsProcessing(true);
+    setSourceDocumentFile(null);
     setOptimizedMasterPreview(null);
     setOptimizationError(null);
     setProcessingFileName('Manual_Text_Paste.txt');
@@ -238,7 +259,7 @@ export const IntakeTab: React.FC = () => {
   };
 
   const handleAiStructureResume = async () => {
-    if (!stagedParsedResume || !groqApiKey || isAiStructuring) return;
+    if (!stagedParsedResume || !geminiApiKey || isAiStructuring) return;
     setIsAiStructuring(true);
     setOptimizedMasterPreview(null);
     setOptimizationError(null);
@@ -251,7 +272,7 @@ export const IntakeTab: React.FC = () => {
         summary: editableStagedSummary
       };
       const reviewedSource = applyResumeIntakeReviewEdits(stagedParsedResume, reviewEdits);
-      const structured = await parseResumeWithGroq(reviewedSource, groqApiKey);
+      const structured = await analyzeResumeDocumentWithGemini(sourceDocumentFile, reviewedSource, geminiApiKey);
       // AI output may misread contact or headline fields; explicit user corrections win.
       const reviewedStructured = applyResumeIntakeReviewEdits(structured, reviewEdits);
       setStagedParsedResume(reviewedStructured);
@@ -265,7 +286,7 @@ export const IntakeTab: React.FC = () => {
         message: 'Your local parse is preserved. Compare every field with the original resume before approving.'
       });
     } catch (err: unknown) {
-      const message = formatGroqError(err, 'AI resume structuring failed.');
+      const message = err instanceof Error ? err.message : 'Gemini document analysis failed.';
       setAiStructuringError(message);
       addToast({ type: 'error', title: 'AI Structuring Failed', message });
     } finally {
@@ -618,23 +639,53 @@ export const IntakeTab: React.FC = () => {
             );
           })()}
 
+      {stagedParsedResume.documentInsights && (
+        <section className="mb-5 rounded-2xl border border-cyan-500/25 bg-slate-900/70 p-4 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-bold text-cyan-200">{stagedParsedResume.documentInsights.documentTitle || 'Document findings'}</h4>
+              <p className="mt-1 text-xs text-slate-400">{stagedParsedResume.documentInsights.documentType} · analyzed with {stagedParsedResume.documentInsights.model}</p>
+              {stagedParsedResume.documentInsights.documentSummary && <p className="mt-2 text-sm leading-relaxed text-slate-200">{stagedParsedResume.documentInsights.documentSummary}</p>}
+            </div>
+            <span className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 text-[10px] text-cyan-200">Document-driven view</span>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {stagedParsedResume.documentInsights.sections.map((section) => (
+              <article key={section.id} className="rounded-xl border border-slate-700 bg-slate-950/60 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h5 className="text-xs font-bold text-white">{section.title}</h5>
+                  <span className={section.status === 'found' ? 'text-[10px] text-emerald-300' : section.status === 'partial' ? 'text-[10px] text-amber-300' : 'text-[10px] text-slate-500'}>
+                    {section.status.replace('_', ' ')} · {section.confidence} confidence
+                  </span>
+                </div>
+                {section.summary && <p className="mt-2 text-xs leading-relaxed text-slate-300">{section.summary}</p>}
+                {section.items.length > 0 && <ul className="mt-2 space-y-1">{section.items.map((item, index) => <li key={index} className="text-xs text-slate-200">• {item}</li>)}</ul>}
+                {section.evidence.length > 0 && <details className="mt-2 border-t border-slate-800 pt-2"><summary className="cursor-pointer text-[10px] font-semibold text-cyan-300">Source evidence ({section.evidence.length})</summary><ul className="mt-2 space-y-2">{section.evidence.map((evidence, index) => <li key={index} className="text-[11px] text-slate-400">“{evidence.quote}” {evidence.page ? <span className="text-cyan-300">· page {evidence.page}</span> : null}</li>)}</ul></details>}
+              </article>
+            ))}
+          </div>
+          {stagedParsedResume.documentInsights.followUpQuestions.length > 0 && <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3"><h5 className="text-xs font-bold text-amber-200">Questions based on what this document does not say</h5><ul className="mt-2 space-y-2">{stagedParsedResume.documentInsights.followUpQuestions.map((item) => <li key={item.id}><p className="text-xs font-medium text-white">{item.question}</p>{item.reason && <p className="mt-0.5 text-[11px] text-slate-400">{item.reason}</p>}</li>)}</ul></div>}
+          {stagedParsedResume.documentInsights.warnings.length > 0 && <ul className="space-y-1 text-[11px] text-amber-200">{stagedParsedResume.documentInsights.warnings.map((warning, index) => <li key={index}>• {warning}</li>)}</ul>}
+        </section>
+      )}
+
           <div className="mb-5 rounded-2xl border border-sky-500/25 bg-slate-900/70 p-4 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
               <div>
-                <h4 className="text-xs font-bold text-sky-200">Optional AI Resume Structuring (Groq)</h4>
+                <h4 className="text-xs font-bold text-sky-200">Document Understanding (Gemini)</h4>
                 <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-slate-400">
-                  Local extraction already ran. Nothing is sent automatically. If you click this, the extracted resume text (up to 24,000 characters) is sent to Groq using your API key to propose structured fields. It may include your name, email, phone, links and other personal details present in the document. AI can misread or invent details: compare everything with the source below before approving. The local parse remains available to restore.
+                  Local extraction already ran. Nothing is sent automatically. If you click this, the original PDF is sent to Gemini for page-aware document understanding; DOCX/TXT/MD content is extracted locally and sent as text. The request is sent only after you click. It may include your name, email, phone, links and other personal details present in the document. AI can misread or invent details: compare every extracted fact and its evidence with the original before approving. The local parse remains available to restore. Review Google's current data-use terms before sending personal documents; free-tier terms may differ from paid-tier terms.
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => void handleAiStructureResume()}
-                  disabled={!groqApiKey || isAiStructuring || isProcessing || stagedParsedResume.rawText.length > 24000}
+                  disabled={!geminiApiKey || isAiStructuring || isProcessing}
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
-                  {isAiStructuring ? 'Structuring…' : 'Structure with Groq'}
+                  {isAiStructuring ? 'Structuring…' : 'Analyze document'}
                 </button>
                 {localStagedProfile && stagedParsedResume !== localStagedProfile && (
                   <button
@@ -648,7 +699,7 @@ export const IntakeTab: React.FC = () => {
                 )}
               </div>
             </div>
-            {!groqApiKey && <p className="text-[11px] text-amber-300">Add a Groq key in Settings to enable this optional action. The local parser works without an AI key.</p>}
+            {!geminiApiKey && <p className="text-[11px] text-amber-300">Add a Gemini API key in Settings to enable document understanding. Local extraction and manual review remain available.</p>}
             {stagedParsedResume.rawText.length > 24000 && <p className="text-[11px] text-amber-300">This extracted resume is over the AI structuring limit. Continue with the local parse.</p>}
             {aiStructuringError && <p role="alert" className="text-[11px] text-rose-300">{aiStructuringError}</p>}
             <details className="rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2">
