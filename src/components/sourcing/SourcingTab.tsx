@@ -544,7 +544,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {(['All', 'Remotive Live', 'Remote OK Live', 'Jobicy Live', 'Arbeitnow Live', 'LinkedIn', 'Indeed', 'Naukri', 'Foundit', 'Glassdoor', 'Instahyre', 'User Import'] as JobSourcePortal[]).map((portal) => {
+          {(['All', 'Greenhouse', 'Lever', 'LinkedIn', 'Indeed', 'Naukri', 'Foundit', 'Glassdoor', 'Instahyre', 'User Import'] as JobSourcePortal[]).map((portal) => {
             const isSelectedPortal = portalFilter === portal;
             return (
               <button
@@ -769,9 +769,9 @@ export const SourcingTab: React.FC = () => {
 
       <p className="-mt-1 text-[11px] text-slate-400">
         {workplaceFilter === 'All'
-          ? 'All shows saved/pasted roles of any type, plus remote roles from connected public feeds.'
+          ? 'All shows saved/pasted roles and current openings published on configured employer career boards.'
           : workplaceFilter === 'Remote'
-            ? 'Connected public job feeds provide remote roles only.'
+            ? 'Employer career boards publish their available workplace details; unknown work modes remain unspecified.'
             : `${workplaceFilter} filters saved or pasted listings only; connected public feeds currently provide remote roles only.`}
       </p>
 
