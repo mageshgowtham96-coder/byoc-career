@@ -15,7 +15,7 @@ import {
   Target,
   DollarSign
 } from 'lucide-react';
-import { generateInterviewPrepQuestionsWithGroq, tailorResumeWithGroq, formatGroqError } from '../services/groqService';
+import { generateInterviewPrepQuestionsWithGemini, tailorResumeWithGemini, formatGeminiError } from '../services/geminiCareerService';
 import { buildDomainPracticeQuestions } from '../utils/domainPracticeQuestions';
 import { hasStructuredCareerEvidence } from '../utils/resumeReadiness';
 
@@ -27,7 +27,7 @@ export const PrepZone: React.FC = () => {
     tailoredArtifacts,
     saveTailoredArtifact,
     saveInterviewPrepQuestions,
-    groqApiKey,
+    geminiApiKey,
     candidatePreferences,
     setActiveTab,
     addToast
@@ -73,7 +73,7 @@ export const PrepZone: React.FC = () => {
     setPrepError(null);
     try {
       if (currentTailored) {
-        const questions = await generateInterviewPrepQuestionsWithGroq(selectedJob, masterResume, groqApiKey);
+        const questions = await generateInterviewPrepQuestionsWithGemini(selectedJob, masterResume, geminiApiKey);
         saveInterviewPrepQuestions(selectedJob.id, questions);
         addToast({
           type: 'success',
@@ -81,7 +81,7 @@ export const PrepZone: React.FC = () => {
           message: `Refreshed ${questions.length} role-specific questions. Your existing tailored resume and review status were preserved.`
         });
       } else {
-        const artifact = await tailorResumeWithGroq(selectedJob, masterResume, groqApiKey);
+        const artifact = await tailorResumeWithGemini(selectedJob, masterResume, geminiApiKey);
         saveTailoredArtifact(selectedJob.id, artifact);
         addToast({
           type: 'success',
@@ -90,7 +90,7 @@ export const PrepZone: React.FC = () => {
         });
       }
     } catch (err: unknown) {
-      const msg = formatGroqError(err, 'Unable to generate AI prep questions.');
+      const msg = formatGeminiError(err, 'Unable to generate AI prep questions.');
       setPrepError(msg);
       addToast({ type: 'error', message: msg });
     } finally {
@@ -425,7 +425,7 @@ export const PrepZone: React.FC = () => {
                 </div>
               </div>
 
-              {/* Evidence-Anchored AI Interview Questions (Groq) */}
+              {/* Evidence-Anchored AI Interview Questions (Gemini) */}
               <div className="p-5 rounded-3xl bg-slate-800/90 border border-slate-700 space-y-3 text-left">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
@@ -441,12 +441,12 @@ export const PrepZone: React.FC = () => {
                   {hasStructuredEvidence && (
                     <button
                       type="button"
-                      disabled={isGeneratingPrep || !groqApiKey.trim()}
+                      disabled={isGeneratingPrep || !geminiApiKey.trim()}
                       onClick={() => void handleGenerateRolePrep()}
                       title={
-                        !groqApiKey.trim()
-                          ? 'Configure your Groq API key in Settings to generate AI prep questions'
-                          : 'Synthesize role-specific questions via Groq'
+                        !geminiApiKey.trim()
+                          ? 'Enter your Gemini API key on the login screen to generate AI prep questions'
+                          : 'Synthesize role-specific questions via Gemini'
                       }
                       className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shrink-0"
                     >
@@ -470,7 +470,7 @@ export const PrepZone: React.FC = () => {
                       onClick={() => setActiveTab('settings')}
                       className="px-2.5 py-1 rounded-lg bg-slate-800 text-rose-200 border border-rose-500/30 text-[11px] font-semibold shrink-0 cursor-pointer"
                     >
-                      Check Groq Settings
+                      Check Gemini Settings
                     </button>
                   </div>
                 )}
@@ -529,8 +529,8 @@ export const PrepZone: React.FC = () => {
                     <span>
                       {!hasStructuredEvidence
                         ? 'Add and confirm structured career evidence in Intake first so AI prep questions can be grounded in your actual profile.'
-                        : !groqApiKey.trim()
-                        ? 'No Groq API key configured. Add your key in Settings to generate AI prep questions, or use the illustrative preparation areas and General Career Practice below.'
+                        : !geminiApiKey.trim()
+                        ? 'No Gemini API key configured. Add your key in Settings to generate AI prep questions, or use the illustrative preparation areas and General Career Practice below.'
                         : currentTailored
                         ? 'No AI prep questions saved for this role yet. Generate AI Questions above; your existing tailored kit will remain unchanged.'
                         : 'No interview questions or tailored kit generated for this role yet. Generate both above or create a tailored kit in Customization.'}
@@ -543,13 +543,13 @@ export const PrepZone: React.FC = () => {
                       >
                         Go to Intake
                       </button>
-                    ) : !groqApiKey.trim() ? (
+                    ) : !geminiApiKey.trim() ? (
                       <button
                         type="button"
                         onClick={() => setActiveTab('settings')}
                         className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 font-semibold text-[11px] shrink-0 cursor-pointer self-start sm:self-auto"
                       >
-                        Configure Groq Key
+                        Gemini key is managed at login
                       </button>
                     ) : null}
                   </div>
