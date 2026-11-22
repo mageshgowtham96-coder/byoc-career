@@ -33,7 +33,7 @@ export const DashboardTab: React.FC = () => {
     unsavedQueue,
     setActiveTab,
     setSettingsFocusSection,
-    groqApiKey,
+    geminiApiKey,
     candidatePreferences,
     setJobs,
     getFollowUpRequiredApplications,
@@ -169,8 +169,8 @@ export const DashboardTab: React.FC = () => {
             <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400 mb-2.5 flex-wrap">
               <span className="text-sky-400 font-semibold uppercase tracking-wider">{t('Local Encrypted Vault')}</span>
               <span aria-hidden="true" className="text-slate-600">·</span>
-              <span className={groqApiKey ? 'text-emerald-400' : 'text-amber-400'}>
-                {t(groqApiKey ? 'Groq BYOK Ready' : 'Groq BYOK Key Pending')}
+              <span className={geminiApiKey ? 'text-emerald-400' : 'text-amber-400'}>
+                {t(geminiApiKey ? 'Gemini BYOK Ready' : 'Gemini BYOK Key Pending')}
               </span>
               {user?.biometricEnabled && (
                 <>
