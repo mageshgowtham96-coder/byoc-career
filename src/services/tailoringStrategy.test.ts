@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { JobPosting, MasterResume } from '../types';
-import { getTailoringStrategies } from './groqService';
+import { getTailoringStrategies } from './geminiCareerService';
 
 const job: JobPosting = {
   id: 'job-1', title: 'Customer Support Associate', company: 'Example', location: 'India',
