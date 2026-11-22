@@ -747,6 +747,19 @@ export class LiveJobSearchEngine {
           }
         };
       }
+      if (provider.id.startsWith('direct_')
+        && !isWorldwideCountryCode(normalizedParams.country)
+        && normalizedParams.country !== 'IN') {
+        return {
+          jobs: [] as JobPosting[],
+          queried: false,
+          status: {
+            id: provider.id, name: provider.name, status: 'skipped' as const, count: 0,
+            detail: 'This public employer-board directory currently covers India only; no listings are inferred for another market.'
+          }
+        };
+      }
+
       if (!provider.isConfigured) {
         return {
           jobs: [] as JobPosting[],
@@ -838,14 +851,10 @@ export class LiveJobSearchEngine {
       if (!matchesJobSearchTerms(normalizedParams.query || normalizedParams.targetRole || normalizedParams.profession,
         job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.jobDescriptionRaw)) return false;
 
-      if (locLower) {
-        const source = (job.source || '').toLowerCase();
-        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live', 'arbeitnow live'].includes(source);
-        if (isLiveFeedJob && !matchesRemoteCountryAndLocation(
-          job.location, `${job.title} ${job.jobDescriptionRaw}`, normalizedParams.country,
-          normalizedParams.location, normalizedParams.includeWorldwideRemote
-        )) return false;
-      }
+      if (isLiveDiscoveredJobSource(job.source) && !matchesRemoteCountryAndLocation(
+        job.location, `${job.title} ${job.jobDescriptionRaw}`, normalizedParams.country,
+        normalizedParams.location, normalizedParams.includeWorldwideRemote
+      )) return false;
 
       if (normalizedParams.workplaceType && normalizedParams.workplaceType !== 'All' &&
           job.workplaceType.toLowerCase() !== normalizedParams.workplaceType.toLowerCase()) return false;
