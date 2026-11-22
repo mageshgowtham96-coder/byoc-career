@@ -241,6 +241,8 @@ export interface DirectEmployerRefreshStorage {
   setItem(key: string, value: string): void;
 }
 
+let lastSuccessfulRefreshInMemory: number | null = null;
+
 function getDefaultStorage(): DirectEmployerRefreshStorage | null {
   try {
     return typeof window !== 'undefined' ? window.localStorage : null;
@@ -253,7 +255,11 @@ export function isDirectEmployerRefreshDue(
   now = Date.now(),
   storage: DirectEmployerRefreshStorage | null = getDefaultStorage()
 ): boolean {
-  if (!storage) return true;
+  if (!storage) {
+    return lastSuccessfulRefreshInMemory === null
+      || now < lastSuccessfulRefreshInMemory
+      || now - lastSuccessfulRefreshInMemory >= DIRECT_EMPLOYER_REFRESH_INTERVAL_MS;
+  }
   try {
     const stored = storage.getItem(DIRECT_EMPLOYER_REFRESH_STORAGE_KEY);
     if (!stored) return true;
@@ -261,7 +267,9 @@ export function isDirectEmployerRefreshDue(
     if (!Number.isFinite(last) || last <= 0 || last > now) return true;
     return now - last >= DIRECT_EMPLOYER_REFRESH_INTERVAL_MS;
   } catch {
-    return true;
+    return lastSuccessfulRefreshInMemory === null
+      || now < lastSuccessfulRefreshInMemory
+      || now - lastSuccessfulRefreshInMemory >= DIRECT_EMPLOYER_REFRESH_INTERVAL_MS;
   }
 }
 
@@ -269,6 +277,7 @@ export function markDirectEmployerRefreshCompleted(
   now = Date.now(),
   storage: DirectEmployerRefreshStorage | null = getDefaultStorage()
 ): void {
+  lastSuccessfulRefreshInMemory = now;
   try {
     storage?.setItem(DIRECT_EMPLOYER_REFRESH_STORAGE_KEY, String(now));
   } catch {
