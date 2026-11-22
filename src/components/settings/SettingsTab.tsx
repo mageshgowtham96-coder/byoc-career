@@ -132,7 +132,7 @@ export const SettingsTab: React.FC = () => {
     try {
       const { GoogleGenAI } = await import('@google/genai');
       const client = new GoogleGenAI({ apiKey: trimmed });
-      await client.models.generateContent({ model: 'gemini-3.5-flash-lite', contents: 'Reply with the single word READY.' });
+      await client.models.generateContent({ model: 'gemini-3.6-flash', contents: 'Reply with the single word READY.' });
       setGeminiApiKey(trimmed);
       const synced = await syncVaultFromStoreNow();
       setGeminiTestResult({
