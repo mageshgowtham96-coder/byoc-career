@@ -95,7 +95,7 @@ function mockSandboxedJsonpPayload(payload: unknown) {
   const append = document.body.appendChild.bind(document.body);
   vi.spyOn(document.body, 'appendChild').mockImplementation((node: Node) => {
     frame = node as HTMLIFrameElement;
-    const tokenMatch = frame.srcdoc.match(/__byocJsonp:\\s*("[^"]+")/);
+    const tokenMatch = frame.srcdoc.match(/__byocJsonp:\s*("[^"]+")/);
     if (!tokenMatch) throw new Error('Sandboxed JSONP message token was not found.');
     const token = JSON.parse(tokenMatch[1]) as string;
     const source = frame.contentWindow;
