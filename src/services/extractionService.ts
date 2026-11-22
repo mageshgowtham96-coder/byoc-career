@@ -1103,8 +1103,7 @@ export function validateExtractedSchema(
         'Candidate Full Name',
         'Email Address',
         'Professional Summary',
-        'Work, project or education evidence',
-        'Skills & Competencies'
+        'Work, project or education evidence'
       ],
       warnings: [
         'No profile data is currently staged or loaded.',
@@ -1135,15 +1134,6 @@ export function validateExtractedSchema(
   const experiences = isTargetSchema ? data.work_experience : data.experiences;
   const education = isTargetSchema ? data.education : data.education;
   const projects = isTargetSchema ? [] : data.projects;
-  const skills = isTargetSchema
-    ? data.skills
-    : [
-        ...(data.skills?.technical || []),
-        ...(data.skills?.soft || []),
-        ...(data.skills?.tools || []),
-        ...(data.skills?.domains || [])
-      ];
-
   // 1. Mandatory: Candidate Name
   if (!name || name.trim().length === 0 || name.trim().toLowerCase() === 'candidate') {
     missing.push('Candidate Full Name');
