@@ -76,7 +76,7 @@ export const DEFAULT_CANDIDATE_PREFERENCES: CandidatePreferences = {
   country: 'IN',
   includeWorldwideRemote: true,
   preferredLocations: [],
-  portals: ['Greenhouse', 'Lever', 'User Import'],
+  portals: ['Greenhouse', 'Workable', 'User Import'],
   portalShortcuts: DEFAULT_PORTAL_SHORTCUTS,
   noticePeriod: '',
   expectedCtc: '',
