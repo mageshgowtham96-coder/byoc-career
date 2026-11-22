@@ -54,7 +54,15 @@ for (const board of boards) {
   const payload = parseJsonp(await response.text(), board.callback);
   assert.ok(Array.isArray(payload.jobs), `${board.provider} ${board.board} response has no jobs array`);
   assert.ok(payload.jobs.length > 0, `${board.provider} ${board.board} returned no public jobs`);
-  const indiaJobs = payload.jobs.filter((job) => /india|bengaluru|bangalore|hyderabad|chennai|pune|mumbai|gurugram|gurgaon|noida/i.test(jobLocation(job)));
+  const indiaMarkers = [
+    'india', 'bengaluru', 'bangalore', 'hyderabad', 'chennai', 'pune',
+    'mumbai', 'gurugram', 'gurgaon', 'noida', 'new delhi', 'kolkata',
+    'ahmedabad', 'jaipur', 'kochi', 'cochin', 'trivandrum', 'thiruvananthapuram'
+  ];
+  const indiaJobs = payload.jobs.filter((job) => {
+    const normalizedLocation = ` ${jobLocation(job).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
+    return indiaMarkers.some((marker) => normalizedLocation.includes(` ${marker} `));
+  });
   assert.ok(indiaJobs.length > 0, `${board.provider} ${board.board} returned no India-located postings`);
   process.stdout.write(`LIVE SOURCE PASS: ${board.provider} / ${board.board}: ${payload.jobs.length} open postings, ${indiaJobs.length} India-located\n`);
 }
