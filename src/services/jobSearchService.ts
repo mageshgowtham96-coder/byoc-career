@@ -1,5 +1,14 @@
 import type { JobPosting, MasterResume, JobSourcePortal, PortalShortcut } from '../types';
 import { expandTamilJobSearchQuery, translateTamilJobSearchQuery } from '../utils/roleSuggestions';
+import {
+  DIRECT_EMPLOYER_BOARD_DIRECTORY,
+  fetchDirectEmployerBoard,
+  isDirectEmployerRefreshDue,
+  isRetiredAggregatedFeedJob,
+  markDirectEmployerRefreshAttempted,
+  markDirectEmployerRefreshCompleted,
+  reconcileDirectEmployerJobs
+} from './directEmployerJobs';
 
 export interface JobSearchQueryParams {
   query?: string;
@@ -38,6 +47,8 @@ export interface JobProviderAdapter {
 
 export interface JobSearchResult {
   jobs: JobPosting[];
+  /** Complete locally retained collection after successful-board reconciliation. */
+  cachedJobs?: JobPosting[];
   totalFound: number;
   sourcesQueried: string[];
   providerStatuses: JobProviderStatus[];
@@ -601,401 +612,21 @@ export function calculateHonestMatch(
   };
 }
 
-/**
- * Adzuna Live Job Search Adapter
- * Requires private server-side App ID and App Key; disabled in pure client-side builds
- * so no shared or private job-provider credentials are ever embedded in browser code.
- */
-export class AdzunaJobAdapter implements JobProviderAdapter {
-  id = 'adzuna';
-  name = 'Adzuna Jobs API';
-  requiresAuth = true;
-  authHelpUrl = 'https://developer.adzuna.com/';
-  statusReason =
-    'Disabled in client-only mode: Adzuna requires server-side App ID and App Key credentials (no backend proxy is configured).';
-
-  get isConfigured(): boolean {
-    return false;
-  }
-
-  async search(_params: JobSearchQueryParams): Promise<JobPosting[]> {
-    return [];
-  }
-}
-
-/**
- * Public Open Remote Job Feed Adapter (Remotive API)
- * Note: Remotive only exposes remote listings and accepts search keywords (?search=).
- * Country and optional location filters are applied locally against candidate_required_location.
- */
-export class PublicFeedsJobAdapter implements JobProviderAdapter {
-  id = 'public_open_jobs';
-  name = 'Remotive Live';
-  requiresAuth = false;
-  remoteOnly = true;
-
-  get isConfigured(): boolean {
-    return true;
-  }
-
-  async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
-    const fallbackSkill = params.skills && params.skills.length > 0 ? params.skills[0] : '';
-    const query = translateTamilJobSearchQuery((params.query || params.targetRole || params.profession || fallbackSkill || '').trim()).toLowerCase();
-
-    if (!query) {
-      return [];
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    try {
-      const res = await fetch(
-        `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(query)}&limit=50`,
-        { signal: controller.signal }
-      );
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        if (res.status === 429) {
-          throw new Error('Remotive Live rate limit exceeded (HTTP 429). Wait a moment before retrying.');
-        }
-        throw new Error(`Remotive Live returned HTTP ${res.status}.`);
-      }
-
-      const data = await res.json();
-      let rawJobs = Array.isArray(data?.jobs) ? data.jobs : [];
-
-      // A strict provider-side keyword search can return zero results for a minor
-      // typo or a short partial token. In that case, retry once against the bounded
-      // latest feed and let the shared local typo-tolerant matcher decide relevance.
-      if (rawJobs.length === 0) {
-        const fallbackController = new AbortController();
-        const fallbackTimeout = setTimeout(() => fallbackController.abort(), 15000);
-        try {
-          const fallbackResponse = await fetch(
-            'https://remotive.com/api/remote-jobs?limit=50',
-            { signal: fallbackController.signal }
-          );
-          if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json();
-            rawJobs = Array.isArray(fallbackData?.jobs) ? fallbackData.jobs : [];
-          }
-        } catch {
-          // Preserve the empty result from the primary query if the bounded fallback is unavailable.
-        } finally {
-          clearTimeout(fallbackTimeout);
-        }
-      }
-
-      const results: JobPosting[] = [];
-
-      for (const item of rawJobs) {
-        const parsedLocation = normalizeLocation(item.candidate_required_location || 'Remote');
-        const plainDesc = stripJobHtml(item.description, 4000);
-        const title = item.title || 'Untitled Role';
-
-        if (
-          !matchesRemoteCountryAndLocation(
-            parsedLocation,
-            `${title} ${plainDesc}`,
-            params.country,
-            params.location,
-            params.includeWorldwideRemote
-          )
-        ) {
-          continue;
-        }
-
-        results.push({
-          id: `remotive-${item.id}`,
-          title,
-          company: item.company_name || 'Employer Unspecified',
-          location: parsedLocation,
-          workplaceType: 'Remote',
-          salary: item.salary || 'Undisclosed',
-          postedDate: item.publication_date || 'Unspecified',
-          jobDescriptionRaw: plainDesc,
-          url: item.url || '#',
-          source: 'Remotive Live',
-          skillsRequired: [],
-          skillsListed: Array.isArray(item.tags) ? item.tags.slice(0, 8) : [],
-          eligibilityAssessment: assessRemoteCountryEligibility(parsedLocation, params.country),
-          fitScore: null,
-          matchedKeywords: [],
-          missingKeywords: [],
-          experienceLevel: 'Unspecified'
-        });
-      }
-
-      return results;
-    } catch (err: unknown) {
-      clearTimeout(timeoutId);
-      if (err instanceof Error && err.name === 'AbortError') {
-        throw new Error('Remotive Live timed out after 15 seconds. Saved local positions remain available.');
-      }
-      if (err instanceof Error) {
-        throw new Error(
-          err.message.startsWith('Remotive Live')
-            ? err.message
-            : `Remotive Live could not be reached (${err.message}).`
-        );
-      }
-      throw new Error('Remotive Live could not be reached.');
-    }
-  }
-}
-
-const WINDOWS_1252_SPECIAL_BYTES: Record<number, number> = {
-  0x20ac: 0x80, 0x201a: 0x82, 0x0192: 0x83, 0x201e: 0x84, 0x2026: 0x85,
-  0x2020: 0x86, 0x2021: 0x87, 0x02c6: 0x88, 0x2030: 0x89, 0x0160: 0x8a,
-  0x2039: 0x8b, 0x0152: 0x8c, 0x017d: 0x8e, 0x2018: 0x91, 0x2019: 0x92,
-  0x201c: 0x93, 0x201d: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97,
-  0x02dc: 0x98, 0x2122: 0x99, 0x0161: 0x9a, 0x203a: 0x9b, 0x0153: 0x9c,
-  0x017e: 0x9e, 0x0178: 0x9f
-};
-
-function repairMojibakeText(value: string): string {
-  if (!/(?:Ã|Â|â€|ï»¿)/.test(value)) return value;
-  const bytes: number[] = [];
-  for (const character of value) {
-    const codePoint = character.codePointAt(0)!;
-    if (codePoint <= 0x7f || (codePoint >= 0xa0 && codePoint <= 0xff)) {
-      bytes.push(codePoint);
-    } else if (WINDOWS_1252_SPECIAL_BYTES[codePoint] !== undefined) {
-      bytes.push(WINDOWS_1252_SPECIAL_BYTES[codePoint]);
-    } else {
-      return value;
-    }
-  }
-  try {
-    const repaired = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes));
-    const mojibakeMarkers = (text: string) => (text.match(/(?:Ã|Â|â€|ï»¿)/g) || []).length;
-    return mojibakeMarkers(repaired) < mojibakeMarkers(value) ? repaired : value;
-  } catch {
-    return value;
-  }
-}
-
-function stripJobHtml(value: unknown, maxLength = 5000): string {
-  return typeof value === 'string'
-    ? repairMojibakeText(value)
-      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&amp;/gi, '&')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
-      .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'")
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, maxLength)
-    : '';
-}
-
-function formatFeedDate(value: unknown): string {
-  if (typeof value !== 'string' || !value.trim()) return 'Unspecified';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Unspecified' : date.toLocaleDateString();
-}
-
-function parseSalaryRange(min: unknown, max: unknown, currency: unknown, period: unknown): string {
-  const low = typeof min === 'number' && Number.isFinite(min) ? min : null;
-  const high = typeof max === 'number' && Number.isFinite(max) ? max : null;
-  if (low === null && high === null) return 'Undisclosed';
-  const amount = low !== null && high !== null
-    ? `${low.toLocaleString()}–${high.toLocaleString()}`
-    : `${(low ?? high)!.toLocaleString()}`;
-  const suffix = [typeof currency === 'string' ? currency : '', typeof period === 'string' ? period : '']
-    .filter(Boolean).join(' / ');
-  return suffix ? `${amount} ${suffix}` : amount;
-}
-
-function createRemoteFeedJob(item: any, sourceId: string, sourceName: string, fields: {
-  id: unknown; title: unknown; company: unknown; location: unknown; description: unknown; url: unknown;
-  date?: unknown; salary?: string; tags?: unknown; workplaceType?: JobPosting['workplaceType']; country?: string;
-}): JobPosting | null {
-  const title = typeof fields.title === 'string' ? fields.title.trim() : '';
-  const company = typeof fields.company === 'string' ? fields.company.trim() : '';
-  const url = sanitizeExternalHttpUrl(typeof fields.url === 'string' ? fields.url : '');
-  if (!title || !company || !url) return null;
-
-  const location = normalizeLocation(typeof fields.location === 'string' ? fields.location : '');
-  const description = stripJobHtml(fields.description);
-  const tags = Array.isArray(fields.tags)
-    ? fields.tags.filter((tag: unknown): tag is string => typeof tag === 'string' && tag.trim().length > 0).slice(0, 12)
-    : [];
-  const stableId = String(fields.id ?? url);
-
-  return {
-    id: `${sourceId}-${stableId}`,
-    title,
-    company,
-    location,
-    workplaceType: fields.workplaceType || 'Remote',
-    salary: fields.salary || 'Undisclosed',
-    postedDate: formatFeedDate(fields.date),
-    jobDescriptionRaw: description,
-    url,
-    source: sourceName,
-    skillsRequired: [],
-    skillsListed: tags,
-    eligibilityAssessment: assessRemoteCountryEligibility(location, fields.country),
-    fitScore: null,
-    matchedKeywords: [],
-    missingKeywords: [],
-    experienceLevel: 'Unspecified'
-  };
-}
-
-async function fetchJsonWithTimeout(url: string, sourceName: string): Promise<any> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
-  try {
-    const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
-    if (!response.ok) {
-      if (response.status === 429) throw new Error(`${sourceName} rate limit exceeded (HTTP 429).`);
-      throw new Error(`${sourceName} returned HTTP ${response.status}.`);
-    }
-    return await response.json();
-  } catch (error: unknown) {
-    if (error instanceof Error && error.name === 'AbortError') throw new Error(`${sourceName} timed out after 15 seconds.`);
-    if (error instanceof Error && error.message.startsWith(sourceName)) throw error;
-    throw new Error(`${sourceName} could not be reached (${error instanceof Error ? error.message : 'network error'}).`);
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-/** Public, unauthenticated global remote feed. Listings link back to Remote OK as required by its feed guidance. */
-export class RemoteOkJobAdapter implements JobProviderAdapter {
-  id = 'remote_ok';
-  name = 'Remote OK Live';
-  requiresAuth = false;
-  remoteOnly = true;
-
-  get isConfigured(): boolean { return true; }
-
-  async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
-    if (!(params.query || params.targetRole || params.profession || params.skills?.length)) return [];
-    const payload = await fetchJsonWithTimeout('https://remoteok.com/api', this.name);
-    const items = Array.isArray(payload) ? payload.filter((item: any) => item && typeof item === 'object' && item.id) : [];
-    return items.map((item: any) => createRemoteFeedJob(item, this.id, this.name, {
-      id: item.id,
-      title: item.position || item.title,
-      company: item.company,
-      location: item.location || 'Location Unspecified',
-      description: item.description,
-      url: item.url,
-      date: item.date,
-      salary: item.salary_min || item.salary_max
-        ? parseSalaryRange(item.salary_min, item.salary_max, item.salary_currency, item.salary_period)
-        : 'Undisclosed',
-      tags: item.tags,
-      country: params.country
-    })).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
-      job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
-    ));
-  }
-}
-
-/** Public, no-key Arbeitnow feed. Europe-focused listings retain the original Arbeitnow posting URL. */
-export class ArbeitnowJobAdapter implements JobProviderAdapter {
-  id = 'arbeitnow';
-  name = 'Arbeitnow Live';
-  requiresAuth = false;
-  remoteOnly = false;
-
-  get isConfigured(): boolean { return true; }
-
-  async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
-    if (!(params.query || params.targetRole || params.profession || params.skills?.length)) return [];
-    // The official public feed has no keyword parameter; fetch one bounded page and filter locally.
-    const payload = await fetchJsonWithTimeout('https://www.arbeitnow.com/api/job-board-api?page=1', this.name);
-    const items = Array.isArray(payload?.data) ? payload.data : [];
-    return items.map((item: any) => {
-      const createdAt = typeof item.created_at === 'number'
-        ? new Date(item.created_at * 1000).toISOString()
-        : item.created_at;
-      return createRemoteFeedJob(item, this.id, this.name, {
-        id: item.slug || item.id,
-        title: item.title,
-        company: item.company_name,
-        location: item.location || 'Location Unspecified',
-        description: item.description,
-        url: item.url,
-        date: createdAt,
-        tags: item.tags,
-        workplaceType: item.remote === true ? 'Remote' : 'Unspecified',
-        country: params.country
-      });
-    }).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
-      job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
-    ));
-  }
-}
-
-/** Public, no-key Jobicy feed. The free endpoint deliberately preserves Jobicy listing URLs for attribution and applications. */
-export class JobicyJobAdapter implements JobProviderAdapter {
-  id = 'jobicy';
-  name = 'Jobicy Live';
-  requiresAuth = false;
-  remoteOnly = true;
-
-  get isConfigured(): boolean { return true; }
-
-  async search(params: JobSearchQueryParams): Promise<JobPosting[]> {
-    if (!(params.query || params.targetRole || params.profession || params.skills?.length)) return [];
-
-    // Jobicy's public feed contains the most recent seven days and supports cursor pagination.
-    // Avoid its exact-tag filter: multi-word role phrases often do not match feed tags. Fetch a bounded sample and match locally.
-    const baseUrl = new URL('https://jobicy.com/api/jobs');
-    baseUrl.searchParams.set('count', '100');
-
-    const items: any[] = [];
-    const seenCursors = new Set<string>();
-    let cursor: string | undefined;
-
-    for (let page = 0; page < 3; page += 1) {
-      const pageUrl = new URL(baseUrl.toString());
-      if (cursor) pageUrl.searchParams.set('cursor', cursor);
-      const payload = await fetchJsonWithTimeout(pageUrl.toString(), this.name);
-      if (Array.isArray(payload?.jobs)) items.push(...payload.jobs);
-      const nextCursor = typeof payload?.nextCursor === 'string' ? payload.nextCursor : '';
-      if (!payload?.hasMore || !nextCursor || seenCursors.has(nextCursor)) break;
-      seenCursors.add(nextCursor);
-      cursor = nextCursor;
-    }
-
-    return items.map((item: any) => createRemoteFeedJob(item, this.id, this.name, {
-      id: item.id,
-      title: item.jobTitle,
-      company: item.companyName,
-      location: item.jobGeo || 'Location Unspecified',
-      description: item.jobDescription || item.jobExcerpt,
-      url: item.url,
-      date: item.pubDate,
-      salary: parseSalaryRange(item.salaryMin, item.salaryMax, item.salaryCurrency, item.salaryPeriod),
-      tags: [],
-      country: params.country
-    })).filter((job: JobPosting | null): job is JobPosting => !!job && matchesRemoteCountryAndLocation(
-      job.location, `${job.title} ${job.jobDescriptionRaw}`, params.country, params.location, params.includeWorldwideRemote
-    ));
-  }
-}
-
 export function buildLocationScopeNotice(country?: string, location?: string, includeWorldwideRemote = true): string {
   const cleanLoc = (location || '').trim();
   if (isWorldwideCountryCode(country)) {
-    return 'Worldwide mode queries Remotive, Remote OK, Jobicy, and Arbeitnow public feeds; results depend on each feed and are not an exhaustive global job index.';
+    return 'Direct employer discovery checks configured public Greenhouse and Workable career boards. The initial directory is India-focused and is not an exhaustive global job index.';
   }
   const code = (country || '').trim().toUpperCase();
-  const eligibility = includeWorldwideRemote ? `${code} / explicitly worldwide` : `${code} only`;
-  const base = `Target region ${code}: Remotive, Remote OK, and Jobicy return remote postings only; BYOC filters locally for ${eligibility} eligibility.`;
+  if (code && code !== 'IN') {
+    return `The configured direct-employer directory currently covers India, not ${code}. BYOC does not substitute unrelated-country listings.`;
+  }
+  const remoteScope = includeWorldwideRemote
+    ? 'India-wide remote roles are included only when the employer explicitly publishes India as the location.'
+    : 'results are limited to employer postings with an India location.';
+  const base = `Target region IN: BYOC checks public employer career boards directly and filters listings using published locations; ${remoteScope}`;
   if (cleanLoc) {
-    return `${base} The location filter uses the listing's published location, not city mentions in its description. City-specific non-remote boards require a configured regional source or pasted custom JDs.`;
+    return `${base} The initial employer directory is limited; roles with missing or ambiguous locations are not assumed to be in the selected city.`;
   }
   return base;
 }
@@ -1026,7 +657,10 @@ export function identifyJobPortalSource(rawUrl: string): string {
 /** True for jobs discovered from a public live feed, not user-entered records. */
 export function isLiveDiscoveredJobSource(source?: string): boolean {
   const normalized = (source || '').toLowerCase();
-  return ['remotive live', 'remote ok live', 'jobicy live', 'arbeitnow live'].includes(normalized);
+  return normalized.includes('careers (greenhouse)')
+    || normalized.includes('careers (workable)')
+    || normalized.includes('careers (ashby)')
+    || normalized.includes('careers (smartrecruiters)');
 }
 
 /** Returns true only when a published date can be parsed and falls inside the selected freshness window. */
@@ -1063,14 +697,44 @@ export function formatJobPostedDate(postedDate: string): string {
   return parsed ? parsed.toLocaleDateString() : (postedDate || 'Unspecified');
 }
 
+class DirectEmployerBoardAdapter implements JobProviderAdapter {
+  id: string;
+  name: string;
+  isConfigured = true;
+  requiresAuth = false;
+
+  constructor(private board: (typeof DIRECT_EMPLOYER_BOARD_DIRECTORY)[number]) {
+    this.id = board.id;
+    this.name = `${board.company} Careers`;
+  }
+
+  search(): Promise<JobPosting[]> {
+    return fetchDirectEmployerBoard(this.board);
+  }
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  const workerCount = Math.max(1, Math.min(Math.floor(concurrency) || 1, items.length));
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      results[index] = await mapper(items[index]);
+    }
+  }));
+  return results;
+}
+
 export class LiveJobSearchEngine {
-  constructor(private providers: JobProviderAdapter[] = [
-    new PublicFeedsJobAdapter(),
-    new RemoteOkJobAdapter(),
-    new JobicyJobAdapter(),
-    new ArbeitnowJobAdapter(),
-    new AdzunaJobAdapter()
-  ]) {}
+  constructor(private providers: JobProviderAdapter[] = DIRECT_EMPLOYER_BOARD_DIRECTORY.map(
+    (board) => new DirectEmployerBoardAdapter(board)
+  )) {}
 
   async executeLiveSearch(
     params: JobSearchQueryParams,
@@ -1083,7 +747,10 @@ export class LiveJobSearchEngine {
       location: isWorldwideCountryCode(params.country) ? undefined : params.location?.trim() || undefined
     };
 
-    const gatheredJobs: JobPosting[] = [...existingJobs];
+    const refreshDue = isDirectEmployerRefreshDue();
+    const directBoardMarketSelected = isWorldwideCountryCode(normalizedParams.country) || normalizedParams.country === 'IN';
+    const hasDirectBoardProviders = this.providers.some((provider) => provider.id.startsWith('direct_'));
+    if (refreshDue && directBoardMarketSelected && hasDirectBoardProviders) markDirectEmployerRefreshAttempted();
     const queriedSources: string[] = ['Local Stored Positions'];
     const providerStatuses: JobProviderStatus[] = [{
       id: 'local_store',
@@ -1093,9 +760,33 @@ export class LiveJobSearchEngine {
       detail: `${existingJobs.length} locally saved or pasted position(s)`
     }];
 
-    // Run independent public feeds concurrently. One slow/unavailable provider must not delay
-    // successful results from the other providers; each adapter retains its own request timeout.
-    const providerResults: Array<{ jobs: JobPosting[]; queried: boolean; error?: string; status: JobProviderStatus }> = await Promise.all(this.providers.map(async (provider) => {
+    // Refresh direct employer boards no more than once per 12 hours. When the app
+    // is opened after the interval, this foreground search performs the refresh.
+    // Between refreshes, searches use the encrypted local job cache.
+    const providerResults: Array<{ jobs: JobPosting[]; queried: boolean; error?: string; status: JobProviderStatus }> = await mapWithConcurrency(this.providers, 2, async (provider) => {
+      if (!refreshDue && provider.id.startsWith('direct_')) {
+        return {
+          jobs: [] as JobPosting[],
+          queried: false,
+          status: {
+            id: provider.id, name: provider.name, status: 'skipped' as const, count: 0,
+            detail: 'Using locally cached employer postings; the next live refresh is due after the 12-hour interval.'
+          }
+        };
+      }
+      if (provider.id.startsWith('direct_')
+        && !isWorldwideCountryCode(normalizedParams.country)
+        && normalizedParams.country !== 'IN') {
+        return {
+          jobs: [] as JobPosting[],
+          queried: false,
+          status: {
+            id: provider.id, name: provider.name, status: 'skipped' as const, count: 0,
+            detail: 'This public employer-board directory currently covers India only; no listings are inferred for another market.'
+          }
+        };
+      }
+
       if (!provider.isConfigured) {
         return {
           jobs: [] as JobPosting[],
@@ -1145,17 +836,32 @@ export class LiveJobSearchEngine {
           }
         };
       }
-    }));
+    });
 
     const providerErrors: string[] = [];
     for (const result of providerResults) {
       providerStatuses.push(result.status);
       if (result.queried) queriedSources.push(result.status.name);
       if (result.error) providerErrors.push(result.error);
-      gatheredJobs.push(...result.jobs);
     }
 
-    const uniqueJobs = deduplicateJobs(gatheredJobs);
+    const refreshedJobs = providerResults.flatMap((result) => result.jobs);
+    const configuredBoardIds = new Set(DIRECT_EMPLOYER_BOARD_DIRECTORY.map((board) => board.id));
+    const successfulBoardIds = providerResults
+      .filter((result) => result.status.status === 'queried' && configuredBoardIds.has(result.status.id))
+      .map((result) => result.status.id);
+    if (refreshDue && successfulBoardIds.length > 0) {
+      markDirectEmployerRefreshCompleted();
+    }
+    const reconciledJobs = !refreshDue
+      ? existingJobs.filter((job) => !isRetiredAggregatedFeedJob(job))
+      : successfulBoardIds.length > 0
+        ? reconcileDirectEmployerJobs(existingJobs, refreshedJobs, successfulBoardIds)
+        : deduplicateJobs([
+            ...existingJobs.filter((job) => !isRetiredAggregatedFeedJob(job)),
+            ...refreshedJobs
+          ]);
+    const uniqueJobs = deduplicateJobs(reconciledJobs);
     const scoredJobs = uniqueJobs.map((job) => {
       const honestMatch = calculateHonestMatch(job, masterResume);
       return {
@@ -1172,14 +878,10 @@ export class LiveJobSearchEngine {
       if (!matchesJobSearchTerms(normalizedParams.query || normalizedParams.targetRole || normalizedParams.profession,
         job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.jobDescriptionRaw)) return false;
 
-      if (locLower) {
-        const source = (job.source || '').toLowerCase();
-        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live', 'arbeitnow live'].includes(source);
-        if (isLiveFeedJob && !matchesRemoteCountryAndLocation(
-          job.location, `${job.title} ${job.jobDescriptionRaw}`, normalizedParams.country,
-          normalizedParams.location, normalizedParams.includeWorldwideRemote
-        )) return false;
-      }
+      if (isLiveDiscoveredJobSource(job.source) && !matchesRemoteCountryAndLocation(
+        job.location, `${job.title} ${job.jobDescriptionRaw}`, normalizedParams.country,
+        normalizedParams.location, normalizedParams.includeWorldwideRemote
+      )) return false;
 
       if (normalizedParams.workplaceType && normalizedParams.workplaceType !== 'All' &&
           job.workplaceType.toLowerCase() !== normalizedParams.workplaceType.toLowerCase()) return false;
@@ -1199,6 +901,7 @@ export class LiveJobSearchEngine {
     filtered.sort((a, b) => (b.fitScore ?? -1) - (a.fitScore ?? -1));
     return {
       jobs: filtered,
+      cachedJobs: reconciledJobs,
       totalFound: filtered.length,
       sourcesQueried: queriedSources,
       providerStatuses,

@@ -147,7 +147,8 @@ export interface JobPosting {
   workplaceType: 'Remote' | 'Hybrid' | 'On-site' | 'Unspecified';
   salary: string;
   postedDate: string;
-  jobDescriptionRaw: string; // Mandatory Raw JD Caching
+  jobDescriptionRaw: string; // Empty only for summary-only public listings until a full description is supplied
+  metadataSummary?: string; // Lightweight employer-published job metadata; not a substitute for the full description
   url: string;
   source: string;
   skillsRequired: string[];
@@ -339,10 +340,8 @@ export interface AppToast {
 
 export type JobSourcePortal =
   | 'All'
-  | 'Remotive Live'
-  | 'Remote OK Live'
-  | 'Jobicy Live'
-  | 'Arbeitnow Live'
+  | 'Greenhouse'
+  | 'Workable'
   | 'User Import'
   | 'LinkedIn'
   | 'Glassdoor'
