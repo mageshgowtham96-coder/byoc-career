@@ -74,7 +74,7 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - No automatic applications or authenticated job-portal scraping.
 - The separate PDF Workspace navigation page has been removed; supported PDF resume intake remains inside Master Intake.
 - Public ATS evidence checks currently support Greenhouse only. A matching record does not independently guarantee employer legitimacy or that applications remain open.
-- AI providers can still be unavailable or quota-limited. BYOC keeps local workflows available, but AI vetting/tailoring cannot be guaranteed free, uninterrupted, or available offline. Check the provider's current model and rate-limit dashboard before relying on a quota.
+- Gemini can still be unavailable or quota-limited. BYOC keeps local workflows available, but AI vetting/tailoring cannot be guaranteed free, uninterrupted, or available offline. Check the provider's current model and rate-limit dashboard before relying on a quota.
 - No BYOC cloud account, cloud sync, or server-side data recovery. Keep an encrypted backup and protect the recovery phrase.
 - The Android debug APK is suitable for installation/testing, not a signed production release. A release signing key has not been configured in this repository.
 

@@ -199,7 +199,7 @@ export const SourcingTab: React.FC = () => {
       .filter((job) => {
         if (!matchesJobSearchTerms(searchQuery, job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.jobDescriptionRaw)) return false;
         const source = (job.source || '').toLowerCase();
-        // Hide legacy Groq-discovered candidates retained in older local vaults; do not delete user data.
+        // Keep records from retired discovery sources out of live results without deleting saved user data.
         if (source.includes('groq')) return false;
         const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live', 'arbeitnow live'].includes(source);
         const isLiveDiscoveredJob = isLiveDiscoveredJobSource(job.source);
