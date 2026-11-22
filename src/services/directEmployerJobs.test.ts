@@ -3,9 +3,12 @@ import type { JobPosting } from '../types';
 import {
   DIRECT_EMPLOYER_BOARD_DIRECTORY,
   DIRECT_EMPLOYER_REFRESH_INTERVAL_MS,
+  DIRECT_EMPLOYER_REFRESH_RETRY_INTERVAL_MS,
+  DIRECT_EMPLOYER_REFRESH_STORAGE_KEY,
   fetchDirectEmployerBoard,
   isDirectEmployerRefreshDue,
   isRetiredAggregatedFeedJob,
+  markDirectEmployerRefreshAttempted,
   markDirectEmployerRefreshCompleted,
   reconcileDirectEmployerJobs
 } from './directEmployerJobs';
@@ -20,11 +23,12 @@ const oldJob = (id: string, source: string): JobPosting => ({
 
 describe('12-hour direct employer refresh policy', () => {
   const memory = (initial: string | null = null) => {
-    let value = initial;
+    const values = new Map<string, string>();
+    if (initial !== null) values.set(DIRECT_EMPLOYER_REFRESH_STORAGE_KEY, initial);
     return {
-      getItem: vi.fn(() => value),
-      setItem: vi.fn((_key: string, next: string) => { value = next; }),
-      value: () => value
+      getItem: vi.fn((key: string) => values.get(key) ?? null),
+      setItem: vi.fn((key: string, next: string) => { values.set(key, next); }),
+      value: (key = DIRECT_EMPLOYER_REFRESH_STORAGE_KEY) => values.get(key) ?? null
     };
   };
 
@@ -41,6 +45,14 @@ describe('12-hour direct employer refresh policy', () => {
   it('treats corrupt and future timestamps as due instead of suppressing refresh', () => {
     expect(isDirectEmployerRefreshDue(100000, memory('not-a-time'))).toBe(true);
     expect(isDirectEmployerRefreshDue(100000, memory('200000'))).toBe(true);
+  });
+
+  it('backs off for 30 minutes after a fully failed refresh attempt', () => {
+    const now = 1_800_000_000_000;
+    const storage = memory();
+    markDirectEmployerRefreshAttempted(now, storage);
+    expect(isDirectEmployerRefreshDue(now + DIRECT_EMPLOYER_REFRESH_RETRY_INTERVAL_MS - 1, storage)).toBe(false);
+    expect(isDirectEmployerRefreshDue(now + DIRECT_EMPLOYER_REFRESH_RETRY_INTERVAL_MS, storage)).toBe(true);
   });
 
   it('uses a session-memory fallback when browser storage is unavailable', () => {
