@@ -39,7 +39,6 @@ import {
   RefreshCw,
   ExternalLink,
   Link2,
-  Trash2,
   X
 } from 'lucide-react';
 
