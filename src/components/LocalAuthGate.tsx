@@ -124,10 +124,10 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const [passphrase, setPassphrase] = useState('');
   const [showPassphrase, setShowPassphrase] = useState(false);
-  const [geminiApiKeyInput, setApiKeyInput] = useState(
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState(
     needsLegacyEncryptionMigration ? (legacyCapture?.sensitiveData.geminiApiKey || '') : ''
   );
-  const [showGeminiApiKey, setShowApiKey] = useState(false);
+  const [showGeminiApiKey, setShowGeminiApiKey] = useState(false);
   const [enableBiometricOnSignup, setEnableBiometricOnSignup] = useState(false);
   const [error, setError] = useState(
     legacyDraftCapture.status === 'error'
@@ -413,18 +413,19 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       let decrypted = await decryptVault(envelope, passphrase.trim());
-      if (geminiApiKeyInput.trim()) {
-        await validateGeminiApiKey(geminiApiKeyInput);
-        decrypted = { ...decrypted, geminiApiKey: geminiApiKeyInput.trim() };
-      } else if (!decrypted.geminiApiKey?.trim()) {
-        throw new Error('Enter your Gemini API key on the login screen to activate BYOC.');
-      }
       let mergedLegacy = false;
 
       if (legacyCapture?.detected && hasSensitiveLegacyData(legacyCapture)) {
         const merged = mergeLegacyIntoDecryptedVault(decrypted, legacyCapture.sensitiveData);
         decrypted = merged.merged;
         mergedLegacy = merged.didChange;
+      }
+
+      if (geminiApiKeyInput.trim()) {
+        await validateGeminiApiKey(geminiApiKeyInput);
+        decrypted = { ...decrypted, geminiApiKey: geminiApiKeyInput.trim() };
+      } else if (!decrypted.geminiApiKey?.trim()) {
+        throw new Error('Enter your Gemini API key on the login screen to activate BYOC.');
       }
 
       const cleanedEnvelopeMeta = sanitizeVaultMeta(envelope.meta);
@@ -823,7 +824,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       setName('');
                       setEmail('');
                       setPassphrase('');
-                      setApiKeyInput('');
+                      setGeminiApiKeyInput('');
                       setStep('details');
                     }}
                     className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer"
@@ -936,13 +937,13 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                     <input
                       type={showGeminiApiKey ? 'text' : 'password'}
                       value={geminiApiKeyInput}
-                      onChange={(e) => setApiKeyInput(e.target.value)}
+                      onChange={(e) => setGeminiApiKeyInput(e.target.value)}
                       placeholder="AIza... (Required to activate BYOC)"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono focus:outline-none focus:border-sky-500 pr-10"
                     />
                     <button
                       type="button"
-                      onClick={() => setShowApiKey(!showGeminiApiKey)}
+                      onClick={() => setShowGeminiApiKey(!showGeminiApiKey)}
                       aria-label={showGeminiApiKey ? 'Hide API key' : 'Show API key'}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
                     >
