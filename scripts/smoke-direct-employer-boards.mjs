@@ -41,7 +41,6 @@ function jobLocation(job) {
 
 let lastWorkableRequestAt = 0;
 let totalResponseBytes = 0;
-const allJobs = [];
 const allIndiaJobs = [];
 for (const board of boards) {
   if (board.provider === 'Workable' && lastWorkableRequestAt > 0) {
@@ -60,7 +59,6 @@ for (const board of boards) {
   const payload = parseJsonp(body, board.callback);
   assert.ok(Array.isArray(payload.jobs), `${board.provider} ${board.board} response has no jobs array`);
   assert.ok(payload.jobs.length > 0, `${board.provider} ${board.board} returned no public jobs`);
-  allJobs.push(...payload.jobs.map((job) => ({ ...job, __source: `${board.provider} / ${board.board}` })));
   const indiaMarkers = [
     'india', 'bengaluru', 'bangalore', 'hyderabad', 'chennai', 'pune',
     'mumbai', 'gurugram', 'gurgaon', 'noida', 'new delhi', 'kolkata',
