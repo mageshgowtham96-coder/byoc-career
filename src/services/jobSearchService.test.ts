@@ -97,10 +97,12 @@ describe('dynamic typo-tolerant search matching', () => {
 
 describe('isLiveDiscoveredJobSource', () => {
   it.each([
-    ['Remotive Live', true],
-    ['Remote OK Live', true],
-    ['Jobicy Live', true],
-    ['Arbeitnow Live', true],
+    ['Groww Careers (Greenhouse)', true],
+    ['Meesho Careers (Lever)', true],
+    ['Remotive Live', false],
+    ['Remote OK Live', false],
+    ['Jobicy Live', false],
+    ['Arbeitnow Live', false],
     ['User Import', false],
     ['Company Careers', false]
   ])('classifies %s as discovered=%s', (source, expected) => {
