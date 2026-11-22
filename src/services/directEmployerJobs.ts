@@ -33,7 +33,7 @@ export const DIRECT_EMPLOYER_BOARD_DIRECTORY: DirectEmployerBoard[] = [
   { id: 'direct_greenhouse_zenoti', company: 'Zenoti', provider: 'greenhouse', boardToken: 'zenoti', careersUrl: 'https://job-boards.greenhouse.io/zenoti', market: 'IN' },
   { id: 'direct_workable_weekday', company: 'Weekday AI', provider: 'workable', boardToken: 'weekday-1', careersUrl: 'https://apply.workable.com/weekday-1', market: 'IN' },
   { id: 'direct_workable_rentokil', company: 'Rentokil Initial', provider: 'workable', boardToken: 'rentokil-initial', careersUrl: 'https://apply.workable.com/rentokil-initial', market: 'IN' },
-  { id: 'direct_workable_capgemini_insurance', company: 'Capgemini Insurance', provider: 'workable', boardToken: 'capgemini-insurance', careersUrl: 'https://apply.workable.com/capgemini-insurance', market: 'IN' },
+  { id: 'direct_workable_capgemini_insurance', company: 'Capgemini', provider: 'workable', boardToken: 'capgemini-insurance', careersUrl: 'https://apply.workable.com/capgemini-insurance', market: 'IN' },
   { id: 'direct_workable_keywords', company: 'Keywords Studios', provider: 'workable', boardToken: 'keywords-intl1', careersUrl: 'https://apply.workable.com/keywords-intl1', market: 'IN' },
   { id: 'direct_workable_unison', company: 'Unison Group', provider: 'workable', boardToken: 'unisongroup', careersUrl: 'https://apply.workable.com/unisongroup', market: 'IN' }
 ];
