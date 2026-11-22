@@ -177,8 +177,6 @@ interface WizardState {
   signOut: () => void;
 
   // API Config & Key Presence
-  groqApiKey: string;
-  setGroqApiKey: (key: string) => void;
   geminiApiKey: string;
   setGeminiApiKey: (key: string) => void;
   isLiveApiMode: boolean;
@@ -262,7 +260,6 @@ interface WizardState {
 
 export function buildVaultDataFromState(state: WizardState): VaultDataWithPreviousResume {
   return {
-    groqApiKey: state.groqApiKey || '',
     geminiApiKey: state.geminiApiKey || '',
     masterResume: state.masterResume || null,
     previousMasterResume: state.previousMasterResume || null,
@@ -432,7 +429,6 @@ export const useWizardStore = create<WizardState>()(
           user: currentUser ? sanitizeUserMetadata({ ...currentUser, lastActive: new Date().toISOString() }) : null,
           isAuthenticated: false,
           isBiometricLocked: false,
-          groqApiKey: '',
           geminiApiKey: '',
           masterResume: null,
           previousMasterResume: null,
@@ -449,8 +445,6 @@ export const useWizardStore = create<WizardState>()(
       },
 
       // API
-      groqApiKey: '',
-      setGroqApiKey: (key) => set({ groqApiKey: key }),
       geminiApiKey: '',
       setGeminiApiKey: (key) => set({ geminiApiKey: key }),
       isLiveApiMode: true,
@@ -1262,7 +1256,6 @@ export function restoreVaultDataToStore(
   const currentUser = userOverride ?? useWizardStore.getState().user;
   useWizardStore.setState({
     user: sanitizeUserMetadata(currentUser),
-    groqApiKey: data.groqApiKey || '',
     geminiApiKey: data.geminiApiKey || '',
     masterResume: data.masterResume || null,
     previousMasterResume: (data as VaultDataWithPreviousResume).previousMasterResume || null,
@@ -1280,7 +1273,6 @@ export function restoreVaultDataToStore(
           portalShortcuts: mergePortalShortcuts(data.candidatePreferences.portalShortcuts)
         }
       : { ...DEFAULT_CANDIDATE_PREFERENCES },
-    isLiveApiMode: Boolean(data.groqApiKey)
   });
 }
 
@@ -1303,7 +1295,6 @@ useWizardStore.subscribe((state, prevState) => {
     return;
   }
   const changed =
-    state.groqApiKey !== prevState.groqApiKey ||
     state.geminiApiKey !== prevState.geminiApiKey ||
     state.masterResume !== prevState.masterResume ||
     state.previousMasterResume !== prevState.previousMasterResume ||
