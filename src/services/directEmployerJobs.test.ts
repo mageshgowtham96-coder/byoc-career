@@ -125,7 +125,8 @@ describe('public employer board adapters', () => {
         title: 'Customer Support Associate',
         city: 'Bengaluru', state: 'Karnataka', country: 'India',
         workplace_type: 'hybrid',
-        description: '<p>Support customers.</p>',
+        department: 'Customer Experience', industry: 'Customer Support', function: 'Support',
+        experience: 'Entry-level', education: 'High school', employment_type: 'Full-time',
         application_url: 'https://apply.workable.com/weekday-1/j/wk123',
         published_on: '2026-11-20T10:00:00Z'
       }]
@@ -140,10 +141,15 @@ describe('public employer board adapters', () => {
       title: 'Customer Support Associate',
       location: 'Bengaluru, Karnataka, India',
       workplaceType: 'Hybrid',
+      jobDescriptionRaw: '',
+      metadataSummary: 'Customer Experience · Customer Support · Support · Entry-level · High school · Full-time',
+      experienceLevel: 'Entry',
+      fitStatusText: 'Full description not downloaded (low-data refresh)',
       source: 'Weekday AI Careers (Workable)'
     });
     expect(sandbox.getFrame()?.getAttribute('sandbox')).toBe('allow-scripts');
-    expect(sandbox.getFrame()?.srcdoc).toContain('www.workable.com/api/accounts/weekday-1?details=true&callback=');
+    expect(sandbox.getFrame()?.srcdoc).toContain('www.workable.com/api/accounts/weekday-1?callback=');
+    expect(sandbox.getFrame()?.srcdoc).not.toContain('details=true');
     expect(document.querySelectorAll('iframe')).toHaveLength(0);
   });
 
@@ -170,7 +176,7 @@ describe('public employer board adapters', () => {
       jobs: [{
         id: 77, title: 'Data Analyst',
         location: { name: 'Chennai, India' },
-        content: '&lt;p&gt;Build reports with SQL.&lt;/p&gt;',
+        departments: [{ name: 'Data & Analytics' }],
         absolute_url: 'https://boards.greenhouse.io/capco/jobs/77',
         first_published: '2026-11-20T10:00:00Z'
       }]
@@ -184,10 +190,13 @@ describe('public employer board adapters', () => {
       title: 'Data Analyst',
       company: 'Capco',
       location: 'Chennai, India',
-      jobDescriptionRaw: 'Build reports with SQL.',
+      jobDescriptionRaw: '',
+      metadataSummary: 'Data & Analytics',
+      fitStatusText: 'Full description not downloaded (low-data refresh)',
       url: 'https://boards.greenhouse.io/capco/jobs/77'
     });
-    expect(sandbox.getFrame()?.srcdoc).toContain('/v1/boards/capco/jobs?content=true&callback=');
+    expect(sandbox.getFrame()?.srcdoc).toContain('/v1/boards/capco/jobs?callback=');
+    expect(sandbox.getFrame()?.srcdoc).not.toContain('content=true');
     expect(document.querySelectorAll('iframe')).toHaveLength(0);
   });
 
