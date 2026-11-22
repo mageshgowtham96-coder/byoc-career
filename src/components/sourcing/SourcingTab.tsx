@@ -15,8 +15,6 @@ import {
   isPostedWithinDays,
   formatJobPostedDate,
   sanitizeExternalHttpUrl,
-  mergePortalShortcuts,
-  buildPortalShortcutUrl,
   matchesJobSearchTerms,
   mergeDiscoveredJobs,
   type JobSearchResult
@@ -60,8 +58,6 @@ export const SourcingTab: React.FC = () => {
     isJobPreviouslyTracked,
     candidatePreferences,
     setCandidatePreferences,
-    addPortalShortcut,
-    removePortalShortcut,
     updateJobUrl,
     addToast
   } = useWizardStore();
@@ -82,10 +78,6 @@ export const SourcingTab: React.FC = () => {
   const [liveSearchReport, setLiveSearchReport] = useState<JobSearchResult | null>(null);
   const [showAddJobModal, setShowAddJobModal] = useState(false);
 
-  // Portal Shortcut Builder & Inline Listing URL Editor
-  const [showAddShortcutForm, setShowAddShortcutForm] = useState(false);
-  const [shortcutName, setShortcutName] = useState('');
-  const [shortcutUrl, setShortcutUrl] = useState('');
   const [editingUrlJobId, setEditingUrlJobId] = useState<string | null>(null);
   const [inlineUrlDraft, setInlineUrlDraft] = useState('');
 
@@ -103,11 +95,6 @@ export const SourcingTab: React.FC = () => {
   const [customSkills, setCustomSkills] = useState('');
   const [customPreferredSkills, setCustomPreferredSkills] = useState('');
   const [customRawJD, setCustomRawJD] = useState('');
-
-  const portalShortcuts = React.useMemo(
-    () => mergePortalShortcuts(candidatePreferences?.portalShortcuts),
-    [candidatePreferences?.portalShortcuts]
-  );
 
   const resumeIngested = hasMasterResume();
   const isWorldwide = isWorldwideCountryCode(candidatePreferences?.country || 'IN');
@@ -230,7 +217,6 @@ export const SourcingTab: React.FC = () => {
         if (!matchesJobSearchTerms(searchQuery, job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.metadataSummary, job.jobDescriptionRaw)) return false;
         const source = (job.source || '').toLowerCase();
         // Hide legacy Groq-discovered candidates retained in older local vaults; do not delete user data.
-        if (source.includes('groq')) return false;
         const isLiveFeedJob = isLiveDiscoveredJobSource(job.source);
         const isLiveDiscoveredJob = isLiveDiscoveredJobSource(job.source);
         if (isLiveDiscoveredJob && postedWithinDays > 0 && !isPostedWithinDays(job.postedDate, postedWithinDays)) return false;
@@ -387,19 +373,6 @@ export const SourcingTab: React.FC = () => {
     });
   };
 
-  const handleSaveShortcut = (e: React.FormEvent) => {
-    e.preventDefault();
-    const ok = addPortalShortcut({
-      name: shortcutName,
-      searchUrlTemplate: shortcutUrl
-    });
-    if (ok) {
-      setShortcutName('');
-      setShortcutUrl('');
-      setShowAddShortcutForm(false);
-    }
-  };
-
   return (
     <div className="space-y-5 pb-20">
       {/* Top Header */}
@@ -554,7 +527,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {(['All', 'Greenhouse', 'Workable', 'LinkedIn', 'Indeed', 'Naukri', 'Foundit', 'Glassdoor', 'Instahyre', 'User Import'] as JobSourcePortal[]).map((portal) => {
+          {(['All', 'Greenhouse', 'Workable', 'User Import'] as JobSourcePortal[]).map((portal) => {
             const isSelectedPortal = portalFilter === portal;
             return (
               <button
@@ -577,133 +550,7 @@ export const SourcingTab: React.FC = () => {
           <strong className="text-slate-200">Live Query Status:</strong> BYOC reads public, no-key Greenhouse and Workable employer career boards directly. The initial directory covers selected Indian employers, not every company or job portal. Refreshes download lightweight job metadata only to conserve mobile data; full descriptions are not fetched automatically. Role search runs locally against titles and published metadata. Fit analysis and tailoring require the full description from the employer page or a pasted job description.
         </div>
 
-        {/* External Portal Shortcuts (Shortcut Only — No Live API) */}
-        <div className="p-3.5 rounded-2xl bg-[#0F172A] border border-slate-800 space-y-2.5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
-                <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
-                <span>External Portal Shortcuts</span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[10px] font-mono text-slate-300">
-                  Shortcut Only · No Live Feed
-                </span>
-              </h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Opens the portal’s own job-search page in a new tab. If a live feed misses a local or regional vacancy, verify it there and import its job description and original link into BYOC.
-              </p>
-            </div>
 
-            <button
-              type="button"
-              onClick={() => setShowAddShortcutForm(!showAddShortcutForm)}
-              className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0"
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>{showAddShortcutForm ? 'Close' : 'Add Portal Shortcut'}</span>
-            </button>
-          </div>
-
-          {showAddShortcutForm && (
-            <form onSubmit={handleSaveShortcut} className="p-3 rounded-xl bg-slate-900/90 border border-slate-700 grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
-              <div className="sm:col-span-4">
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">
-                  Portal Name
-                </label>
-                <input
-                  type="text"
-                  value={shortcutName}
-                  onChange={(e) => setShortcutName(e.target.value)}
-                  placeholder="e.g. Wellfound or Company Careers"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#070B14] border border-slate-700 text-white text-xs focus:outline-none focus:border-sky-500"
-                  required
-                />
-              </div>
-              <div className="sm:col-span-6">
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">
-                  Search URL ({'{query}'} optional)
-                </label>
-                <input
-                  type="url"
-                  value={shortcutUrl}
-                  onChange={(e) => setShortcutUrl(e.target.value)}
-                  placeholder="https://wellfound.com/jobs?q={query}"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#070B14] border border-slate-700 text-white text-xs focus:outline-none focus:border-sky-500"
-                  required
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <button
-                  type="submit"
-                  className="w-full px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition cursor-pointer"
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-          )}
-
-          <div className="flex flex-wrap items-center gap-2">
-            {portalShortcuts.map((shortcut) => {
-              const roleQuery =
-                searchQuery.trim() ||
-                candidatePreferences?.targetRole?.trim() ||
-                candidatePreferences?.profession?.trim() ||
-                masterResume?.skills.technical[0] ||
-                'software engineer';
-              const effectiveQuery = [roleQuery, isWorldwide ? '' : optionalLocation.trim()].filter(Boolean).join(' ');
-              const targetHref = buildPortalShortcutUrl(shortcut.searchUrlTemplate, effectiveQuery);
-              if (!targetHref) return null;
-
-              return (
-                <div
-                  key={shortcut.id}
-                  className="inline-flex items-center gap-1 rounded-xl bg-slate-800/90 border border-slate-700/80 pl-2.5 pr-1.5 py-1 text-xs"
-                  title={shortcut.note || shortcut.name}
-                >
-                  <a
-                    href={targetHref}
-                    onClick={(event) => {
-                      if (shouldUseNativeExternalBrowser()) {
-                        event.preventDefault();
-                        void openExternalPortalUrl(targetHref).catch((error) => console.error('Portal launch failed:', error));
-                      }
-                    }}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-slate-200 hover:text-sky-300 font-semibold transition"
-                  >
-                    <span>{shortcut.name}</span>
-                    {shortcut.id === 'portal-glassdoor' && (
-                      <span className="text-[10px] font-mono text-amber-300/90">(External Only)</span>
-                    )}
-                    <ExternalLink className="w-3 h-3 text-sky-400" />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCustomSource(shortcut.name);
-                      setShowAddJobModal(true);
-                    }}
-                    title={`Paste job listing from ${shortcut.name}`}
-                    className="ml-1 px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-600/30 text-[10px] text-indigo-300 font-mono transition cursor-pointer"
-                  >
-                    +Paste
-                  </button>
-                  {!shortcut.isBuiltIn && (
-                    <button
-                      type="button"
-                      aria-label={`Remove ${shortcut.name} shortcut`}
-                      onClick={() => removePortalShortcut(shortcut.id)}
-                      className="p-0.5 text-slate-500 hover:text-rose-400 cursor-pointer"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
       {/* Search & Workplace Filter Toolbar */}
