@@ -93,4 +93,4 @@ for (const roleTitle of roleTitles) {
   assert.ok(matches.length > 0, `Live role search returned no results for "${roleTitle}"`);
   process.stdout.write(`LIVE ROLE SEARCH PASS: "${roleTitle}" -> ${matches.length} matching postings (sample source: ${matches[0].__source})\n`);
 }
-process.stdout.write('LIVE ROLE SEARCH TOTAL: 10/10 role queries returned at least one posting\\n');
+process.stdout.write('LIVE ROLE SEARCH TOTAL: 10/10 role queries returned at least one posting\n');
