@@ -340,7 +340,7 @@ export interface AppToast {
 export type JobSourcePortal =
   | 'All'
   | 'Greenhouse'
-  | 'Lever'
+  | 'Workable'
   | 'User Import'
   | 'LinkedIn'
   | 'Glassdoor'
