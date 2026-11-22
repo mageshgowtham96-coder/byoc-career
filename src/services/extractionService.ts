@@ -1185,13 +1185,8 @@ export function validateExtractedSchema(
     score += 25;
   }
 
-  // 5. Skills and competencies
-  if (!Array.isArray(skills) || skills.length === 0) {
-    missing.push('Skills & Competencies');
-    warnings.push('No skills or competencies detected; add only those you can support with your experience, studies or projects.');
-  } else {
-    score += 15;
-  }
+  // Skills, certifications and other categories are optional and document-dependent.
+  // Their absence must not invalidate an otherwise usable extraction.
 
   return {
     isValid: missing.length === 0,
