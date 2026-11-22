@@ -544,7 +544,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {(['All', 'Greenhouse', 'Lever', 'LinkedIn', 'Indeed', 'Naukri', 'Foundit', 'Glassdoor', 'Instahyre', 'User Import'] as JobSourcePortal[]).map((portal) => {
+          {(['All', 'Greenhouse', 'Workable', 'LinkedIn', 'Indeed', 'Naukri', 'Foundit', 'Glassdoor', 'Instahyre', 'User Import'] as JobSourcePortal[]).map((portal) => {
             const isSelectedPortal = portalFilter === portal;
             return (
               <button
@@ -564,7 +564,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-          <strong className="text-slate-200">Live Query Status:</strong> BYOC reads public, no-key Greenhouse and Lever employer career boards directly. The initial directory covers selected Indian employers, not every company or job portal. Results are ranked locally against your Master Resume; original employer application links are preserved. You can still paste a job description from any external portal.
+          <strong className="text-slate-200">Live Query Status:</strong> BYOC reads public, no-key Greenhouse and Workable employer career boards directly. The initial directory covers selected Indian employers, not every company or job portal. Results are ranked locally against your Master Resume; original employer application links are preserved. You can still paste a job description from any external portal.
         </div>
 
         {/* External Portal Shortcuts (Shortcut Only — No Live API) */}
