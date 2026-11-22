@@ -597,7 +597,6 @@ export function mergeLegacyIntoDecryptedVault(
     candidatePreferences: vaultData.candidatePreferences || { ...DEFAULT_PREFERENCES }
   };
 
-  }
   if (!merged.geminiApiKey && legacy.geminiApiKey) {
     merged.geminiApiKey = legacy.geminiApiKey;
     didChange = true;
