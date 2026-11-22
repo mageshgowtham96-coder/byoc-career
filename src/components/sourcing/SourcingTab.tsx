@@ -513,8 +513,8 @@ export const SourcingTab: React.FC = () => {
 
         <p className="text-[11px] text-slate-400 leading-relaxed">
           {isWorldwide
-            ? 'Worldwide mode queries the Remotive, Remote OK, Jobicy, and Arbeitnow public feeds. Coverage depends on these feeds and is not an exhaustive global job index.'
-            : `Remotive, Remote OK, and Jobicy provide remote postings; Arbeitnow adds Europe-focused roles and filter published locations for ${candidatePreferences?.country || 'IN'}${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' plus explicitly worldwide roles'}${
+            ? 'Worldwide mode checks BYOC’s currently configured India employer-board directory. It is not an exhaustive global job index.'
+            : `BYOC checks public employer career boards directly and filters published locations for ${candidatePreferences?.country || 'IN'}${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' plus explicitly worldwide roles'}${
                 optionalLocation.trim() ? ` + "${optionalLocation.trim()}"` : ''
               }. City mentions in descriptions do not count as location evidence; hybrid/on-site openings must be saved or pasted.`}
         </p>
@@ -564,7 +564,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-          <strong className="text-slate-200">Live Query Status:</strong> BYOC queries public no-key feeds from Remotive, Remote OK, Jobicy, and Arbeitnow (Europe-focused). Results are ranked against your Master Resume using BYOC’s local job-description skill matching. These feeds focus on remote roles and do not cover every portal or city-specific vacancy. Use the external portal links below for broader regional listings, then paste the job description and original posting URL into BYOC for fit analysis and vetting.
+          <strong className="text-slate-200">Live Query Status:</strong> BYOC reads public, no-key Greenhouse and Lever employer career boards directly. The initial directory covers selected Indian employers, not every company or job portal. Results are ranked locally against your Master Resume; original employer application links are preserved. You can still paste a job description from any external portal.
         </div>
 
         {/* External Portal Shortcuts (Shortcut Only — No Live API) */}
