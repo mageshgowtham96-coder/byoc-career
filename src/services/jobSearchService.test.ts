@@ -99,7 +99,7 @@ describe('isLiveDiscoveredJobSource', () => {
   it.each([
     ['Groww Careers (Greenhouse)', true],
     ['Weekday AI Careers (Workable)', true],
-    ['Groww Careers (Greenhouse)', false],
+    ['Remotive Live', false],
     ['Remote OK Live', false],
     ['Jobicy Live', false],
     ['Arbeitnow Live', false],
@@ -246,7 +246,7 @@ describe('non-blocking feed rate limits', () => {
       search: vi.fn(async () => { throw new Error('Failed Provider rate limit exceeded (HTTP 429).'); })
     };
     const working = {
-      id: 'remotive', name: 'Groww Careers (Greenhouse)', isConfigured: true, requiresAuth: false,
+      id: 'working-provider', name: 'Working Provider', isConfigured: true, requiresAuth: false,
       search: vi.fn(async () => [{
         ...savedJob, id: 'live-fraud', company: 'Live Finance', source: 'Groww Careers (Greenhouse)',
         url: 'https://example.com/live-fraud'
