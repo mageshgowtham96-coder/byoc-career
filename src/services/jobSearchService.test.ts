@@ -80,6 +80,17 @@ describe('dynamic typo-tolerant search matching', () => {
     expect(matchesJobSearchTerms('Supp', 'Customer Support Specialist')).toBe(true);
   });
 
+  it('searches lightweight employer metadata when full descriptions are not downloaded', () => {
+    expect(matchesJobSearchTerms(
+      'customer support',
+      'Customer Support Associate',
+      'Weekday AI',
+      'Bengaluru, Karnataka, India',
+      [],
+      'Customer Experience · Customer Support · Entry-level · Full-time'
+    )).toBe(true);
+  });
+
   it('tolerates a one-character typo in a role token', () => {
     expect(matchesJobSearchTerms('Suport Analyst', 'Support Analyst')).toBe(true);
     expect(matchesJobSearchTerms('Data Analysit', 'Data Analyst')).toBe(true);
