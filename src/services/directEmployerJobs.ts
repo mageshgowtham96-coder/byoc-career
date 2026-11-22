@@ -85,9 +85,10 @@ function normalizeDate(value: unknown): string {
   return Number.isFinite(date.getTime()) ? date.toISOString() : 'Unspecified';
 }
 
-function mapWorkplaceType(value: unknown, location: string, description: string): JobPosting['workplaceType'] {
-  const source = String(value || '').toLowerCase();
-  const evidence = `${source} ${location} ${description.slice(0, 1200)}`.toLowerCase();
+function mapWorkplaceType(value: unknown, location: string): JobPosting['workplaceType'] {
+  // Do not infer work mode from generic description prose; use only structured
+  // ATS workplace metadata or the published location field.
+  const evidence = `${String(value || '')} ${location}`.toLowerCase();
   if (/remote|work from home|wfh/.test(evidence)) return 'Remote';
   if (/hybrid/.test(evidence)) return 'Hybrid';
   if (/on[- ]?site|in[- ]office|office based/.test(evidence)) return 'On-site';
@@ -122,7 +123,7 @@ function createPosting(
     title,
     company: board.company,
     location,
-    workplaceType: mapWorkplaceType(rawWorkplace, location, description),
+    workplaceType: mapWorkplaceType(rawWorkplace, location),
     salary: 'Undisclosed',
     postedDate: normalizeDate(rawDate),
     jobDescriptionRaw: description,
