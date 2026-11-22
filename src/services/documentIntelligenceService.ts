@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { MasterResume } from '../types';
 import { extractResumeFile } from './extractionService';
-import { validateOptimizedMasterResume } from './groqService';
+import { validateOptimizedMasterResume } from './geminiCareerService';
 
 export interface DocumentEvidenceQuote {
   quote: string;
