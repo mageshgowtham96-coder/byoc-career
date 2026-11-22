@@ -111,7 +111,7 @@ function mapExperienceLevel(value: unknown): JobPosting['experienceLevel'] {
   if (/intern|entry|junior|graduate|fresher/.test(text)) return 'Entry';
   if (/staff|principal/.test(text)) return 'Staff';
   if (/lead|manager|head/.test(text)) return 'Lead';
-  if (/senior|sr\\b|\\b5\\+/.test(text)) return 'Senior';
+  if (text.includes('senior') || text.startsWith('sr ') || text.includes('5+')) return 'Senior';
   if (/mid|intermediate|experienced/.test(text)) return 'Mid';
   return 'Unspecified';
 }
