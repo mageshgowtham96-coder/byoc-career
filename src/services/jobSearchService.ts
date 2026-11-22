@@ -618,8 +618,13 @@ export function buildLocationScopeNotice(country?: string, location?: string, in
     return 'Direct employer discovery checks configured public Greenhouse and Workable career boards. The initial directory is India-focused and is not an exhaustive global job index.';
   }
   const code = (country || '').trim().toUpperCase();
-  const eligibility = includeWorldwideRemote ? `${code} / explicitly worldwide` : `${code} only`;
-  const base = `Target region ${code}: BYOC checks public employer career boards directly and filters listings using published locations.`;
+  if (code && code !== 'IN') {
+    return `The configured direct-employer directory currently covers India, not ${code}. BYOC does not substitute unrelated-country listings.`;
+  }
+  const remoteScope = includeWorldwideRemote
+    ? 'India-wide remote roles are included only when the employer explicitly publishes India as the location.'
+    : 'results are limited to employer postings with an India location.';
+  const base = `Target region IN: BYOC checks public employer career boards directly and filters listings using published locations; ${remoteScope}`;
   if (cleanLoc) {
     return `${base} The initial employer directory is limited; roles with missing or ambiguous locations are not assumed to be in the selected city.`;
   }
