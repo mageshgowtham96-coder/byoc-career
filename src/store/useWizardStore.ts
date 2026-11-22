@@ -1266,6 +1266,7 @@ export function restoreVaultDataToStore(
     tailoredArtifacts: data.tailoredArtifacts || {},
     applications: Array.isArray(data.applications) ? data.applications : [],
     unsavedQueue: Array.isArray(data.unsavedQueue) ? data.unsavedQueue : [],
+    isLiveApiMode: Boolean(data.geminiApiKey),
     candidatePreferences: data.candidatePreferences
       ? {
           ...DEFAULT_CANDIDATE_PREFERENCES,
