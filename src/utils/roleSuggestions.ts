@@ -141,10 +141,18 @@ export function getRoleSuggestions(
     if (key && !unique.has(key)) unique.set(key, clean);
   }
 
-  return Array.from(unique.values())
+  const ranked = Array.from(unique.values())
     .map((label, index) => ({ label, index, score: Math.max(candidateScore(queryTokens, label), candidateScore(englishQueryTokens, label)) }))
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .slice(0, Math.max(1, limit))
     .map((item) => item.label);
+
+  // Never turn suggestions into an allow-list. Preserve the user's exact free-form
+  // role phrase as a searchable option even when it is novel or absent from caches.
+  const typedRole = query.trim().replace(/\s+/g, ' ');
+  if (typedRole && !ranked.some((item) => normalize(item) === normalize(typedRole))) {
+    return [typedRole, ...ranked].slice(0, Math.max(1, limit));
+  }
+  return ranked;
 }

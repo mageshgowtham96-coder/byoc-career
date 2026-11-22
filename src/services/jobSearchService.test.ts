@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ArbeitnowJobAdapter, assessRemoteCountryEligibility, calculateHonestMatch, getJobMatchBasisLabel, getJobMatchCriteria, mergePortalShortcuts, buildPortalShortcutUrl, isLiveDiscoveredJobSource, isPostedWithinDays, JobicyJobAdapter, LiveJobSearchEngine, matchesJobSearchTerms, matchesRemoteCountryAndLocation, mergeDiscoveredJobs, PublicFeedsJobAdapter } from './jobSearchService';
+import { assessRemoteCountryEligibility, calculateHonestMatch, getJobMatchBasisLabel, getJobMatchCriteria, mergePortalShortcuts, buildPortalShortcutUrl, isLiveDiscoveredJobSource, isPostedWithinDays, LiveJobSearchEngine, matchesJobSearchTerms, matchesRemoteCountryAndLocation, mergeDiscoveredJobs } from './jobSearchService';
 
 const fetchMock = vi.fn();
 
@@ -80,6 +80,17 @@ describe('dynamic typo-tolerant search matching', () => {
     expect(matchesJobSearchTerms('Supp', 'Customer Support Specialist')).toBe(true);
   });
 
+  it('searches lightweight employer metadata when full descriptions are not downloaded', () => {
+    expect(matchesJobSearchTerms(
+      'customer support',
+      'Customer Support Associate',
+      'Weekday AI',
+      'Bengaluru, Karnataka, India',
+      [],
+      'Customer Experience · Customer Support · Entry-level · Full-time'
+    )).toBe(true);
+  });
+
   it('tolerates a one-character typo in a role token', () => {
     expect(matchesJobSearchTerms('Suport Analyst', 'Support Analyst')).toBe(true);
     expect(matchesJobSearchTerms('Data Analysit', 'Data Analyst')).toBe(true);
@@ -97,209 +108,16 @@ describe('dynamic typo-tolerant search matching', () => {
 
 describe('isLiveDiscoveredJobSource', () => {
   it.each([
-    ['Remotive Live', true],
-    ['Remote OK Live', true],
-    ['Jobicy Live', true],
-    ['Arbeitnow Live', true],
+    ['Capco Careers (Greenhouse)', true],
+    ['Weekday AI Careers (Workable)', true],
+    ['Remotive Live', false],
+    ['Remote OK Live', false],
+    ['Jobicy Live', false],
+    ['Arbeitnow Live', false],
     ['User Import', false],
     ['Company Careers', false]
   ])('classifies %s as discovered=%s', (source, expected) => {
     expect(isLiveDiscoveredJobSource(source)).toBe(expected);
-  });
-});
-
-
-describe('ArbeitnowJobAdapter', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', fetchMock);
-    fetchMock.mockReset();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('uses the public no-key feed, preserves the posting URL and maps its published date', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        data: [{
-          slug: 'frontend-engineer-example-123',
-          title: 'Frontend Engineer',
-          company_name: 'Example GmbH',
-          description: '<p>Build React applications.</p>',
-          remote: true,
-          url: 'https://www.arbeitnow.com/jobs/companies/example/frontend-engineer-123',
-          tags: ['React', 'TypeScript'],
-          location: 'Berlin, Germany',
-          created_at: 1795046400
-        }],
-        links: { next: 'https://www.arbeitnow.com/api/job-board-api?page=2' }
-      })
-    });
-
-    const adapter = new ArbeitnowJobAdapter();
-    const jobs = await adapter.search({ query: 'Frontend Engineer', country: 'GLOBAL' });
-
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(String(fetchMock.mock.calls[0][0])).toContain('arbeitnow.com/api/job-board-api?page=1');
-    expect(jobs).toHaveLength(1);
-    expect(jobs[0]).toMatchObject({
-      title: 'Frontend Engineer',
-      company: 'Example GmbH',
-      location: 'Berlin, Germany',
-      workplaceType: 'Remote',
-      url: 'https://www.arbeitnow.com/jobs/companies/example/frontend-engineer-123',
-      source: 'Arbeitnow Live',
-      skillsRequired: [],
-      skillsListed: ['React', 'TypeScript']
-    });
-    expect(jobs[0].postedDate).not.toBe('Unspecified');
-  });
-
-  it('does not label non-remote postings as remote when the feed has no work-mode detail', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        data: [{
-          slug: 'office-role-1', title: 'Office Role', company_name: 'Example',
-          description: 'Work from the office', remote: false,
-          url: 'https://www.arbeitnow.com/jobs/office-role-1',
-          tags: [], location: 'Berlin, Germany', created_at: 1795046400
-        }]
-      })
-    });
-
-    const jobs = await new ArbeitnowJobAdapter().search({ query: 'Office Role', country: 'GLOBAL' });
-    expect(jobs[0].workplaceType).toBe('Unspecified');
-  });
-});
-
-describe('PublicFeedsJobAdapter', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', fetchMock);
-    fetchMock.mockReset();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('falls back to the bounded latest feed when a typo-specific Remotive query returns no hits', async () => {
-    fetchMock
-      .mockResolvedValueOnce({
-        ok: true, status: 200,
-        json: async () => ({ jobs: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true, status: 200,
-        json: async () => ({
-          jobs: [{
-            id: 202, title: 'Customer Support Specialist', company_name: 'Example',
-            candidate_required_location: 'Worldwide', description: 'Support customers and resolve service requests.',
-            url: 'https://remotive.com/remote-jobs/customer-support/support-specialist-202',
-            publication_date: '2026-11-19', tags: ['Customer Support']
-          }]
-        })
-      });
-
-    const jobs = await new PublicFeedsJobAdapter().search({ query: 'Suport', country: 'GLOBAL' });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[1][0])).toContain('/api/remote-jobs?limit=50');
-    expect(jobs[0].title).toBe('Customer Support Specialist');
-  });
-
-  it('keeps Remotive provider tags as listed skills rather than required skills', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        jobs: [{
-          id: 101,
-          title: 'Frontend Engineer',
-          company_name: 'Example',
-          candidate_required_location: 'Worldwide',
-          description: 'Build accessible web interfaces.',
-          url: 'https://remotive.com/remote-jobs/software-dev/frontend-engineer-101',
-          publication_date: '2026-11-19',
-          tags: ['React', 'TypeScript']
-        }]
-      })
-    });
-    const jobs = await new PublicFeedsJobAdapter().search({ query: 'Frontend Engineer', country: 'GLOBAL' });
-    expect(jobs).toHaveLength(1);
-    expect(jobs[0].skillsRequired).toEqual([]);
-    expect(jobs[0].skillsListed).toEqual(['React', 'TypeScript']);
-    expect(jobs[0].eligibilityAssessment?.status).toBe('not-assessed');
-  });
-});
-
-describe('JobicyJobAdapter', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', fetchMock);
-    fetchMock.mockReset();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('follows the public cursor feed and preserves real posting links', async () => {
-    fetchMock
-      .mockResolvedValueOnce({
-        ok: true, status: 200,
-        json: async () => ({
-          jobs: [{
-            id: 101, jobTitle: 'Frontend Engineer', companyName: 'Acme',
-            jobGeo: 'Worldwide', jobDescription: '<p>React and TypeScript</p>',
-            url: 'https://jobicy.com/jobs/101', pubDate: '2026-11-18'
-          }],
-          hasMore: true, nextCursor: 'cursor-page-2'
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true, status: 200,
-        json: async () => ({
-          jobs: [{
-            id: 102, jobTitle: 'UI Engineer', companyName: 'Example',
-            jobGeo: 'Worldwide', jobDescription: 'Build accessible interfaces',
-            url: 'https://jobicy.com/jobs/102', pubDate: '2026-11-17'
-          }],
-          hasMore: false, nextCursor: null
-        })
-      });
-
-    const adapter = new JobicyJobAdapter();
-    const jobs = await adapter.search({ query: 'Frontend Engineer', country: 'GLOBAL' });
-
-    expect(jobs).toHaveLength(2);
-    expect(jobs.map((job) => job.url)).toEqual([
-      'https://jobicy.com/jobs/101',
-      'https://jobicy.com/jobs/102'
-    ]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0][0])).toContain('count=100');
-    expect(String(fetchMock.mock.calls[0][0])).not.toContain('tag=');
-    expect(String(fetchMock.mock.calls[1][0])).toContain('cursor=cursor-page-2');
-  });
-
-  it('stops when a feed repeats a cursor and caps requests at three pages', async () => {
-    fetchMock.mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => ({ jobs: [], hasMore: true, nextCursor: 'same-cursor' })
-    });
-
-    const adapter = new JobicyJobAdapter();
-    await adapter.search({ query: 'Product Manager' });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it('does not call Jobicy without a role or skill query', async () => {
-    const adapter = new JobicyJobAdapter();
-    await expect(adapter.search({})).resolves.toEqual([]);
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
@@ -435,13 +253,13 @@ describe('non-blocking feed rate limits', () => {
       experienceLevel: 'Unspecified' as const
     };
     const rateLimited = {
-      id: 'jobicy', name: 'Jobicy Live', isConfigured: true, requiresAuth: false,
-      search: vi.fn(async () => { throw new Error('Jobicy Live rate limit exceeded (HTTP 429).'); })
+      id: 'failed-provider', name: 'Failed Provider', isConfigured: true, requiresAuth: false,
+      search: vi.fn(async () => { throw new Error('Failed Provider rate limit exceeded (HTTP 429).'); })
     };
     const working = {
-      id: 'remotive', name: 'Remotive Live', isConfigured: true, requiresAuth: false,
+      id: 'working-provider', name: 'Working Provider', isConfigured: true, requiresAuth: false,
       search: vi.fn(async () => [{
-        ...savedJob, id: 'live-fraud', company: 'Live Finance', source: 'Remotive Live',
+        ...savedJob, id: 'live-fraud', company: 'Live Finance', source: 'Capco Careers (Greenhouse)',
         url: 'https://example.com/live-fraud'
       }])
     };
@@ -450,8 +268,8 @@ describe('non-blocking feed rate limits', () => {
     );
     expect(result.jobs.map((job) => job.id)).toEqual(['saved-fraud', 'live-fraud']);
     expect(result.error).toBeUndefined();
-    expect(result.providerStatuses.find((status) => status.id === 'jobicy')?.status).toBe('skipped');
-    expect(result.providerStatuses.find((status) => status.id === 'jobicy')?.detail).toMatch(/other feeds and saved jobs are unaffected/i);
+    expect(result.providerStatuses.find((status) => status.id === 'failed-provider')?.status).toBe('skipped');
+    expect(result.providerStatuses.find((status) => status.id === 'failed-provider')?.detail).toMatch(/other feeds and saved jobs are unaffected/i);
   });
 });
 
@@ -467,7 +285,7 @@ describe('LiveJobSearchEngine skill classification', () => {
       postedDate: '2026-11-19',
       jobDescriptionRaw: 'Build accessible interfaces.',
       url: 'https://example.com/jobs/frontend',
-      source: 'Remotive Live',
+      source: 'Capco Careers (Greenhouse)',
       skillsRequired: [],
       skillsListed: ['React'],
       fitScore: null,
@@ -506,7 +324,7 @@ describe('mergeDiscoveredJobs', () => {
 
   it('deduplicates the same employer and title across feeds', () => {
     const saved = makeJob('saved-1', 'Fraud Analyst');
-    const duplicate = { ...makeJob('feed-1', 'Fraud Analyst'), source: 'Remotive Live' };
+    const duplicate = { ...makeJob('feed-1', 'Fraud Analyst'), source: 'Capco Careers (Greenhouse)' };
     expect(mergeDiscoveredJobs([saved], [duplicate])).toEqual([saved]);
   });
 

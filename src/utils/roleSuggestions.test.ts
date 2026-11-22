@@ -74,14 +74,23 @@ describe('getRoleSuggestions', () => {
     expect(getRoleSuggestions('React Eng', null, [cachedJob('Reactive Engineer')])).not.toContain('Reactive Engineer');
   });
 
-  it('does not suggest for one character and keeps unknown searches unrestricted', () => {
+  it('does not suggest for one character and preserves unknown searches as free-form options', () => {
     expect(getRoleSuggestions('f')).toEqual([]);
-    expect(getRoleSuggestions('niche-title-not-in-catalogue')).toEqual([]);
+    expect(getRoleSuggestions('niche-title-not-in-catalogue')).toContain('niche-title-not-in-catalogue');
   });
 
   it('returns a bounded, de-duplicated list', () => {
     const results = getRoleSuggestions('analyst', null, [cachedJob('Data Analyst')], 3);
     expect(results.length).toBeLessThanOrEqual(3);
     expect(new Set(results.map((item) => item.toLowerCase())).size).toBe(results.length);
+  });
+});
+describe('open-ended role discovery', () => {
+  it('keeps a new occupation searchable even when it is absent from the vocabulary and cached jobs', () => {
+    expect(getRoleSuggestions('Marine Biologist')).toContain('Marine Biologist');
+  });
+
+  it('keeps multi-word and punctuation-heavy role names intact as a free-form option', () => {
+    expect(getRoleSuggestions('C++ Embedded Systems Engineer')[0]).toBe('C++ Embedded Systems Engineer');
   });
 });

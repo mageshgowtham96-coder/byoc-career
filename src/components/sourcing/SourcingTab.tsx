@@ -3,6 +3,7 @@ import { openExternalPortalUrl, shouldUseNativeExternalBrowser } from '../../ser
 import { useWizardStore } from '../../store/useWizardStore';
 import { useAuthLocale } from '../../i18n/authLocale';
 import { getRoleSuggestions } from '../../utils/roleSuggestions';
+import { isDirectEmployerRefreshDue } from '../../services/directEmployerJobs';
 import { getCandidateDiscoverySignals } from '../../utils/resumeReadiness';
 import {
   jobSearchEngine,
@@ -14,8 +15,6 @@ import {
   isPostedWithinDays,
   formatJobPostedDate,
   sanitizeExternalHttpUrl,
-  mergePortalShortcuts,
-  buildPortalShortcutUrl,
   matchesJobSearchTerms,
   mergeDiscoveredJobs,
   type JobSearchResult
@@ -40,7 +39,6 @@ import {
   RefreshCw,
   ExternalLink,
   Link2,
-  Trash2,
   X
 } from 'lucide-react';
 
@@ -59,8 +57,6 @@ export const SourcingTab: React.FC = () => {
     isJobPreviouslyTracked,
     candidatePreferences,
     setCandidatePreferences,
-    addPortalShortcut,
-    removePortalShortcut,
     updateJobUrl,
     addToast
   } = useWizardStore();
@@ -73,7 +69,7 @@ export const SourcingTab: React.FC = () => {
   const liveSearchInFlight = React.useRef(false);
   const [workplaceFilter, setWorkplaceFilter] = useState<'All' | 'Remote' | 'Hybrid' | 'On-site'>('All');
   const [portalFilter, setPortalFilter] = useState<JobSourcePortal>('All');
-  const [postedWithinDays, setPostedWithinDays] = useState<number>(30);
+  const [postedWithinDays, setPostedWithinDays] = useState<number>(0);
   const [optionalLocation, setOptionalLocation] = useState(
     candidatePreferences?.preferredLocations?.[0] || ''
   );
@@ -81,10 +77,6 @@ export const SourcingTab: React.FC = () => {
   const [liveSearchReport, setLiveSearchReport] = useState<JobSearchResult | null>(null);
   const [showAddJobModal, setShowAddJobModal] = useState(false);
 
-  // Portal Shortcut Builder & Inline Listing URL Editor
-  const [showAddShortcutForm, setShowAddShortcutForm] = useState(false);
-  const [shortcutName, setShortcutName] = useState('');
-  const [shortcutUrl, setShortcutUrl] = useState('');
   const [editingUrlJobId, setEditingUrlJobId] = useState<string | null>(null);
   const [inlineUrlDraft, setInlineUrlDraft] = useState('');
 
@@ -103,11 +95,6 @@ export const SourcingTab: React.FC = () => {
   const [customPreferredSkills, setCustomPreferredSkills] = useState('');
   const [customRawJD, setCustomRawJD] = useState('');
 
-  const portalShortcuts = React.useMemo(
-    () => mergePortalShortcuts(candidatePreferences?.portalShortcuts),
-    [candidatePreferences?.portalShortcuts]
-  );
-
   const resumeIngested = hasMasterResume();
   const isWorldwide = isWorldwideCountryCode(candidatePreferences?.country || 'IN');
 
@@ -120,7 +107,7 @@ export const SourcingTab: React.FC = () => {
         candidatePreferences?.profession?.trim() ||
         getCandidateDiscoverySignals(masterResume).length > 0
     );
-    if (!hasSearchTerms) {
+    if (!hasSearchTerms && !isDirectEmployerRefreshDue()) {
       addToast({
         type: 'warning',
         title: 'Search Terms Needed',
@@ -151,7 +138,7 @@ export const SourcingTab: React.FC = () => {
       setLiveSearchReport(res);
       // Preserve every previously saved job. The live result is query-filtered and must
       // never replace the user's full local collection with only the current matches.
-      setJobs(mergeDiscoveredJobs(useWizardStore.getState().jobs, res.jobs));
+      setJobs(res.cachedJobs || mergeDiscoveredJobs(useWizardStore.getState().jobs, res.jobs));
 
       if (res.error) {
         addToast({
@@ -183,31 +170,59 @@ export const SourcingTab: React.FC = () => {
     }
   };
 
+  // Refresh public employer boards on first entry and whenever Android/browser
+  // returns to the foreground after the 12-hour interval. Android may suspend
+  // background JavaScript, so this is a best-effort foreground refresh.
+  const liveSearchRunnerRef = React.useRef(handleRunLiveSearch);
+  liveSearchRunnerRef.current = handleRunLiveSearch;
+  React.useEffect(() => {
+    const refreshWhenActive = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible'
+        && isDirectEmployerRefreshDue()) {
+        void liveSearchRunnerRef.current();
+      }
+    };
+    // Check at a modest foreground interval so an open app refreshes shortly
+    // after the 12-hour boundary. Android may suspend timers while backgrounded;
+    // focus/visibility events catch up when the user returns.
+    const refreshCheck = window.setInterval(refreshWhenActive, 5 * 60 * 1000);
+    refreshWhenActive();
+    document.addEventListener('visibilitychange', refreshWhenActive);
+    window.addEventListener('focus', refreshWhenActive);
+    return () => {
+      window.clearInterval(refreshCheck);
+      document.removeEventListener('visibilitychange', refreshWhenActive);
+      window.removeEventListener('focus', refreshWhenActive);
+    };
+  }, [masterResume, jobs.length]);
+
   const filteredJobs = React.useMemo(() => {
     const locFilter = isWorldwide ? '' : optionalLocation.trim();
     return jobs
       .map((job) => {
         const match = calculateHonestMatch(job, masterResume);
+        const summaryOnlyEmployerJob = isLiveDiscoveredJobSource(job.source) && !job.jobDescriptionRaw.trim();
         return {
           ...job,
-          fitScore: match.score,
-          fitStatusText: match.statusText,
-          matchedKeywords: match.matchedKeywords,
-          missingKeywords: match.missingKeywords
+          fitScore: summaryOnlyEmployerJob ? null : match.score,
+          fitStatusText: summaryOnlyEmployerJob
+            ? 'Full description not downloaded (low-data mode)'
+            : match.statusText,
+          matchedKeywords: summaryOnlyEmployerJob ? [] : match.matchedKeywords,
+          missingKeywords: summaryOnlyEmployerJob ? [] : match.missingKeywords
         };
       })
       .filter((job) => {
-        if (!matchesJobSearchTerms(searchQuery, job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.jobDescriptionRaw)) return false;
+        if (!matchesJobSearchTerms(searchQuery, job.title, job.company, job.location, [...job.skillsRequired, ...(job.skillsPreferred || []), ...(job.skillsListed || [])], job.metadataSummary, job.jobDescriptionRaw)) return false;
         const source = (job.source || '').toLowerCase();
         // Keep records from retired discovery sources out of live results without deleting saved user data.
-        if (source.includes('groq')) return false;
-        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live', 'arbeitnow live'].includes(source);
+        const isLiveFeedJob = isLiveDiscoveredJobSource(job.source);
         const isLiveDiscoveredJob = isLiveDiscoveredJobSource(job.source);
         if (isLiveDiscoveredJob && postedWithinDays > 0 && !isPostedWithinDays(job.postedDate, postedWithinDays)) return false;
         if (!isWorldwide && isLiveFeedJob) {
           const matchesLoc = matchesRemoteCountryAndLocation(
             job.location,
-            `${job.title} ${job.jobDescriptionRaw}`,
+            `${job.title} ${job.metadataSummary || ''} ${job.jobDescriptionRaw}`,
             candidatePreferences?.country,
             locFilter,
             candidatePreferences?.includeWorldwideRemote !== false
@@ -247,7 +262,9 @@ export const SourcingTab: React.FC = () => {
     addToast({
       type: 'info',
       title: 'Target Position Set',
-      message: `Selected ${job.title} at ${job.company} for Vetting & Customization.`
+      message: isLiveDiscoveredJobSource(job.source) && !job.jobDescriptionRaw.trim()
+        ? `Selected ${job.title}. The public feed uses low-data summaries; open the employer posting and paste its full description into BYOC before fit analysis or tailoring.`
+        : `Selected ${job.title} at ${job.company} for Vetting & Customization.`
     });
   };
 
@@ -355,19 +372,6 @@ export const SourcingTab: React.FC = () => {
     });
   };
 
-  const handleSaveShortcut = (e: React.FormEvent) => {
-    e.preventDefault();
-    const ok = addPortalShortcut({
-      name: shortcutName,
-      searchUrlTemplate: shortcutUrl
-    });
-    if (ok) {
-      setShortcutName('');
-      setShortcutUrl('');
-      setShowAddShortcutForm(false);
-    }
-  };
-
   return (
     <div className="space-y-5 pb-20">
       {/* Top Header */}
@@ -378,7 +382,7 @@ export const SourcingTab: React.FC = () => {
             <span>{t('Opportunity Sourcing & Role Upgrade Engine')}</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            {t('Discover roles with autonomous tier upgrade highlighting and raw description caching.')}
+            {t('Discover employer listings with local role search and evidence-based analysis when a full description is available.')}
           </p>
         </div>
 
@@ -491,10 +495,10 @@ export const SourcingTab: React.FC = () => {
 
         <p className="text-[11px] text-slate-400 leading-relaxed">
           {isWorldwide
-            ? 'Worldwide mode queries the Remotive, Remote OK, Jobicy, and Arbeitnow public feeds. Coverage depends on these feeds and is not an exhaustive global job index.'
-            : `Remotive, Remote OK, and Jobicy provide remote postings; Arbeitnow adds Europe-focused roles and filter published locations for ${candidatePreferences?.country || 'IN'}${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' plus explicitly worldwide roles'}${
+            ? 'Worldwide mode checks BYOC’s currently configured India employer-board directory. It is not an exhaustive global job index.'
+            : `${candidatePreferences?.country && candidatePreferences.country !== 'IN' ? `The configured direct-employer directory currently covers India, not ${candidatePreferences.country}; unrelated-country listings are not substituted.` : `BYOC checks public employer career boards directly and filters published locations for India${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' including employer-published India-wide remote roles'}`}${
                 optionalLocation.trim() ? ` + "${optionalLocation.trim()}"` : ''
-              }. City mentions in descriptions do not count as location evidence; hybrid/on-site openings must be saved or pasted.`}
+              }. City mentions in descriptions do not count as location evidence; workplace details remain unspecified when the employer does not publish them.`}
         </p>
       </div>
 
@@ -518,11 +522,11 @@ export const SourcingTab: React.FC = () => {
             <option value={90}>Past 90 days</option>
             <option value={0}>Any date</option>
           </select>
-          <span className="text-[10px] text-slate-500">Undated feed listings are hidden unless “Any date” is selected.</span>
+          <span className="text-[10px] text-slate-500">Active employer-board listings are retained regardless of age; use Posted to narrow by date.</span>
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {(['All', 'Remotive Live', 'Remote OK Live', 'Jobicy Live', 'Arbeitnow Live', 'LinkedIn', 'Indeed', 'Naukri', 'Foundit', 'Glassdoor', 'Instahyre', 'User Import'] as JobSourcePortal[]).map((portal) => {
+          {(['All', 'Greenhouse', 'Workable', 'User Import'] as JobSourcePortal[]).map((portal) => {
             const isSelectedPortal = portalFilter === portal;
             return (
               <button
@@ -542,136 +546,10 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-          <strong className="text-slate-200">Live Query Status:</strong> BYOC queries public no-key feeds from Remotive, Remote OK, Jobicy, and Arbeitnow (Europe-focused). Results are ranked against your Master Resume using BYOC’s local job-description skill matching. These feeds focus on remote roles and do not cover every portal or city-specific vacancy. Use the external portal links below for broader regional listings, then paste the job description and original posting URL into BYOC for fit analysis and vetting.
+          <strong className="text-slate-200">Live Query Status:</strong> BYOC reads public, no-key Greenhouse and Workable employer career boards directly. The initial directory covers selected Indian employers, not every company or job portal. Refreshes download lightweight job metadata only to conserve mobile data; full descriptions are not fetched automatically. Role search runs locally against titles and published metadata. Fit analysis and tailoring require the full description from the employer page or a pasted job description.
         </div>
 
-        {/* External Portal Shortcuts (Shortcut Only — No Live API) */}
-        <div className="p-3.5 rounded-2xl bg-[#0F172A] border border-slate-800 space-y-2.5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
-                <ExternalLink className="w-3.5 h-3.5 text-sky-400" />
-                <span>External Portal Shortcuts</span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[10px] font-mono text-slate-300">
-                  Shortcut Only · No Live Feed
-                </span>
-              </h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Opens the portal’s own job-search page in a new tab. If a live feed misses a local or regional vacancy, verify it there and import its job description and original link into BYOC.
-              </p>
-            </div>
 
-            <button
-              type="button"
-              onClick={() => setShowAddShortcutForm(!showAddShortcutForm)}
-              className="self-start sm:self-auto px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shrink-0"
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>{showAddShortcutForm ? 'Close' : 'Add Portal Shortcut'}</span>
-            </button>
-          </div>
-
-          {showAddShortcutForm && (
-            <form onSubmit={handleSaveShortcut} className="p-3 rounded-xl bg-slate-900/90 border border-slate-700 grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
-              <div className="sm:col-span-4">
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">
-                  Portal Name
-                </label>
-                <input
-                  type="text"
-                  value={shortcutName}
-                  onChange={(e) => setShortcutName(e.target.value)}
-                  placeholder="e.g. Wellfound or Company Careers"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#070B14] border border-slate-700 text-white text-xs focus:outline-none focus:border-sky-500"
-                  required
-                />
-              </div>
-              <div className="sm:col-span-6">
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase mb-1">
-                  Search URL ({'{query}'} optional)
-                </label>
-                <input
-                  type="url"
-                  value={shortcutUrl}
-                  onChange={(e) => setShortcutUrl(e.target.value)}
-                  placeholder="https://wellfound.com/jobs?q={query}"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#070B14] border border-slate-700 text-white text-xs focus:outline-none focus:border-sky-500"
-                  required
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <button
-                  type="submit"
-                  className="w-full px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition cursor-pointer"
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-          )}
-
-          <div className="flex flex-wrap items-center gap-2">
-            {portalShortcuts.map((shortcut) => {
-              const roleQuery =
-                searchQuery.trim() ||
-                candidatePreferences?.targetRole?.trim() ||
-                candidatePreferences?.profession?.trim() ||
-                masterResume?.skills.technical[0] ||
-                'software engineer';
-              const effectiveQuery = [roleQuery, isWorldwide ? '' : optionalLocation.trim()].filter(Boolean).join(' ');
-              const targetHref = buildPortalShortcutUrl(shortcut.searchUrlTemplate, effectiveQuery);
-              if (!targetHref) return null;
-
-              return (
-                <div
-                  key={shortcut.id}
-                  className="inline-flex items-center gap-1 rounded-xl bg-slate-800/90 border border-slate-700/80 pl-2.5 pr-1.5 py-1 text-xs"
-                  title={shortcut.note || shortcut.name}
-                >
-                  <a
-                    href={targetHref}
-                    onClick={(event) => {
-                      if (shouldUseNativeExternalBrowser()) {
-                        event.preventDefault();
-                        void openExternalPortalUrl(targetHref).catch((error) => console.error('Portal launch failed:', error));
-                      }
-                    }}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-slate-200 hover:text-sky-300 font-semibold transition"
-                  >
-                    <span>{shortcut.name}</span>
-                    {shortcut.id === 'portal-glassdoor' && (
-                      <span className="text-[10px] font-mono text-amber-300/90">(External Only)</span>
-                    )}
-                    <ExternalLink className="w-3 h-3 text-sky-400" />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCustomSource(shortcut.name);
-                      setShowAddJobModal(true);
-                    }}
-                    title={`Paste job listing from ${shortcut.name}`}
-                    className="ml-1 px-1.5 py-0.5 rounded-md bg-slate-900 hover:bg-indigo-600/30 text-[10px] text-indigo-300 font-mono transition cursor-pointer"
-                  >
-                    +Paste
-                  </button>
-                  {!shortcut.isBuiltIn && (
-                    <button
-                      type="button"
-                      aria-label={`Remove ${shortcut.name} shortcut`}
-                      onClick={() => removePortalShortcut(shortcut.id)}
-                      className="p-0.5 text-slate-500 hover:text-rose-400 cursor-pointer"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
       {/* Search & Workplace Filter Toolbar */}
@@ -747,10 +625,10 @@ export const SourcingTab: React.FC = () => {
 
       <p className="-mt-1 text-[11px] text-slate-400">
         {workplaceFilter === 'All'
-          ? 'All shows saved/pasted roles of any type, plus remote roles from connected public feeds.'
+          ? 'All shows saved/pasted roles and current openings published on configured employer career boards.'
           : workplaceFilter === 'Remote'
-            ? 'Connected public job feeds provide remote roles only.'
-            : `${workplaceFilter} filters saved or pasted listings only; connected public feeds currently provide remote roles only.`}
+            ? 'Employer career boards publish their available workplace details; unknown work modes remain unspecified.'
+            : `${workplaceFilter} filters saved/pasted listings and employer postings with the selected published work mode.`}
       </p>
 
 
@@ -852,6 +730,7 @@ export const SourcingTab: React.FC = () => {
           filteredJobs.map((job) => {
             const isSelected = selectedJobId === job.id;
             const isUpgrade = Boolean(job.isRoleUpgrade);
+            const isSummaryOnlyEmployerJob = isLiveDiscoveredJobSource(job.source) && !job.jobDescriptionRaw.trim();
             const isPreviouslyTracked = isJobPreviouslyTracked(job.company, job.title);
 
             return (
@@ -957,7 +836,11 @@ export const SourcingTab: React.FC = () => {
                           {job.fitStatusText || 'Match not assessed'}
                         </span>
                         <span className="text-[9px] text-slate-500 mt-0.5 block">
-                          {!resumeIngested ? 'Upload resume in Intake' : 'No job skill criteria specified'}
+                          {!resumeIngested
+                            ? 'Upload resume in Intake'
+                            : isLiveDiscoveredJobSource(job.source) && !job.jobDescriptionRaw.trim()
+                              ? 'Open employer listing and paste description for analysis'
+                              : 'No job skill criteria specified'}
                         </span>
                       </div>
                     )}
@@ -1014,9 +897,13 @@ export const SourcingTab: React.FC = () => {
                   </p>
                 )}
 
-                {/* Raw JD Preview */}
+                {/* Full descriptions are deferred in the low-data employer feed. */}
                 <p className="text-xs text-slate-400 line-clamp-2 mb-4 leading-relaxed bg-slate-900/40 p-2.5 rounded-xl border border-slate-800">
-                  {job.jobDescriptionRaw}
+                  {job.jobDescriptionRaw || (job.metadataSummary
+                    ? `Employer details: ${job.metadataSummary}. Full description was not downloaded to reduce mobile data use.`
+                    : isLiveDiscoveredJobSource(job.source)
+                      ? 'Full job description was not downloaded to reduce mobile data use. Open the employer posting to read it.'
+                      : '')}
                 </p>
 
                 {/* Action Buttons */}
@@ -1048,6 +935,13 @@ export const SourcingTab: React.FC = () => {
                   <button
                     onClick={() => {
                       setSelectedJobId(job.id);
+                      if (isSummaryOnlyEmployerJob) {
+                        addToast({
+                          type: 'warning',
+                          title: 'Full description needed',
+                          message: 'This low-data listing contains employer metadata only. Open the original posting and paste its full description before relying on complete vetting.'
+                        });
+                      }
                       setActiveTab('vetting');
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition cursor-pointer"
@@ -1093,6 +987,7 @@ export const SourcingTab: React.FC = () => {
                   })()}
 
                   <button
+                    disabled={isSummaryOnlyEmployerJob}
                     onClick={() => {
                       setSelectedJobId(job.id);
                       if (!resumeIngested) {
@@ -1105,14 +1000,16 @@ export const SourcingTab: React.FC = () => {
                       setActiveTab('customization');
                     }}
                     title={
-                      !resumeIngested
-                        ? 'Add your master resume in the Intake tab to unlock AI tailoring'
-                        : 'Tailor application kit for this position'
+                      isSummaryOnlyEmployerJob
+                        ? 'Open the employer listing and paste its full job description before tailoring'
+                        : !resumeIngested
+                          ? 'Add your master resume in the Intake tab to unlock AI tailoring'
+                          : 'Tailor application kit for this position'
                     }
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold transition cursor-pointer ml-auto"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                    <span>Tailor Kit</span>
+                    <span>{isSummaryOnlyEmployerJob ? 'Description Needed' : 'Tailor Kit'}</span>
                   </button>
                 </div>
 
@@ -1267,7 +1164,7 @@ export const SourcingTab: React.FC = () => {
                     type="url"
                     value={customUrl}
                     onChange={(e) => setCustomUrl(e.target.value)}
-                    placeholder="https://www.glassdoor.com/job-listing/..."
+                    placeholder="https://careers.company.com/jobs/..."
                     className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -1281,11 +1178,8 @@ export const SourcingTab: React.FC = () => {
                     className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
                   >
                     <option value="User Import">User Import (Direct Paste)</option>
-                    {portalShortcuts.map((ps) => (
-                      <option key={ps.id} value={ps.name}>
-                        {ps.name}
-                      </option>
-                    ))}
+                    <option value="Greenhouse">Greenhouse employer board</option>
+                    <option value="Workable">Workable employer board</option>
                     <option value="Company Careers">Company Careers Page</option>
                   </select>
                 </div>
