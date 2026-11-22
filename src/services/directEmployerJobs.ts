@@ -6,7 +6,7 @@ export const DIRECT_EMPLOYER_REFRESH_STORAGE_KEY = 'byoc_direct_employer_jobs_la
 export interface DirectEmployerBoard {
   id: string;
   company: string;
-  provider: 'greenhouse' | 'lever';
+  provider: 'greenhouse' | 'workable';
   boardToken: string;
   careersUrl: string;
   market: 'IN';
@@ -19,22 +19,19 @@ export interface DirectEmployerBoard {
  * they are included here.
  */
 export const DIRECT_EMPLOYER_BOARD_DIRECTORY: DirectEmployerBoard[] = [
-  {
-    id: 'direct_greenhouse_groww',
-    company: 'Groww',
-    provider: 'greenhouse',
-    boardToken: 'groww',
-    careersUrl: 'https://boards.greenhouse.io/groww',
-    market: 'IN'
-  },
-  {
-    id: 'direct_lever_meesho',
-    company: 'Meesho',
-    provider: 'lever',
-    boardToken: 'meesho',
-    careersUrl: 'https://jobs.lever.co/meesho',
-    market: 'IN'
-  }
+  { id: 'direct_greenhouse_capco', company: 'Capco', provider: 'greenhouse', boardToken: 'capco', careersUrl: 'https://job-boards.greenhouse.io/capco', market: 'IN' },
+  { id: 'direct_greenhouse_wpp', company: 'WPP', provider: 'greenhouse', boardToken: 'wpp', careersUrl: 'https://job-boards.greenhouse.io/wpp', market: 'IN' },
+  { id: 'direct_greenhouse_vml', company: 'VML / WPP Enterprise Solutions', provider: 'greenhouse', boardToken: 'vmlenterprisesolutions', careersUrl: 'https://job-boards.greenhouse.io/vmlenterprisesolutions', market: 'IN' },
+  { id: 'direct_greenhouse_payoneer', company: 'Payoneer', provider: 'greenhouse', boardToken: 'payoneer', careersUrl: 'https://job-boards.greenhouse.io/payoneer', market: 'IN' },
+  { id: 'direct_greenhouse_tide', company: 'Tide', provider: 'greenhouse', boardToken: 'tide', careersUrl: 'https://job-boards.greenhouse.io/tide', market: 'IN' },
+  { id: 'direct_greenhouse_inmobi', company: 'InMobi', provider: 'greenhouse', boardToken: 'inmobi', careersUrl: 'https://job-boards.greenhouse.io/inmobi', market: 'IN' },
+  { id: 'direct_greenhouse_pubmatic', company: 'PubMatic', provider: 'greenhouse', boardToken: 'pubmatic', careersUrl: 'https://job-boards.greenhouse.io/pubmatic', market: 'IN' },
+  { id: 'direct_greenhouse_zenoti', company: 'Zenoti', provider: 'greenhouse', boardToken: 'zenoti', careersUrl: 'https://job-boards.greenhouse.io/zenoti', market: 'IN' },
+  { id: 'direct_workable_weekday', company: 'Weekday AI', provider: 'workable', boardToken: 'weekday-1', careersUrl: 'https://apply.workable.com/weekday-1', market: 'IN' },
+  { id: 'direct_workable_rentokil', company: 'Rentokil Initial', provider: 'workable', boardToken: 'rentokil-initial', careersUrl: 'https://apply.workable.com/rentokil-initial', market: 'IN' },
+  { id: 'direct_workable_capgemini_insurance', company: 'Capgemini Insurance', provider: 'workable', boardToken: 'capgemini-insurance', careersUrl: 'https://apply.workable.com/capgemini-insurance', market: 'IN' },
+  { id: 'direct_workable_keywords', company: 'Keywords Studios', provider: 'workable', boardToken: 'keywords-intl1', careersUrl: 'https://apply.workable.com/keywords-intl1', market: 'IN' },
+  { id: 'direct_workable_unison', company: 'Unison Group', provider: 'workable', boardToken: 'unisongroup', careersUrl: 'https://apply.workable.com/unisongroup', market: 'IN' }
 ];
 
 const INDIA_LOCATION_MARKERS = [
@@ -88,10 +85,10 @@ function normalizeDate(value: unknown): string {
 function mapWorkplaceType(value: unknown, location: string): JobPosting['workplaceType'] {
   // Do not infer work mode from generic description prose; use only structured
   // ATS workplace metadata or the published location field.
-  const evidence = `${String(value || '')} ${location}`.toLowerCase();
+  const evidence = `${value === true ? 'remote' : String(value || '')} ${location}`.toLowerCase();
   if (/remote|work from home|wfh/.test(evidence)) return 'Remote';
   if (/hybrid/.test(evidence)) return 'Hybrid';
-  if (/on[- ]?site|in[- ]office|office based/.test(evidence)) return 'On-site';
+  if (/on[_ -]?site|in[- ]office|office based/.test(evidence)) return 'On-site';
   return 'Unspecified';
 }
 
@@ -128,7 +125,7 @@ function createPosting(
     postedDate: normalizeDate(rawDate),
     jobDescriptionRaw: description,
     url,
-    source: `${board.company} Careers (${board.provider === 'greenhouse' ? 'Greenhouse' : 'Lever'})`,
+    source: `${board.company} Careers (${board.provider === 'greenhouse' ? 'Greenhouse' : 'Workable'})`,
     skillsRequired: [],
     skillsListed: [],
     fitScore: null,
@@ -138,13 +135,12 @@ function createPosting(
   };
 }
 
-function fetchGreenhouseBoard(boardToken: string): Promise<unknown> {
+function fetchJsonp(url: string, providerName: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
     if (typeof window === 'undefined' || typeof document === 'undefined' || !document.head) {
-      reject(new Error('Greenhouse public board requires a browser session.'));
+      reject(new Error(`${providerName} public board requires a browser session.`));
       return;
     }
-
     const callbackName = `byocBoard_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const registry = window as unknown as Record<string, unknown>;
     const script = document.createElement('script');
@@ -159,57 +155,69 @@ function fetchGreenhouseBoard(boardToken: string): Promise<unknown> {
       if (settled) return;
       settled = true;
       cleanup();
-      reject(new Error('Greenhouse public board timed out.'));
+      reject(new Error(`${providerName} public board timed out.`));
     }, 15000);
-
     registry[callbackName] = (payload: unknown) => {
       if (settled) return;
       settled = true;
       cleanup();
-      if (!isRecord(payload) || !Array.isArray(payload.jobs)) {
-        reject(new Error('Greenhouse returned an invalid public board response.'));
-        return;
-      }
       resolve(payload);
     };
-
     script.async = true;
     script.onerror = () => {
       if (settled) return;
       settled = true;
       cleanup();
-      reject(new Error('Greenhouse public board could not be reached.'));
+      reject(new Error(`${providerName} public board could not be reached.`));
     };
-    script.src = `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(boardToken)}/jobs?content=true&callback=${callbackName}`;
+    const separator = url.includes('?') ? '&' : '?';
+    script.src = `${url}${separator}callback=${callbackName}`;
     document.head.appendChild(script);
   });
 }
 
-async function fetchLeverBoard(boardToken: string): Promise<unknown> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
-  try {
-    const response = await fetch(
-      `https://api.lever.co/v0/postings/${encodeURIComponent(boardToken)}?mode=json`,
-      { signal: controller.signal, headers: { Accept: 'application/json' } }
-    );
-    if (!response.ok) throw new Error(`Lever public board returned HTTP ${response.status}.`);
-    const payload: unknown = await response.json();
-    if (!Array.isArray(payload)) throw new Error('Lever returned an invalid public board response.');
-    return payload;
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') throw new Error('Lever public board timed out.');
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+function fetchGreenhouseBoard(boardToken: string): Promise<unknown> {
+  return fetchJsonp(
+    `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(boardToken)}/jobs?content=true`,
+    'Greenhouse'
+  );
+}
+
+function fetchWorkableBoard(boardToken: string): Promise<unknown> {
+  return fetchJsonp(
+    `https://www.workable.com/api/accounts/${encodeURIComponent(boardToken)}?details=true`,
+    'Workable'
+  );
+}
+
+function workableLocation(item: Record<string, any>): string {
+  const locations = Array.isArray(item.locations) ? item.locations : [];
+  const entries = locations.map((location: unknown) => {
+    if (!isRecord(location)) return '';
+    return [
+      location.city,
+      location.state || location.region,
+      location.country_name || location.country
+    ].filter((part) => typeof part === 'string' && part.trim()).join(', ');
+  }).filter(Boolean);
+  const primary = isRecord(item.location)
+    ? (item.location.location_str || [item.location.city, item.location.state, item.location.country].filter(Boolean).join(', '))
+    : item.location;
+  const country = typeof item.country === 'string' ? item.country : '';
+  const city = typeof item.city === 'string' ? item.city : '';
+  const state = typeof item.state === 'string' ? item.state : '';
+  const fallback = [city, state, country].filter(Boolean).join(', ');
+  return Array.from(new Set([primary, fallback, ...entries].filter((value) => typeof value === 'string' && value.trim())))
+    .join(' / ');
 }
 
 export async function fetchDirectEmployerBoard(board: DirectEmployerBoard): Promise<JobPosting[]> {
   if (board.provider === 'greenhouse') {
     const payload = await fetchGreenhouseBoard(board.boardToken);
-    const jobs = isRecord(payload) && Array.isArray(payload.jobs) ? payload.jobs : [];
-    return jobs.map((item: unknown) => {
+    if (!isRecord(payload) || !Array.isArray(payload.jobs)) {
+      throw new Error('Greenhouse returned an invalid public board response.');
+    }
+    return payload.jobs.map((item: unknown) => {
       if (!isRecord(item)) return null;
       const location = isRecord(item.location) ? item.location.name : '';
       return createPosting(
@@ -220,22 +228,23 @@ export async function fetchDirectEmployerBoard(board: DirectEmployerBoard): Prom
     }).filter((job): job is JobPosting => job !== null);
   }
 
-  const payload = await fetchLeverBoard(board.boardToken);
-  return (Array.isArray(payload) ? payload : []).map((item: unknown) => {
+  const payload = await fetchWorkableBoard(board.boardToken);
+  if (!isRecord(payload) || !Array.isArray(payload.jobs)) {
+    throw new Error('Workable returned an invalid public board response.');
+  }
+  return payload.jobs.map((item: unknown) => {
     if (!isRecord(item)) return null;
-    const categories = isRecord(item.categories) ? item.categories : {};
-    const description = [
-      item.descriptionPlain,
-      ...(Array.isArray(item.lists) ? item.lists.map((list: unknown) => isRecord(list) ? cleanText(list.text) + ' ' + cleanText(list.content) : '') : []),
-      item.additional
-    ].filter(Boolean).join('\n');
+    const location = workableLocation(item);
+    const description = item.full_description || item.description || '';
+    const rawUrl = item.application_url || item.url || item.shortlink;
     return createPosting(
-      board, item.id, item.text, categories.location,
-      description, item.hostedUrl, typeof item.createdAt === 'number' ? item.createdAt : undefined,
-      item.workplaceType, item.applyBy
+      board, item.shortcode || item.id || rawUrl, item.title, location,
+      description, rawUrl, item.published_on || item.created_at,
+      item.workplace_type || item.telecommuting
     );
   }).filter((job): job is JobPosting => job !== null);
 }
+
 
 export interface DirectEmployerRefreshStorage {
   getItem(key: string): string | null;
