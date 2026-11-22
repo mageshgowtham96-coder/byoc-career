@@ -54,7 +54,7 @@ describe('Provider Abstraction', () => {
     it('gemini config has models list', () => {
       const config = getProviderConfig('gemini');
       expect(Array.isArray(config.models)).toBe(true);
-      expect(config.models).toContain('gemini-3.5-flash-lite');
+      expect(config.models).toContain('gemini-3.6-flash');
     });
   });
 
