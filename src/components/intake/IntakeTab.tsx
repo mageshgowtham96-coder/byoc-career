@@ -700,7 +700,6 @@ export const IntakeTab: React.FC = () => {
               </div>
             </div>
             {!geminiApiKey && <p className="text-[11px] text-amber-300">Add a Gemini API key in Settings to enable document understanding. Local extraction and manual review remain available.</p>}
-            {stagedParsedResume.rawText.length > 24000 && <p className="text-[11px] text-amber-300">This extracted resume is over the AI structuring limit. Continue with the local parse.</p>}
             {aiStructuringError && <p role="alert" className="text-[11px] text-rose-300">{aiStructuringError}</p>}
             <details className="rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2">
               <summary className="cursor-pointer text-[11px] font-semibold text-slate-300">View extracted source text locally</summary>
