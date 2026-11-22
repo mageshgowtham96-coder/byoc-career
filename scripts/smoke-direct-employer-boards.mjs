@@ -1,19 +1,19 @@
 import assert from 'node:assert/strict';
 
 const boards = [
-  { provider: 'Greenhouse', board: 'Capco', callback: 'byocSmokeCapco', url: 'https://boards-api.greenhouse.io/v1/boards/capco/jobs?content=true&callback=byocSmokeCapco' },
-  { provider: 'Greenhouse', board: 'WPP', callback: 'byocSmokeWpp', url: 'https://boards-api.greenhouse.io/v1/boards/wpp/jobs?content=true&callback=byocSmokeWpp' },
-  { provider: 'Greenhouse', board: 'VML', callback: 'byocSmokeVml', url: 'https://boards-api.greenhouse.io/v1/boards/vmlenterprisesolutions/jobs?content=true&callback=byocSmokeVml' },
-  { provider: 'Greenhouse', board: 'Payoneer', callback: 'byocSmokePayoneer', url: 'https://boards-api.greenhouse.io/v1/boards/payoneer/jobs?content=true&callback=byocSmokePayoneer' },
-  { provider: 'Greenhouse', board: 'Tide', callback: 'byocSmokeTide', url: 'https://boards-api.greenhouse.io/v1/boards/tide/jobs?content=true&callback=byocSmokeTide' },
-  { provider: 'Greenhouse', board: 'InMobi', callback: 'byocSmokeInMobi', url: 'https://boards-api.greenhouse.io/v1/boards/inmobi/jobs?content=true&callback=byocSmokeInMobi' },
-  { provider: 'Greenhouse', board: 'PubMatic', callback: 'byocSmokePubMatic', url: 'https://boards-api.greenhouse.io/v1/boards/pubmatic/jobs?content=true&callback=byocSmokePubMatic' },
-  { provider: 'Greenhouse', board: 'Zenoti', callback: 'byocSmokeZenoti', url: 'https://boards-api.greenhouse.io/v1/boards/zenoti/jobs?content=true&callback=byocSmokeZenoti' },
-  { provider: 'Workable', board: 'Weekday AI', callback: 'byocSmokeWeekday', url: 'https://www.workable.com/api/accounts/weekday-1?details=true&callback=byocSmokeWeekday' },
-  { provider: 'Workable', board: 'Rentokil Initial', callback: 'byocSmokeRentokil', url: 'https://www.workable.com/api/accounts/rentokil-initial?details=true&callback=byocSmokeRentokil' },
-  { provider: 'Workable', board: 'Capgemini', callback: 'byocSmokeCapgemini', url: 'https://www.workable.com/api/accounts/capgemini-insurance?details=true&callback=byocSmokeCapgemini' },
-  { provider: 'Workable', board: 'Keywords Studios', callback: 'byocSmokeKeywords', url: 'https://www.workable.com/api/accounts/keywords-intl1?details=true&callback=byocSmokeKeywords' },
-  { provider: 'Workable', board: 'Unison Group', callback: 'byocSmokeUnison', url: 'https://www.workable.com/api/accounts/unisongroup?details=true&callback=byocSmokeUnison' }
+  { provider: 'Greenhouse', board: 'Capco', callback: 'byocSmokeCapco', url: 'https://boards-api.greenhouse.io/v1/boards/capco/jobs?callback=byocSmokeCapco' },
+  { provider: 'Greenhouse', board: 'WPP', callback: 'byocSmokeWpp', url: 'https://boards-api.greenhouse.io/v1/boards/wpp/jobs?callback=byocSmokeWpp' },
+  { provider: 'Greenhouse', board: 'VML', callback: 'byocSmokeVml', url: 'https://boards-api.greenhouse.io/v1/boards/vmlenterprisesolutions/jobs?callback=byocSmokeVml' },
+  { provider: 'Greenhouse', board: 'Payoneer', callback: 'byocSmokePayoneer', url: 'https://boards-api.greenhouse.io/v1/boards/payoneer/jobs?callback=byocSmokePayoneer' },
+  { provider: 'Greenhouse', board: 'Tide', callback: 'byocSmokeTide', url: 'https://boards-api.greenhouse.io/v1/boards/tide/jobs?callback=byocSmokeTide' },
+  { provider: 'Greenhouse', board: 'InMobi', callback: 'byocSmokeInMobi', url: 'https://boards-api.greenhouse.io/v1/boards/inmobi/jobs?callback=byocSmokeInMobi' },
+  { provider: 'Greenhouse', board: 'PubMatic', callback: 'byocSmokePubMatic', url: 'https://boards-api.greenhouse.io/v1/boards/pubmatic/jobs?callback=byocSmokePubMatic' },
+  { provider: 'Greenhouse', board: 'Zenoti', callback: 'byocSmokeZenoti', url: 'https://boards-api.greenhouse.io/v1/boards/zenoti/jobs?callback=byocSmokeZenoti' },
+  { provider: 'Workable', board: 'Weekday AI', callback: 'byocSmokeWeekday', url: 'https://www.workable.com/api/accounts/weekday-1?callback=byocSmokeWeekday' },
+  { provider: 'Workable', board: 'Rentokil Initial', callback: 'byocSmokeRentokil', url: 'https://www.workable.com/api/accounts/rentokil-initial?callback=byocSmokeRentokil' },
+  { provider: 'Workable', board: 'Capgemini', callback: 'byocSmokeCapgemini', url: 'https://www.workable.com/api/accounts/capgemini-insurance?callback=byocSmokeCapgemini' },
+  { provider: 'Workable', board: 'Keywords Studios', callback: 'byocSmokeKeywords', url: 'https://www.workable.com/api/accounts/keywords-intl1?callback=byocSmokeKeywords' },
+  { provider: 'Workable', board: 'Unison Group', callback: 'byocSmokeUnison', url: 'https://www.workable.com/api/accounts/unisongroup?callback=byocSmokeUnison' }
 ];
 
 function parseJsonp(body, callback) {
