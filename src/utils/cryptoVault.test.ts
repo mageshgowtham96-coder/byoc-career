@@ -51,17 +51,8 @@ import {
   sanitizeExternalHttpUrl
 } from '../services/jobSearchService';
 import { buildApplicationSnapshotRecord } from '../store/useWizardStore';
-import {
-  GeminiApiError,
-  formatGeminiError,
-  getAvailableGeminiModels,
-  tailorResumeWithGemini,
-  validateTailoredOutput,
-  validateQuestionnaireDraft,
-  mergeGeminiResumeProfile,
-  parseResumeWithGemini,
-  vetJobWithGemini
-} from '../services/geminiCareerService';
+import { GeminiApiError, formatGeminiError } from '../services/geminiCareerService';
+
 import type { MasterResume, JobPosting, TailoredArtifact, ApplicationRecord, ExperienceItem } from '../types';
 
 // Mock localStorage
