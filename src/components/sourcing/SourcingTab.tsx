@@ -121,7 +121,7 @@ export const SourcingTab: React.FC = () => {
         candidatePreferences?.profession?.trim() ||
         getCandidateDiscoverySignals(masterResume).length > 0
     );
-    if (!hasSearchTerms) {
+    if (!hasSearchTerms && !isDirectEmployerRefreshDue()) {
       addToast({
         type: 'warning',
         title: 'Search Terms Needed',
@@ -196,10 +196,15 @@ export const SourcingTab: React.FC = () => {
         void liveSearchRunnerRef.current();
       }
     };
+    // Check at a modest foreground interval so an open app refreshes shortly
+    // after the 12-hour boundary. Android may suspend timers while backgrounded;
+    // focus/visibility events catch up when the user returns.
+    const refreshCheck = window.setInterval(refreshWhenActive, 5 * 60 * 1000);
     refreshWhenActive();
     document.addEventListener('visibilitychange', refreshWhenActive);
     window.addEventListener('focus', refreshWhenActive);
     return () => {
+      window.clearInterval(refreshCheck);
       document.removeEventListener('visibilitychange', refreshWhenActive);
       window.removeEventListener('focus', refreshWhenActive);
     };
