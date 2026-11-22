@@ -42,7 +42,7 @@ export const IntakeTab: React.FC = () => {
     restorePreviousMasterResume,
     careerFormDraft,
     setCareerFormDraft,
-    groqApiKey,
+    geminiApiKey,
     geminiApiKey,
     stagedParsedResume,
     setStagedParsedResume,
@@ -1381,7 +1381,7 @@ export const IntakeTab: React.FC = () => {
       {showGuidedBuilder && (
         <GuidedMasterResumeBuilder
           initialDraft={careerFormDraft || (stagedParsedResume ? createCareerDraftFromMasterResume(stagedParsedResume) : masterResume ? createCareerDraftFromMasterResume(masterResume) : null)}
-          groqApiKey={groqApiKey}
+          geminiApiKey={geminiApiKey}
           isEditingExisting={Boolean(masterResume || stagedParsedResume)}
           onDraftChange={setCareerFormDraft}
           onComplete={handleGuidedBuilderComplete}
