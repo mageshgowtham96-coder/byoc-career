@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
 import { vetJobWithGroq, formatGroqError } from '../../services/groqService';
+import { verifyJobPosting } from '../../services/jobVerificationService';
 import {
   ShieldCheck,
   AlertTriangle,
@@ -14,11 +15,11 @@ import {
 
 export const VettingTab: React.FC = () => {
   const {
-    activeTab,
     selectedJobId,
     jobs,
     masterResume,
     updateJobVetting,
+    updateJobVerification,
     groqApiKey,
     setActiveTab,
     addToast
@@ -27,6 +28,31 @@ export const VettingTab: React.FC = () => {
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || null;
   const [isVettingLoading, setIsVettingLoading] = useState(false);
   const [vettingError, setVettingError] = useState<string | null>(null);
+  const [isVerificationLoading, setIsVerificationLoading] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+
+  const runVacancyCheck = async () => {
+    if (!selectedJob) return;
+    setIsVerificationLoading(true);
+    setVerificationError(null);
+    try {
+      const evidence = await verifyJobPosting(selectedJob);
+      updateJobVerification(selectedJob.id, evidence);
+      addToast({
+        type: evidence.status === 'confirmed' ? 'success' : 'warning',
+        title: 'Vacancy Evidence Updated',
+        message: evidence.status === 'confirmed'
+          ? 'A matching public Greenhouse record was found. Employer identity is still unverified.'
+          : evidence.explanation
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'The public posting check could not be completed.';
+      setVerificationError(message);
+      addToast({ type: 'warning', title: 'Vacancy Check Incomplete', message });
+    } finally {
+      setIsVerificationLoading(false);
+    }
+  };
 
   const runVetting = async () => {
     if (!selectedJob) return;
@@ -53,14 +79,6 @@ export const VettingTab: React.FC = () => {
       setIsVettingLoading(false);
     }
   };
-
-  // Auto-run vetting only when user opens the Role Vetting tab
-  useEffect(() => {
-    if (activeTab === 'vetting' && selectedJob && !selectedJob.vetting) {
-      void runVetting();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, selectedJobId]);
 
   // Action Gate Check
   if (!selectedJob) {
@@ -100,6 +118,7 @@ export const VettingTab: React.FC = () => {
   }
 
   const vetting = selectedJob.vetting;
+  const verification = selectedJob.verification;
 
   return (
     <div className="space-y-6 pb-8">
@@ -120,15 +139,17 @@ export const VettingTab: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => void runVetting()}
-            disabled={isVettingLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-60"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isVettingLoading ? 'animate-spin' : ''}`} />
-            <span>Re-Vet</span>
-          </button>
+          {vetting && (
+            <button
+              type="button"
+              onClick={() => void runVetting()}
+              disabled={isVettingLoading || !groqApiKey}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-60"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isVettingLoading ? 'animate-spin' : ''}`} />
+              <span>Re-Vet</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -141,6 +162,85 @@ export const VettingTab: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <p className="text-[11px] text-slate-400 leading-relaxed">
+        AI career-fit guidance only — this report does not independently verify an employer or prove that a vacancy is genuine. Confirm openings through the employer’s official careers site.
+      </p>
+
+      <section className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+              <ShieldCheck className="h-4 w-4 text-sky-300" />
+              Public vacancy evidence
+            </h3>
+            <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-slate-400">
+              Checks for a matching public Greenhouse posting record. It does not certify the employer, guarantee the role is open, or assess offer legitimacy. Unsupported job boards require manual review.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void runVacancyCheck()}
+            disabled={isVerificationLoading}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3.5 py-2.5 text-xs font-bold text-sky-200 transition hover:bg-sky-500/20 disabled:opacity-60"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isVerificationLoading ? 'animate-spin' : ''}`} />
+            {isVerificationLoading ? 'Checking public record…' : verification ? 'Recheck posting' : 'Check public posting'}
+          </button>
+        </div>
+
+        {verificationError && <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{verificationError}</p>}
+
+        {verification ? (
+          <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3 sm:p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-bold text-white">
+                {{
+                  confirmed: 'Public ATS record found',
+                  expired: 'ATS record found — deadline passed',
+                  mismatch: 'Posting details differ',
+                  not_found: 'No matching public record',
+                  manual_review: 'Manual review required',
+                  check_failed: 'Check could not complete'
+                }[verification.status]}
+              </span>
+              <span className="text-[10px] text-slate-500">
+                Checked {new Date(verification.checkedAt).toLocaleString()}
+              </span>
+            </div>
+            <p className="text-xs leading-relaxed text-slate-300">{verification.explanation}</p>
+            {(verification.officialTitle || verification.officialCompany) && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div><p className="text-[10px] uppercase tracking-wide text-slate-500">ATS title</p><p className="mt-0.5 text-xs text-white">{verification.officialTitle || 'Not supplied'}</p></div>
+                <div><p className="text-[10px] uppercase tracking-wide text-slate-500">ATS company</p><p className="mt-0.5 text-xs text-white">{verification.officialCompany || 'Not supplied'}</p></div>
+                {verification.firstPublishedAt && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">First published</p><p className="mt-0.5 text-xs text-slate-200">{verification.firstPublishedAt}</p></div>}
+                {verification.updatedAt && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">ATS last updated</p><p className="mt-0.5 text-xs text-slate-200">{verification.updatedAt}</p></div>}
+                {verification.applicationDeadline && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">Application deadline</p><p className="mt-0.5 text-xs text-slate-200">{verification.applicationDeadline}</p></div>}
+                {verification.postingId && <div><p className="text-[10px] uppercase tracking-wide text-slate-500">Public posting ID</p><p className="mt-0.5 text-xs font-mono text-slate-200">{verification.postingId}</p></div>}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-3 text-[11px]">
+              {verification.evidenceUrl && <a href={verification.evidenceUrl} target="_blank" rel="noopener noreferrer" className="text-sky-300 underline underline-offset-2">Open ATS evidence</a>}
+              <a href={selectedJob.url} target="_blank" rel="noopener noreferrer" className="text-sky-300 underline underline-offset-2">Open original posting</a>
+            </div>
+            <p className="text-[10px] font-semibold text-amber-200">Employer identity: Not verified</p>
+          </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-slate-700 px-3 py-3 text-xs text-slate-500">Not checked yet. BYOC does not run public ATS checks automatically.</p>
+        )}
+
+        <div className="border-t border-slate-800 pt-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Local description risk signals</p>
+          {verification?.riskFlags.length ? (
+            <ul className="mt-2 space-y-1.5">{verification.riskFlags.map((flag, index) => <li key={index} className="flex gap-2 text-[11px] leading-relaxed text-amber-200"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{flag}</li>)}</ul>
+          ) : (
+            <p className="mt-1 text-[11px] text-slate-500">
+              {verification ? 'No predefined risk phrases were found. This is not a safety guarantee.' : 'Risk phrases are checked locally when you run the public posting check.'}
+            </p>
+          )}
+          <p className="mt-2 text-[10px] text-slate-500">These are automated text signals only — they are not proof that a job is fraudulent or safe.</p>
+        </div>
+      </section>
 
       {isVettingLoading ? (
         <div className="p-10 sm:p-12 rounded-2xl bg-[#0F172A] border border-slate-800 text-center">
@@ -332,13 +432,37 @@ export const VettingTab: React.FC = () => {
           <button
             type="button"
             onClick={() => void runVetting()}
-            className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg transition cursor-pointer flex items-center gap-2 mx-auto"
+            disabled={!groqApiKey}
+            className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg transition cursor-pointer flex items-center gap-2 mx-auto disabled:opacity-50"
           >
             <RefreshCw className="w-4 h-4" />
             <span>Retry Analysis with Groq</span>
           </button>
         </div>
-      ) : null}
+      ) : (
+        <section className="p-6 sm:p-8 rounded-2xl bg-[#0F172A] border border-slate-800 max-w-2xl mx-auto my-6 space-y-4">
+          <div>
+            <h3 className="text-base font-bold text-white mb-1">Ready for an AI Career-Fit Review?</h3>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              No request is sent until you choose to run this review. BYOC will send the selected job details and, if available, your Master Resume headline, summary, skills, and work-experience evidence to Groq using your configured API key. Your contact details are not included.
+            </p>
+            <p className="text-[11px] text-amber-300/90 mt-2 leading-relaxed">
+              This is AI-generated guidance, not independent employer or vacancy verification. Check the employer and active job posting directly before sharing personal information or applying.
+            </p>
+          </div>
+          {!groqApiKey && (
+            <p className="text-xs text-amber-300">Add your Groq API key in Settings to enable this optional review.</p>
+          )}
+          <button
+            type="button"
+            onClick={() => void runVetting()}
+            disabled={!groqApiKey || isVettingLoading}
+            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg transition cursor-pointer disabled:opacity-50"
+          >
+            Run AI Vetting
+          </button>
+        </section>
+      )}
     </div>
   );
 };

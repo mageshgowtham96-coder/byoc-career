@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   MasterResume,
   JobPosting,
+  JobVerificationEvidence,
   TailoredArtifact,
   ApplicationRecord,
   UserWorkspace,
@@ -38,6 +39,7 @@ import {
   type DecryptedVaultData,
   type VaultEnvelope
 } from '../utils/cryptoVault';
+import { transitionVaultPersistenceStatus } from './vaultPersistenceStatus';
 import {
   WORKSPACE_STORE_KEY,
   extractLegacyPlaintextFromRawStore,
@@ -48,6 +50,7 @@ import {
   scrubAndVerifyStoredWorkspace,
   type LegacyPlaintextCapture
 } from '../utils/vaultMigration';
+import { sanitizeCareerFormState } from '../utils/storagePersistence';
 
 export const DEFAULT_CANDIDATE_PREFERENCES: CandidatePreferences = {
   country: 'IN',
@@ -144,6 +147,7 @@ interface WizardState {
   user: UserWorkspace | null;
   isAuthenticated: boolean;
   isBiometricLocked: boolean;
+  vaultPersistenceError: string | null;
   setUser: (user: UserWorkspace | null) => void;
   unlockBiometric: () => void;
   lockBiometric: () => void;
@@ -177,6 +181,7 @@ interface WizardState {
   addJob: (job: JobPosting) => void;
   setSelectedJobId: (id: string | null) => void;
   updateJobVetting: (jobId: string, vetting: JobPosting['vetting']) => void;
+  updateJobVerification: (jobId: string, evidence: JobVerificationEvidence) => void;
   updateJobUrl: (jobId: string, url: string, source?: string) => boolean;
   isJobPreviouslyTracked: (company: string, role: string) => boolean;
 
@@ -337,6 +342,7 @@ export const useWizardStore = create<WizardState>()(
       user: null,
       isAuthenticated: false,
       isBiometricLocked: false,
+      vaultPersistenceError: null,
       setUser: (user) =>
         set({
           user: sanitizeUserMetadata(user)
@@ -382,6 +388,14 @@ export const useWizardStore = create<WizardState>()(
         });
       },
       signOut: () => {
+        if (get().vaultPersistenceError) {
+          get().addToast({
+            type: 'error',
+            title: 'Cannot Sign Out Yet',
+            message: 'Your latest changes are not safely saved. Retry the vault save before signing out.'
+          });
+          return;
+        }
         const currentUser = get().user;
         lockVaultSession();
         set({
@@ -415,7 +429,7 @@ export const useWizardStore = create<WizardState>()(
       masterResume: null,
       stagedParsedResume: null,
       careerFormDraft: null,
-      setCareerFormDraft: (draft) => set({ careerFormDraft: draft }),
+      setCareerFormDraft: (draft) => set({ careerFormDraft: draft ? sanitizeCareerFormState(draft) : null }),
       setStagedParsedResume: (resume) => set({ stagedParsedResume: resume }),
       confirmStagedResume: () => {
         const staged = get().stagedParsedResume;
@@ -491,7 +505,14 @@ export const useWizardStore = create<WizardState>()(
       // Sourcing
       jobs: [],
       selectedJobId: null,
-      setJobs: (jobs) => set({ jobs }),
+      setJobs: (jobs) => set((state) => ({
+        jobs: jobs.map((job) => {
+          const existing = state.jobs.find((item) => item.url && job.url && item.url === job.url);
+          return existing
+            ? { ...job, vetting: job.vetting || existing.vetting, verification: job.verification || existing.verification }
+            : job;
+        })
+      })),
       addJob: (job) => {
         const exists = get().jobs.some((j) => j.id === job.id);
         if (!exists) {
@@ -504,6 +525,11 @@ export const useWizardStore = create<WizardState>()(
       updateJobVetting: (jobId, vetting) => {
         set((state) => ({
           jobs: state.jobs.map((j) => (j.id === jobId ? { ...j, vetting } : j))
+        }));
+      },
+      updateJobVerification: (jobId, evidence) => {
+        set((state) => ({
+          jobs: state.jobs.map((j) => (j.id === jobId ? { ...j, verification: evidence } : j))
         }));
       },
       updateJobUrl: (jobId, url, source) => {
@@ -1104,6 +1130,29 @@ export const useWizardStore = create<WizardState>()(
 // Serialized vault sync queue prevents concurrent writes from clobbering latest store state
 let vaultSyncChain: Promise<boolean> = Promise.resolve(true);
 
+function applyVaultPersistenceTransition(succeeded: boolean): void {
+  const current = useWizardStore.getState();
+  const transition = transitionVaultPersistenceStatus(current.vaultPersistenceError, succeeded);
+
+  if (transition.error !== current.vaultPersistenceError) {
+    useWizardStore.setState({ vaultPersistenceError: transition.error });
+  }
+
+  if (transition.notifyFailure) {
+    current.addToast({
+      type: 'error',
+      title: 'Encrypted Vault Save Failed',
+      message: 'Your latest changes may exist only in memory. Keep BYOC open and retry saving before closing.'
+    });
+  } else if (transition.notifyRecovered) {
+    current.addToast({
+      type: 'success',
+      title: 'Vault Saving Restored',
+      message: 'Your latest changes are now encrypted and saved on this device.'
+    });
+  }
+}
+
 export function syncVaultFromStoreNow(): Promise<boolean> {
   vaultSyncChain = vaultSyncChain
     .catch(() => false)
@@ -1116,10 +1165,13 @@ export function syncVaultFromStoreNow(): Promise<boolean> {
         buildVaultDataFromState(state),
         buildVaultMetaFromUser(state.user)
       );
-      return writeStoredVaultEnvelope(envelope);
+      const saved = writeStoredVaultEnvelope(envelope);
+      applyVaultPersistenceTransition(saved);
+      return saved;
     })
     .catch((err) => {
       console.warn('Encrypted vault sync skipped:', err);
+      applyVaultPersistenceTransition(false);
       return false;
     });
   return vaultSyncChain;
@@ -1135,7 +1187,7 @@ export function restoreVaultDataToStore(
     groqApiKey: data.groqApiKey || '',
     geminiApiKey: data.geminiApiKey || '',
     masterResume: data.masterResume || null,
-    careerFormDraft: data.careerFormDraft || null,
+    careerFormDraft: data.careerFormDraft ? sanitizeCareerFormState(data.careerFormDraft) : null,
     emailInteractions: Array.isArray(data.emailInteractions) ? data.emailInteractions : [],
     jobs: Array.isArray(data.jobs) ? data.jobs : [],
     selectedJobId: data.selectedJobId || null,

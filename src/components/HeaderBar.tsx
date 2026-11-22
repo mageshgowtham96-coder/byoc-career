@@ -1,11 +1,11 @@
 import React from 'react';
-import { useWizardStore } from '../store/useWizardStore';
+import { syncVaultFromStoreNow, useWizardStore } from '../store/useWizardStore';
 import { ChakraLogo } from './ChakraLogo';
 import { PWAInstallButton } from './PWAInstallButton';
-import { Zap, Key } from 'lucide-react';
+import { Zap, Key, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export const HeaderBar: React.FC = () => {
-  const { groqApiKey, isLiveApiMode, setActiveTab, user } = useWizardStore();
+  const { groqApiKey, isLiveApiMode, setActiveTab, user, vaultPersistenceError } = useWizardStore();
 
   const isLiveActive = Boolean(groqApiKey && groqApiKey.trim().length > 0 && isLiveApiMode);
 
@@ -72,6 +72,32 @@ export const HeaderBar: React.FC = () => {
           )}
         </div>
       </div>
+
+      {vaultPersistenceError && (
+        <div role="alert" className="max-w-7xl mx-auto mt-2 w-full rounded-xl border border-rose-500/40 bg-rose-950/40 px-3 py-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-300 shrink-0" />
+            <p className="flex-1 text-[11px] leading-relaxed text-rose-100">{vaultPersistenceError}</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void syncVaultFromStoreNow()}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/30"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Retry Save
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('settings')}
+                className="rounded-lg border border-rose-400/30 px-2.5 py-1.5 text-[11px] font-semibold text-rose-100 hover:bg-rose-500/15"
+              >
+                Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

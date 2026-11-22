@@ -257,14 +257,24 @@ export function safeRemoveItem(key: string): void {
  */
 export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormState {
   const initial: CareerApplicationFormState = {
-    personalDetails: { fullName: '', email: '', phone: '', location: '' },
+    personalDetails: { fullName: '', email: '', phone: '', location: '', linkedin: '', github: '', portfolio: '' },
     professionalSummary: '',
     workExperience: [],
     skills: [],
     education: [],
     isAutoFilled: false,
     lastExtractedTimestamp: null,
-    rawSourceText: ''
+    rawSourceText: '',
+    targetRole: '',
+    currentRole: '',
+    roleFamily: 'general',
+    experienceLevel: 'Unspecified',
+    sourceLanguage: 'English',
+    sourceLanguageOther: '',
+    translatedToEnglish: false,
+    originalLanguageSnapshot: '',
+    projects: [],
+    certifications: []
   };
 
   if (!raw || typeof raw !== 'object') {
@@ -274,13 +284,21 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
   const r = raw as Record<string, unknown>;
   const personal = (r.personalDetails || r.personal_details || {}) as Record<string, unknown>;
 
-  const experiences = Array.isArray(r.workExperience)
+  const experiences = (Array.isArray(r.workExperience)
     ? r.workExperience
     : Array.isArray(r.work_experience)
     ? r.work_experience
-    : [];
+    : []).filter((item) => item && typeof item === 'object');
 
-  const education = Array.isArray(r.education) ? r.education : [];
+  const education = Array.isArray(r.education)
+    ? r.education.filter((item) => item && typeof item === 'object')
+    : [];
+  const projects = Array.isArray(r.projects)
+    ? r.projects.filter((project) => project && typeof project === 'object')
+    : [];
+  const certifications = Array.isArray(r.certifications)
+    ? r.certifications.filter((certification) => certification && typeof certification === 'object')
+    : [];
   const skills = Array.isArray(r.skills)
     ? r.skills.map((s) => String(s ?? '').trim()).filter(Boolean)
     : [];
@@ -290,7 +308,10 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
       fullName: String(personal.fullName ?? personal.full_name ?? '').trim(),
       email: String(personal.email ?? '').trim(),
       phone: String(personal.phone ?? '').trim(),
-      location: String(personal.location ?? '').trim()
+      location: String(personal.location ?? '').trim(),
+      linkedin: String(personal.linkedin ?? '').trim(),
+      github: String(personal.github ?? '').trim(),
+      portfolio: String(personal.portfolio ?? '').trim()
     },
     professionalSummary: String(r.professionalSummary ?? r.professional_summary ?? '').trim(),
     workExperience: experiences.map((exp: unknown, idx: number) => {
@@ -305,7 +326,11 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
         company: String(e.company ?? '').trim(),
         role: String(e.role ?? '').trim(),
         duration: String(e.duration ?? '').trim(),
-        keyResponsibilities: responsibilities.map((k) => String(k ?? '').trim()).filter(Boolean)
+        keyResponsibilities: responsibilities.map((k) => String(k ?? '').trim()).filter(Boolean),
+        startDate: String(e.startDate ?? '').trim(),
+        endDate: String(e.endDate ?? '').trim(),
+        location: String(e.location ?? '').trim(),
+        isCurrent: Boolean(e.isCurrent)
       };
     }),
     skills: Array.from(new Set(skills)),
@@ -315,12 +340,43 @@ export function sanitizeCareerFormState(raw: unknown): CareerApplicationFormStat
         id: String(ed.id || `edu-${idx}`),
         degree: String(ed.degree ?? '').trim(),
         institution: String(ed.institution ?? '').trim(),
-        year: String(ed.year ?? '').trim()
+        year: String(ed.year ?? '').trim(),
+        field: String(ed.field ?? '').trim(),
+        gpa: String(ed.gpa ?? '').trim()
       };
     }),
     isAutoFilled: Boolean(r.isAutoFilled),
     lastExtractedTimestamp: r.lastExtractedTimestamp ? String(r.lastExtractedTimestamp) : null,
-    rawSourceText: String(r.rawSourceText ?? '')
+    rawSourceText: String(r.rawSourceText ?? ''),
+    targetRole: String(r.targetRole ?? '').trim(),
+    currentRole: String(r.currentRole ?? '').trim(),
+    roleFamily: String(r.roleFamily ?? 'general').trim() || 'general',
+    experienceLevel: String(r.experienceLevel ?? 'Unspecified').trim() || 'Unspecified',
+    sourceLanguage: String(r.sourceLanguage ?? 'English').trim() || 'English',
+    sourceLanguageOther: String(r.sourceLanguageOther ?? '').trim(),
+    translatedToEnglish: Boolean(r.translatedToEnglish),
+    originalLanguageSnapshot: String(r.originalLanguageSnapshot ?? ''),
+    projects: projects.map((project: unknown, idx: number) => {
+      const p = project as Record<string, unknown>;
+      return {
+        id: String(p.id || `project-${idx}`),
+        title: String(p.title ?? '').trim(),
+        description: String(p.description ?? '').trim(),
+        technologies: Array.isArray(p.technologies)
+          ? p.technologies.map((technology) => String(technology ?? '').trim()).filter(Boolean)
+          : [],
+        ...(typeof p.link === 'string' && p.link.trim() ? { link: p.link.trim() } : {})
+      };
+    }),
+    certifications: certifications.map((certification: unknown, idx: number) => {
+      const c = certification as Record<string, unknown>;
+      return {
+        id: String(c.id || `certification-${idx}`),
+        name: String(c.name ?? '').trim(),
+        issuer: String(c.issuer ?? '').trim(),
+        issueDate: String(c.issueDate ?? '').trim()
+      };
+    })
   };
 }
 

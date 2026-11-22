@@ -58,6 +58,13 @@ export interface MasterResume {
   education: EducationItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
+  sourceLanguage?: string;
+  sourceLanguageOther?: string;
+  currentRole?: string;
+  roleFamily?: string;
+  experienceLevel?: string;
+  translatedToEnglish?: boolean;
+  originalLanguageSnapshot?: string;
   stats: {
     wordCount: number;
     pageCount: number;
@@ -84,6 +91,40 @@ export interface JobVetting {
   summaryVerdict: string;
 }
 
+export type JobVerificationStatus =
+  | 'confirmed'
+  | 'expired'
+  | 'mismatch'
+  | 'not_found'
+  | 'manual_review'
+  | 'check_failed';
+
+export type JobVerificationProvider =
+  | 'greenhouse'
+  | 'lever'
+  | 'ashby'
+  | 'workday'
+  | 'smartrecruiters'
+  | 'unsupported';
+
+export interface JobVerificationEvidence {
+  status: JobVerificationStatus;
+  provider: JobVerificationProvider;
+  checkedAt: string;
+  postingId?: string;
+  boardToken?: string;
+  officialTitle?: string;
+  officialCompany?: string;
+  firstPublishedAt?: string;
+  updatedAt?: string;
+  applicationDeadline?: string;
+  evidenceUrl?: string;
+  explanation: string;
+  riskFlags: string[];
+  /** Always false: a public ATS record is not proof of legal employer identity. */
+  employerIdentityVerified: false;
+}
+
 export interface JobPosting {
   id: string;
   title: string;
@@ -102,6 +143,7 @@ export interface JobPosting {
   department?: string;
   experienceLevel: 'Entry' | 'Mid' | 'Senior' | 'Staff' | 'Lead' | 'Unspecified';
   vetting?: JobVetting;
+  verification?: JobVerificationEvidence;
 
   // Autonomous "Role Upgrade" Engine
   isRoleUpgrade?: boolean;
@@ -355,6 +397,9 @@ export interface PersonalDetailsState {
   email: string;
   phone: string;
   location: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
 }
 
 /**
@@ -366,6 +411,10 @@ export interface WorkExperienceStateItem {
   role: string;
   duration: string;
   keyResponsibilities: string[];
+  startDate?: string;
+  endDate?: string;
+  location?: string;
+  isCurrent?: boolean;
 }
 
 /**
@@ -376,6 +425,8 @@ export interface EducationStateItem {
   degree: string;
   institution: string;
   year: string;
+  field?: string;
+  gpa?: string;
 }
 
 /**
@@ -390,5 +441,15 @@ export interface CareerApplicationFormState {
   isAutoFilled: boolean;
   lastExtractedTimestamp: string | null;
   rawSourceText: string;
+  targetRole?: string;
+  currentRole?: string;
+  roleFamily?: string;
+  experienceLevel?: string;
+  sourceLanguage?: string;
+  sourceLanguageOther?: string;
+  translatedToEnglish?: boolean;
+  originalLanguageSnapshot?: string;
+  projects?: ProjectItem[];
+  certifications?: CertificationItem[];
 }
 

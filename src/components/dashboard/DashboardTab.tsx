@@ -296,7 +296,7 @@ export const DashboardTab: React.FC = () => {
                 Step-Up Opportunities Detected ({upgradeJobsCount})
               </h4>
               <p className="text-[11px] text-slate-300 mt-0.5">
-                Your verified accomplishments align with higher-scope roles discovered in Sourcing.
+                Your recorded accomplishments align with higher-scope roles discovered in Sourcing.
               </p>
             </div>
           </div>
@@ -426,7 +426,7 @@ export const DashboardTab: React.FC = () => {
         </div>
 
         <div className="p-4 rounded-2xl bg-[#0F172A] border border-slate-800">
-          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Verified Skills</span>
+          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Skills in Master Resume</span>
           <p className="text-2xl font-black text-indigo-400 font-mono tabular-nums mt-1">{skillsCount}</p>
           <span className="text-[10px] text-slate-500">From Master Resume</span>
         </div>
@@ -447,7 +447,7 @@ export const DashboardTab: React.FC = () => {
               ? 'Add Master Resume'
               : selectedJobMatch?.score === null
               ? 'No job skill criteria specified'
-              : 'Verified Evidence Index'}
+              : 'Profile Evidence Index'}
           </span>
         </div>
       </section>
