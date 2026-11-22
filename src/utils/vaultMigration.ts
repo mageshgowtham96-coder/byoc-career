@@ -418,9 +418,6 @@ export function extractLegacyPlaintextFromRawStore(rawJson: string | null): Lega
     const sensitiveData: Partial<DecryptedVaultData> = {};
     let hasSensitive = false;
 
-    if (typeof state.groqApiKey === 'string' && state.groqApiKey.trim()) {
-      sensitiveData.groqApiKey = state.groqApiKey.trim();
-      hasSensitive = true;
     }
     if (typeof state.geminiApiKey === 'string' && state.geminiApiKey.trim()) {
       sensitiveData.geminiApiKey = state.geminiApiKey.trim();
@@ -470,7 +467,6 @@ export function extractLegacyPlaintextFromRawStore(rawJson: string | null): Lega
       'applications' in state ||
       'tailoredArtifacts' in state ||
       'candidatePreferences' in state ||
-      'groqApiKey' in state ||
       'geminiApiKey' in state ||
       'isAuthenticated' in state ||
       Boolean(state.user?.workspacePasskey);
@@ -590,7 +586,6 @@ export function mergeLegacyIntoDecryptedVault(
 ): { merged: DecryptedVaultData; didChange: boolean } {
   let didChange = false;
   const merged: DecryptedVaultData = {
-    groqApiKey: vaultData.groqApiKey || '',
     geminiApiKey: vaultData.geminiApiKey || '',
     masterResume: vaultData.masterResume || null,
     careerFormDraft: vaultData.careerFormDraft || null,
@@ -603,9 +598,6 @@ export function mergeLegacyIntoDecryptedVault(
     candidatePreferences: vaultData.candidatePreferences || { ...DEFAULT_PREFERENCES }
   };
 
-  if (!merged.groqApiKey && legacy.groqApiKey) {
-    merged.groqApiKey = legacy.groqApiKey;
-    didChange = true;
   }
   if (!merged.geminiApiKey && legacy.geminiApiKey) {
     merged.geminiApiKey = legacy.geminiApiKey;
