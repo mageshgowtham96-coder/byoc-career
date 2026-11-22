@@ -710,7 +710,7 @@ export const IntakeTab: React.FC = () => {
                 )}
               </div>
             </div>
-            {!geminiApiKey && <p className="text-[11px] text-amber-300">Add a Gemini API key in Settings to enable document understanding. Local extraction and manual review remain available.</p>}
+            {!geminiApiKey && <p className="text-[11px] text-amber-300">Enter a Gemini API key on the login screen to enable document understanding. Local extraction and manual review remain available.</p>}
             {aiStructuringError && <p role="alert" className="text-[11px] text-rose-300">{aiStructuringError}</p>}
             <details className="rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2">
               <summary className="cursor-pointer text-[11px] font-semibold text-slate-300">View extracted source text locally</summary>
@@ -737,7 +737,7 @@ export const IntakeTab: React.FC = () => {
                 {isOptimizingMaster ? 'Optimizing…' : 'Suggest improvements'}
               </button>
             </div>
-            {!geminiApiKey && <p className="text-[11px] text-amber-300">Add a Gemini key in Settings to enable optional wording suggestions. Your original source document is not re-sent for this step.</p>}
+            {!geminiApiKey && <p className="text-[11px] text-amber-300">Your verified Gemini key is managed at login. Your original source document is not re-sent for this step.</p>}
             {optimizationError && <p role="alert" className="text-[11px] text-rose-300">{optimizationError}</p>}
             {optimizedMasterPreview && (
               <div className="space-y-3 rounded-xl border border-violet-400/25 bg-slate-950/60 p-3">
