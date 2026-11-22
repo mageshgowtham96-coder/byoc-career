@@ -61,7 +61,7 @@ describe('retired feed cleanup and safe board reconciliation', () => {
 
   it('removes closed jobs only from boards successfully refreshed and retains failed-board cache', () => {
     const growwOld = oldJob('direct_greenhouse_groww-1', 'Groww Careers (Greenhouse)');
-    const meeshoOld = oldJob('direct_lever_meesho-2', 'Meesho Careers (Lever)');
+    const meeshoOld = oldJob('direct_workable_weekday-2', 'Weekday AI Careers (Workable)');
     const manual = oldJob('manual-1', 'User Import');
     const currentGroww = oldJob('direct_greenhouse_groww-3', 'Groww Careers (Greenhouse)');
 
@@ -88,29 +88,74 @@ describe('public employer board adapters', () => {
     vi.restoreAllMocks();
   });
 
-  it('maps a live Lever India posting without an API key', async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => [{
-        id: 'lever-123', text: 'Customer Support Associate',
-        categories: { location: 'Bengaluru, India' },
-        descriptionPlain: 'Support customers.',
-        hostedUrl: 'https://jobs.lever.co/meesho/lever-123',
-        createdAt: 1795046400000
-      }]
-    } as Response);
+  it('maps a live Workable India posting through its public JSONP endpoint without an API key', async () => {
+    let script: HTMLScriptElement | null = null;
+    vi.spyOn(document.head, 'appendChild').mockImplementation((node: Node) => {
+      script = node as HTMLScriptElement;
+      const callbackName = new URL(script.src).searchParams.get('callback');
+      window.setTimeout(() => {
+        const callback = callbackName
+          ? (window as unknown as Record<string, unknown>)[callbackName]
+          : undefined;
+        if (typeof callback === 'function') {
+          (callback as (payload: unknown) => void)({
+            name: 'Weekday AI',
+            jobs: [{
+              id: 'job-123', shortcode: 'wk123',
+              title: 'Customer Support Associate',
+              city: 'Bengaluru', state: 'Karnataka', country: 'India',
+              workplace_type: 'hybrid',
+              description: '<p>Support customers.</p>',
+              application_url: 'https://apply.workable.com/weekday-1/j/wk123',
+              published_on: '2026-11-20T10:00:00Z'
+            }]
+          });
+        }
+      }, 0);
+      return node;
+    });
 
-    const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'lever')!;
+    const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'workable')!;
     const jobs = await fetchDirectEmployerBoard(board);
     expect(jobs).toHaveLength(1);
     expect(jobs[0]).toMatchObject({
-      id: 'direct_lever_meesho-lever-123',
-      company: 'Meesho',
+      id: 'direct_workable_weekday-wk123',
+      company: 'Weekday AI',
       title: 'Customer Support Associate',
-      location: 'Bengaluru, India',
-      source: 'Meesho Careers (Lever)'
+      location: 'Bengaluru, Karnataka, India',
+      workplaceType: 'Hybrid',
+      source: 'Weekday AI Careers (Workable)'
     });
+    expect(script?.src).toContain('www.workable.com/api/accounts/weekday-1?details=true&callback=');
+  });
+
+  it('rejects non-India locations, unsafe URLs and malformed Workable records', async () => {
+    vi.spyOn(document.head, 'appendChild').mockImplementation((node: Node) => {
+      const script = node as HTMLScriptElement;
+      const callbackName = new URL(script.src).searchParams.get('callback');
+      window.setTimeout(() => {
+        const callback = callbackName
+          ? (window as unknown as Record<string, unknown>)[callbackName]
+          : undefined;
+        if (typeof callback === 'function') {
+          (callback as (payload: unknown) => void)({
+            name: 'Weekday AI',
+            jobs: [
+              { id: '1', title: 'Analyst', city: 'London', country: 'United Kingdom', application_url: 'https://apply.workable.com/weekday-1/j/1' },
+              { id: '2', title: 'Analyst', city: 'Chennai', country: 'India', application_url: 'javascript:alert(1)' },
+              { id: '3', title: 'Analyst', city: 'Chennai', country: 'India', application_url: 'https://apply.workable.com/weekday-1/j/3' },
+              null
+            ]
+          });
+        }
+      }, 0);
+      return node;
+    });
+
+    const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'workable')!;
+    const jobs = await fetchDirectEmployerBoard(board);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].id).toContain('-3');
   });
 
   it('maps a Greenhouse board through its documented JSONP endpoint and cleans up its callback', async () => {
