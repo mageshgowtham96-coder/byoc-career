@@ -1273,8 +1273,7 @@ export function restoreVaultDataToStore(
           ...data.candidatePreferences,
           portalShortcuts: mergePortalShortcuts(data.candidatePreferences.portalShortcuts)
         }
-      : { ...DEFAULT_CANDIDATE_PREFERENCES },
-    isLiveApiMode: Boolean(data.geminiApiKey)
+      : { ...DEFAULT_CANDIDATE_PREFERENCES }
   });
 }
 
