@@ -945,6 +945,8 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       value={geminiApiKeyInput}
                       onChange={(e) => setGeminiApiKeyInput(e.target.value)}
                       placeholder="AIza... (Required to activate BYOC)"
+                      required
+                      autoComplete="off"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono focus:outline-none focus:border-sky-500 pr-10"
                     />
                     <button
@@ -958,6 +960,9 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                   </div>
                   <p className="text-[11px] text-slate-500 mt-1">
                     Validated before activation and encrypted inside your local vault. BYOC uses Gemini as its only AI provider.
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    AI actions send only the selected resume or job content to Google Gemini after you choose the action. Opening BYOC alone sends no career data. Review Google's API data-use terms before sending personal documents.
                   </p>
                 </div>
 
