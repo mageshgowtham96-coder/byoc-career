@@ -72,7 +72,7 @@ describe('retired feed cleanup and safe board reconciliation', () => {
     );
 
     expect(result.map((job) => job.id)).toEqual(expect.arrayContaining([
-      'direct_greenhouse_groww-3', 'direct_lever_meesho-2', 'manual-1'
+      'direct_greenhouse_groww-3', 'direct_workable_weekday-2', 'manual-1'
     ]));
     expect(result.map((job) => job.id)).not.toContain('direct_greenhouse_groww-1');
     expect(result.map((job) => job.id)).not.toContain('old-2');
