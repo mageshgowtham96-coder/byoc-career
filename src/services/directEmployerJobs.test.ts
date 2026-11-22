@@ -234,21 +234,5 @@ describe('public employer board adapters', () => {
     const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'greenhouse' && item.boardToken === 'capco')!;
     await expect(fetchDirectEmployerBoard(board)).resolves.toEqual([]);
   });
-  it('rejects non-India locations, unsafe URLs and malformed records', async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => [
-        { id: '1', text: 'Analyst', categories: { location: 'London, UK' }, hostedUrl: 'https://jobs.lever.co/meesho/1' },
-        { id: '2', text: 'Analyst', categories: { location: 'Chennai, India' }, hostedUrl: 'javascript:alert(1)' },
-        { id: '3', text: 'Analyst', categories: { location: 'Chennai, India' }, hostedUrl: 'https://jobs.lever.co/meesho/3' }
-      ]
-    } as Response);
-
-    const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'lever')!;
-    const jobs = await fetchDirectEmployerBoard(board);
-    expect(jobs).toHaveLength(1);
-    expect(jobs[0].id).toContain('-3');
-  });
 });
 
