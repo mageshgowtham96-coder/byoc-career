@@ -98,7 +98,7 @@ describe('dynamic typo-tolerant search matching', () => {
 describe('isLiveDiscoveredJobSource', () => {
   it.each([
     ['Groww Careers (Greenhouse)', true],
-    ['Meesho Careers (Lever)', true],
+    ['Weekday AI Careers (Workable)', true],
     ['Groww Careers (Greenhouse)', false],
     ['Remote OK Live', false],
     ['Jobicy Live', false],
