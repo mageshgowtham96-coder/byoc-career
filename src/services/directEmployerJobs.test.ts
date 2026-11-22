@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { JobPosting } from '../types';
 import {
   DIRECT_EMPLOYER_BOARD_DIRECTORY,
@@ -91,18 +91,16 @@ describe('retired feed cleanup and safe board reconciliation', () => {
 });
 
 describe('public employer board adapters', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
   it('maps a live Workable India posting through its public JSONP endpoint without an API key', async () => {
-    let script: HTMLScriptElement | null = null;
+    let scriptSrc = '';
     vi.spyOn(document.head, 'appendChild').mockImplementation((node: Node) => {
-      script = node as HTMLScriptElement;
+      const script = node as HTMLScriptElement;
+      scriptSrc = script.src;
       const callbackName = new URL(script.src).searchParams.get('callback');
       window.setTimeout(() => {
         const callback = callbackName
@@ -137,7 +135,7 @@ describe('public employer board adapters', () => {
       workplaceType: 'Hybrid',
       source: 'Weekday AI Careers (Workable)'
     });
-    expect(script?.src).toContain('www.workable.com/api/accounts/weekday-1?details=true&callback=');
+    expect(scriptSrc).toContain('www.workable.com/api/accounts/weekday-1?details=true&callback=');
   });
 
   it('rejects non-India locations, unsafe URLs and malformed Workable records', async () => {
@@ -170,10 +168,12 @@ describe('public employer board adapters', () => {
   });
 
   it('maps a Greenhouse board through its documented JSONP endpoint and cleans up its callback', async () => {
-    let script: HTMLScriptElement | null = null;
+    let scriptSrc = '';
+    let callbackName = '';
     vi.spyOn(document.head, 'appendChild').mockImplementation((node: Node) => {
-      script = node as HTMLScriptElement;
-      const callbackName = new URL(script.src).searchParams.get('callback');
+      const script = node as HTMLScriptElement;
+      scriptSrc = script.src;
+      callbackName = new URL(script.src).searchParams.get('callback') || '';
       window.setTimeout(() => {
         const callback = callbackName
           ? (window as unknown as Record<string, unknown>)[callbackName]
@@ -204,15 +204,13 @@ describe('public employer board adapters', () => {
       jobDescriptionRaw: 'Build reports with SQL.',
       url: 'https://boards.greenhouse.io/capco/jobs/77'
     });
-    expect(script?.src).toContain('/v1/boards/groww/jobs?content=true&callback=');
-    const callbackName = new URL(script!.src).searchParams.get('callback')!;
+    expect(scriptSrc).toContain('/v1/boards/capco/jobs?content=true&callback=');
     expect((window as unknown as Record<string, unknown>)[callbackName]).toBeUndefined();
   });
 
-  it('drops a posting only when the employer explicitly supplies an expired application deadline', async () => {
-    let script: HTMLScriptElement | null = null;
+  it('drops a Greenhouse posting only when the employer explicitly supplies an expired application deadline', async () => {
     vi.spyOn(document.head, 'appendChild').mockImplementation((node: Node) => {
-      script = node as HTMLScriptElement;
+      const script = node as HTMLScriptElement;
       const callbackName = new URL(script.src).searchParams.get('callback');
       window.setTimeout(() => {
         const callback = callbackName
@@ -224,7 +222,7 @@ describe('public employer board adapters', () => {
               id: 78, title: 'Expired Analyst',
               location: { name: 'Bengaluru, India' },
               content: 'Old opening',
-              absolute_url: 'https://boards.greenhouse.io/groww/jobs/78',
+              absolute_url: 'https://boards.greenhouse.io/capco/jobs/78',
               application_deadline: '2000-01-01T00:00:00Z'
             }]
           });
@@ -236,7 +234,6 @@ describe('public employer board adapters', () => {
     const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'greenhouse' && item.boardToken === 'capco')!;
     await expect(fetchDirectEmployerBoard(board)).resolves.toEqual([]);
   });
-
   it('rejects non-India locations, unsafe URLs and malformed records', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
