@@ -150,6 +150,7 @@ describe('public employer board adapters', () => {
           (callback as (payload: unknown) => void)({
             name: 'Weekday AI',
             jobs: [
+              { id: '0', title: 'Analyst', city: 'Indianapolis', state: 'Indiana', country: 'USA', application_url: 'https://apply.workable.com/weekday-1/j/0' },
               { id: '1', title: 'Analyst', city: 'London', country: 'United Kingdom', application_url: 'https://apply.workable.com/weekday-1/j/1' },
               { id: '2', title: 'Analyst', city: 'Chennai', country: 'India', application_url: 'javascript:alert(1)' },
               { id: '3', title: 'Analyst', city: 'Chennai', country: 'India', application_url: 'https://apply.workable.com/weekday-1/j/3' },
