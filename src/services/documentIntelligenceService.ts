@@ -9,11 +9,20 @@ export interface DocumentEvidenceQuote {
   field: string;
 }
 
+export interface DocumentSectionField {
+  label: string;
+  value: string;
+  evidence: DocumentEvidenceQuote[];
+}
+
 export interface DocumentSectionInsight {
   id: string;
   title: string;
   status: 'found' | 'partial' | 'not_found';
   summary: string;
+  /** Arbitrary document-specific fields discovered by analysis; no fixed category list. */
+  fields: DocumentSectionField[];
+  /** Backward-compatible compact display values from older analyses. */
   items: string[];
   confidence: 'high' | 'medium' | 'low';
   evidence: DocumentEvidenceQuote[];
@@ -46,7 +55,9 @@ const SYSTEM_INSTRUCTIONS = `You are BYOC's document understanding engine. The u
 Extract only facts explicitly supported by the document. Never invent, infer, embellish, normalize uncertain dates, or fill missing details from assumptions. Keep original wording where meaning could change.
 Return valid JSON only. Use empty strings and empty arrays for absent facts. Every non-empty extracted fact must have at least one short verbatim evidence quote. Include a page number when you can identify it; otherwise omit page.
 Do not assume this is a conventional resume. Identify the actual document type and adapt sections to its contents. A resume, CV, portfolio, experience letter, certificate, course record, project document, or mixed career file may have different sections.
-Create follow-up questions only for important information that is genuinely absent or ambiguous. Do not ask for fields already present. Do not treat missing work experience as a defect.
+Do not search for, require, or create empty placeholders for a predefined checklist such as skills, certifications, awards, projects, or education. Discover only the sections that actually exist in this document; section titles and field labels must be chosen from the document itself and may be anything relevant.
+The sections array is the primary, dynamic extraction result. For each discovered section, return its actual fields as {"label":"document-derived field name","value":"extracted value","evidence":[{"quote":"verbatim supporting text","page":1}]}. Preserve unfamiliar section types and their data instead of forcing them into standard resume categories. The standard fields below are optional convenience mappings: populate them only when the corresponding facts are present, and never use their absence as a reason to ask a follow-up question or mark the document incomplete.
+Create follow-up questions only when the user must clarify a fact already suggested by the document, or when the user explicitly asks to build a fuller profile. Do not ask for fields merely because a standard category is absent. Do not treat missing work experience as a defect.
 Output this shape:
 {
   "contactInfo":{"name":"","email":"","phone":"","location":"","linkedin":"","github":"","portfolio":""},
@@ -60,7 +71,7 @@ Output this shape:
   "documentTitle":"",
   "documentSummary":"",
   "documentType":"",
-  "sections":[{"id":"","title":"","status":"found|partial|not_found","summary":"","items":[],"confidence":"high|medium|low","evidence":[{"quote":"","page":1,"field":""}]}],
+  "sections":[{"id":"","title":"","status":"found|partial|not_found","summary":"","fields":[{"label":"","value":"","evidence":[{"quote":"","page":1,"field":""}]}],"items":[],"confidence":"high|medium|low","evidence":[{"quote":"","page":1,"field":""}]}],
   "followUpQuestions":[{"id":"","question":"","reason":"","relatedSection":""}],
   "warnings":[]
 }`;
@@ -102,7 +113,7 @@ function normalizeSections(value: unknown): DocumentSectionInsight[] {
     if (!title) return [];
     const status = row.status === 'partial' || row.status === 'not_found' ? row.status : 'found';
     const confidence = row.confidence === 'high' || row.confidence === 'low' ? row.confidence : 'medium';
-    const evidence = Array.isArray(row.evidence) ? row.evidence.slice(0, 30).flatMap((item) => {
+    const normalizeEvidence = (input: unknown): DocumentEvidenceQuote[] => Array.isArray(input) ? input.slice(0, 30).flatMap((item) => {
       if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
       const quote = text((item as Record<string, unknown>).quote, 600);
       if (!quote) return [];
@@ -110,11 +121,21 @@ function normalizeSections(value: unknown): DocumentSectionInsight[] {
       const page = typeof pageValue === 'number' && Number.isInteger(pageValue) && pageValue > 0 ? pageValue : undefined;
       return [{ quote, ...(page ? { page } : {}), field: text((item as Record<string, unknown>).field, 120) }];
     }) : [];
+    const evidence = normalizeEvidence(row.evidence);
+    const fields = Array.isArray(row.fields) ? row.fields.slice(0, 60).flatMap((item) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+      const field = item as Record<string, unknown>;
+      const label = text(field.label, 160);
+      const value = text(field.value, 2000);
+      if (!label || !value) return [];
+      return [{ label, value, evidence: normalizeEvidence(field.evidence) }];
+    }) : [];
     return [{
       id: text(row.id, 80) || `section-${index + 1}`,
       title,
       status,
       summary: text(row.summary, 1200),
+      fields,
       items: strings(row.items, 40, 800),
       confidence,
       evidence
