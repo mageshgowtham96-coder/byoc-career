@@ -267,11 +267,17 @@ function workableLocation(item: Record<string, any>): string {
     ].filter((part) => typeof part === 'string' && part.trim()).join(', ');
   }).filter(Boolean);
   const primary = isRecord(item.location)
-    ? (item.location.location_str || [
-        item.location.city,
-        item.location.state,
-        item.location.country_name || item.location.country || (item.location.country_code === 'IN' ? 'India' : '')
-      ].filter(Boolean).join(', '))
+    ? (() => {
+        const locationText = String(item.location.location_str || [
+          item.location.city,
+          item.location.state
+        ].filter(Boolean).join(', '));
+        const nestedCountry = item.location.country_name || item.location.country
+          || (item.location.country_code === 'IN' ? 'India' : '');
+        return nestedCountry && !locationText.toLowerCase().includes(String(nestedCountry).toLowerCase())
+          ? [locationText, nestedCountry].filter(Boolean).join(', ')
+          : locationText;
+      })()
     : item.location;
   const country = typeof item.country === 'string' ? (item.country.toUpperCase() === 'IN' ? 'India' : item.country) : (item.country_code === 'IN' ? 'India' : '');
   const city = typeof item.city === 'string' ? item.city : '';
