@@ -71,21 +71,21 @@ describe('retired feed cleanup and safe board reconciliation', () => {
   });
 
   it('removes closed jobs only from boards successfully refreshed and retains failed-board cache', () => {
-    const growwOld = oldJob('direct_greenhouse_groww-1', 'Groww Careers (Greenhouse)');
+    const growwOld = oldJob('direct_greenhouse_capco-1', 'Capco Careers (Greenhouse)');
     const meeshoOld = oldJob('direct_workable_weekday-2', 'Weekday AI Careers (Workable)');
     const manual = oldJob('manual-1', 'User Import');
-    const currentGroww = oldJob('direct_greenhouse_groww-3', 'Groww Careers (Greenhouse)');
+    const currentGroww = oldJob('direct_greenhouse_capco-3', 'Capco Careers (Greenhouse)');
 
     const result = reconcileDirectEmployerJobs(
       [growwOld, meeshoOld, manual, oldJob('old-2', 'Jobicy Live')],
       [currentGroww],
-      ['direct_greenhouse_groww']
+      ['direct_greenhouse_capco']
     );
 
     expect(result.map((job) => job.id)).toEqual(expect.arrayContaining([
-      'direct_greenhouse_groww-3', 'direct_workable_weekday-2', 'manual-1'
+      'direct_greenhouse_capco-3', 'direct_workable_weekday-2', 'manual-1'
     ]));
-    expect(result.map((job) => job.id)).not.toContain('direct_greenhouse_groww-1');
+    expect(result.map((job) => job.id)).not.toContain('direct_greenhouse_capco-1');
     expect(result.map((job) => job.id)).not.toContain('old-2');
   });
 });
@@ -184,7 +184,7 @@ describe('public employer board adapters', () => {
               id: 77, title: 'Data Analyst',
               location: { name: 'Chennai, India' },
               content: '&lt;p&gt;Build reports with SQL.&lt;/p&gt;',
-              absolute_url: 'https://boards.greenhouse.io/groww/jobs/77',
+              absolute_url: 'https://boards.greenhouse.io/capco/jobs/77',
               first_published: '2026-11-20T10:00:00Z'
             }]
           });
@@ -193,16 +193,16 @@ describe('public employer board adapters', () => {
       return node;
     });
 
-    const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'greenhouse')!;
+    const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'greenhouse' && item.boardToken === 'capco')!;
     const jobs = await fetchDirectEmployerBoard(board);
     expect(jobs).toHaveLength(1);
     expect(jobs[0]).toMatchObject({
-      id: 'direct_greenhouse_groww-77',
+      id: 'direct_greenhouse_capco-77',
       title: 'Data Analyst',
-      company: 'Groww',
+      company: 'Capco',
       location: 'Chennai, India',
       jobDescriptionRaw: 'Build reports with SQL.',
-      url: 'https://boards.greenhouse.io/groww/jobs/77'
+      url: 'https://boards.greenhouse.io/capco/jobs/77'
     });
     expect(script?.src).toContain('/v1/boards/groww/jobs?content=true&callback=');
     const callbackName = new URL(script!.src).searchParams.get('callback')!;
@@ -233,7 +233,7 @@ describe('public employer board adapters', () => {
       return node;
     });
 
-    const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'greenhouse')!;
+    const board = DIRECT_EMPLOYER_BOARD_DIRECTORY.find((item) => item.provider === 'greenhouse' && item.boardToken === 'capco')!;
     await expect(fetchDirectEmployerBoard(board)).resolves.toEqual([]);
   });
 
