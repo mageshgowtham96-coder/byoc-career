@@ -707,6 +707,24 @@ class DirectEmployerBoardAdapter implements JobProviderAdapter {
   }
 }
 
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  const workerCount = Math.max(1, Math.min(Math.floor(concurrency) || 1, items.length));
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      results[index] = await mapper(items[index]);
+    }
+  }));
+  return results;
+}
+
 export class LiveJobSearchEngine {
   constructor(private providers: JobProviderAdapter[] = DIRECT_EMPLOYER_BOARD_DIRECTORY.map(
     (board) => new DirectEmployerBoardAdapter(board)
@@ -736,7 +754,7 @@ export class LiveJobSearchEngine {
     // Refresh direct employer boards no more than once per 12 hours. When the app
     // is opened after the interval, this foreground search performs the refresh.
     // Between refreshes, searches use the encrypted local job cache.
-    const providerResults: Array<{ jobs: JobPosting[]; queried: boolean; error?: string; status: JobProviderStatus }> = await Promise.all(this.providers.map(async (provider) => {
+    const providerResults: Array<{ jobs: JobPosting[]; queried: boolean; error?: string; status: JobProviderStatus }> = await mapWithConcurrency(this.providers, 2, async (provider) => {
       if (!refreshDue) {
         return {
           jobs: [] as JobPosting[],
@@ -809,7 +827,7 @@ export class LiveJobSearchEngine {
           }
         };
       }
-    }));
+    });
 
     const providerErrors: string[] = [];
     for (const result of providerResults) {
