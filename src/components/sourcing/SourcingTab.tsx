@@ -1165,7 +1165,7 @@ export const SourcingTab: React.FC = () => {
                     type="url"
                     value={customUrl}
                     onChange={(e) => setCustomUrl(e.target.value)}
-                    placeholder="https://www.glassdoor.com/job-listing/..."
+                    placeholder="https://careers.company.com/jobs/..."
                     className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -1179,11 +1179,8 @@ export const SourcingTab: React.FC = () => {
                     className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500"
                   >
                     <option value="User Import">User Import (Direct Paste)</option>
-                    {portalShortcuts.map((ps) => (
-                      <option key={ps.id} value={ps.name}>
-                        {ps.name}
-                      </option>
-                    ))}
+                    <option value="Greenhouse">Greenhouse employer board</option>
+                    <option value="Workable">Workable employer board</option>
                     <option value="Company Careers">Company Careers Page</option>
                   </select>
                 </div>
