@@ -43,6 +43,7 @@ import {
 } from '../services/emailSyncService';
 import {
   DEFAULT_PORTAL_SHORTCUTS,
+  LiveJobSearchEngine,
   buildPortalShortcutUrl,
   calculateHonestMatch,
   isWorldwideCountryCode,
