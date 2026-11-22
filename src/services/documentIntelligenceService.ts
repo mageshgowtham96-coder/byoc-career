@@ -37,7 +37,7 @@ export interface DocumentIntelligence {
   model: string;
 }
 
-const MODEL = 'gemini-3.5-flash-lite';
+const MODEL = 'gemini-3.6-flash';
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_TEXT_CHARS = 100_000;
 
