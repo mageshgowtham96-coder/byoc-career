@@ -112,6 +112,45 @@ describe('resume upload parsing and readiness end-to-end fixture', () => {
     expect(parsed.rawText).toBe(DUMMY_FRAUD_ANALYST_RESUME);
   });
 
+
+  it('extracts a deliberately inconsistent resume without rewriting or inventing source facts', async () => {
+    const flawedResume = `PRIYA S.
+priya.s@example.com | +91 90000 12345 | Bengaluru
+
+PROFILE
+Fraud ops analyst. Worked with UPI/card alerts, customer disputes and case notes.
+Good with Excel, SQL (basic), AML/KYC.
+
+EMPLOYMENT
+Fraud Ops Analyst | NorthStar Payments | 2022 - Current
+* reviewed suspicious txn alerts and wrote case notes
+* helped the compliance team with escalations
+
+Customer Service Associate - CityPay | 2020 to 2022
+Handled chargebacks, customer calls and account misuse reports.
+
+PROJECTS / OTHER
+UPI dispute tracker - Excel
+Made a simple tracker for pending cases. No measured savings recorded.
+
+AWARD
+Team appreciation - 2021
+
+LANGUAGES
+Kannada (native), English - working level
+`;
+    const file = new File([flawedResume], 'flawed-layout-resume.txt', { type: 'text/plain' });
+    const extracted = await extractResumeFile(file);
+
+    expect(extracted.success).toBe(true);
+    expect(extracted.rawText).toContain('2022 - Current');
+    expect(extracted.rawText).toContain('No measured savings recorded.');
+    expect(extracted.rawText).toContain('Kannada (native)');
+    expect(extracted.parsedProfile).toBeDefined();
+    expect(extracted.parsedProfile?.rawText).toBe(flawedResume.trim());
+    expect(extracted.parsedProfile?.rawText).not.toContain('increased revenue');
+  });
+
   it('does not flag the complete dummy resume as half-built', () => {
     const parsed = parseRawResumeToStructured(DUMMY_FRAUD_ANALYST_RESUME);
     expect(assessResumeReadiness(parsed)).toEqual({
