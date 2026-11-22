@@ -239,7 +239,7 @@ export const SettingsTab: React.FC = () => {
           <span>System &amp; Workspace Settings</span>
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-          Manage your Groq BYOK credentials, private device backups, biometric screen shield, and documentation.
+          Manage AI provider access, private device backups, biometric screen shield, and documentation.
         </p>
       </div>
 
@@ -335,7 +335,7 @@ export const SettingsTab: React.FC = () => {
 
         <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-400">
           <span>
-            Groq BYOK handles vetting, tailoring, and evidence-anchored prep with strict zero-fabrication prompts. Gemini remains disabled in this browser-only build; adding another provider requires explicit consent and a reviewed secure integration.
+            Groq remains available for existing career workflows. Gemini is enabled for explicit, user-triggered PDF document understanding in the Documents tab. The original PDF is sent directly to Google only after the user requests analysis or asks a question; its key is stored in the encrypted device vault.
           </span>
           <span className="text-emerald-400 font-mono text-[11px] shrink-0">Live BYOK Architecture</span>
         </div>
@@ -602,7 +602,7 @@ export const SettingsTab: React.FC = () => {
               <ul className="space-y-1.5 text-slate-400">
                 <li>• <strong className="text-slate-200">Supported Local Extraction:</strong> Processes <span className="font-mono text-slate-200">.txt</span>, <span className="font-mono text-slate-200">.md</span>, standard compressed XML <span className="font-mono text-slate-200">.docx</span>, and basic selectable-text <span className="font-mono text-slate-200">.pdf</span> files up to 10MB 100% locally on-device.</li>
                 <li>• <strong className="text-slate-200">Unsupported Formats (No OCR):</strong> Raster image OCR (PNG/JPG/scanned PDFs), encrypted PDFs, and complex CID/custom-font PDF glyph maps remain unsupported. When readable text cannot be extracted, BYOC directs you to the Manual Paste Fallback box.</li>
-                <li>• <strong className="text-slate-200">Groq BYOK (Active AI Provider):</strong> Create a free or paid key at <span className="font-mono text-sky-400">console.groq.com</span> and paste it above. Gemini is not active in this client-only build; its free tier has separate quotas and data-use terms. Without a Groq key (or if Groq is unreachable/rate-limited), all local vault, sourcing, offline baseline export, Assisted-Apply, and tracking workflows remain functional offline.</li>
+                <li>• <strong className="text-slate-200">Groq BYOK (Active AI Provider):</strong> Create a free or paid key at <span className="font-mono text-sky-400">console.groq.com</span> and paste it above. The Documents tab accepts a Gemini API key for direct multimodal PDF understanding. Gemini is called only after explicit user action; quotas and data-use terms differ by account tier. Without a Groq key (or if Groq is unreachable/rate-limited), all local vault, sourcing, offline baseline export, Assisted-Apply, and tracking workflows remain functional offline.</li>
               </ul>
             </>
           )}
