@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { JobPosting, MasterResume } from '../types';
 import { calculateHonestMatch } from './jobSearchService';
-import { buildInterviewEvidenceMap, getTailoringStrategies, validateTailoredOutput } from './groqService';
+import { buildInterviewEvidenceMap, getTailoringStrategies, validateTailoredOutput } from './geminiCareerService';
 import { generateDocxResume, generatePdfResume } from './exporterService';
 import { buildVaultDataFromState, useWizardStore } from '../store/useWizardStore';
 import { decryptVault, encryptVault } from '../utils/cryptoVault';
