@@ -98,8 +98,8 @@ function mockSandboxedJsonpPayload(payload: unknown) {
     const tokenMatch = frame.srcdoc.match(/__byocJsonp:\s*("[^"]+")/);
     if (!tokenMatch) throw new Error('Sandboxed JSONP message token was not found.');
     const token = JSON.parse(tokenMatch[1]) as string;
-    const source = frame.contentWindow;
     const appended = append(node);
+    const source = frame.contentWindow;
     window.setTimeout(() => {
       window.dispatchEvent(new MessageEvent('message', {
         source,
