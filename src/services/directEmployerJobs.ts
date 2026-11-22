@@ -81,8 +81,13 @@ function safeUrl(value: unknown): string | null {
 }
 
 function isIndiaLocation(value: string): boolean {
-  const normalized = value.normalize('NFKC').toLowerCase();
-  return INDIA_LOCATION_MARKERS.some((marker) => normalized.includes(marker));
+  // Match complete location tokens, not substrings such as "India" inside
+  // "Indiana" or "Indianapolis".
+  const normalized = ` ${value.normalize('NFKC').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
+  return INDIA_LOCATION_MARKERS.some((marker) => {
+    const token = marker.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    return normalized.includes(` ${token} `);
+  });
 }
 
 function normalizeDate(value: unknown): string {
