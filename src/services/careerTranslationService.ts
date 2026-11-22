@@ -1,5 +1,5 @@
 import type { CareerApplicationFormState } from '../types';
-import { callGroqChat } from './groqService';
+import { callGeminiChat } from './geminiCareerService';
 
 interface TranslatedCareerText {
   targetRole: string;
@@ -23,12 +23,12 @@ function requireString(value: unknown): value is string {
 
 function assertFaithfulText(source: string, translated: string): void {
   if (Boolean(source.trim()) !== Boolean(translated.trim())) {
-    throw new Error('Groq added or omitted text during translation. Your original draft has not changed.');
+    throw new Error('Gemini added or omitted text during translation. Your original draft has not changed.');
   }
   const sourceNumbers = source.match(/\d+(?:[.,]\d+)?%?/g) || [];
   const translatedNumbers = translated.match(/\d+(?:[.,]\d+)?%?/g) || [];
   if (sourceNumbers.join('|') !== translatedNumbers.join('|')) {
-    throw new Error('Groq changed a number or metric during translation. Your original draft has not changed.');
+    throw new Error('Gemini changed a number or metric during translation. Your original draft has not changed.');
   }
 }
 
@@ -37,11 +37,11 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
+    throw new Error('Gemini returned an invalid translation response. Your original draft has not changed.');
   }
 
   if (!isRecord(parsed)) {
-    throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
+    throw new Error('Gemini returned an invalid translation response. Your original draft has not changed.');
   }
 
   const workExperience = Array.isArray(parsed.workExperience) ? parsed.workExperience : null;
@@ -62,7 +62,7 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
     projects.length !== (draft.projects || []).length ||
     certifications.length !== (draft.certifications || []).length
   ) {
-    throw new Error('Groq returned an incomplete translation response. Your original draft has not changed.');
+    throw new Error('Gemini returned an incomplete translation response. Your original draft has not changed.');
   }
 
   assertFaithfulText(draft.targetRole || '', parsed.targetRole);
@@ -71,14 +71,14 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
 
   const translatedWork = workExperience.map((item, index) => {
     if (!isRecord(item) || !requireString(item.role) || !Array.isArray(item.keyResponsibilities)) {
-      throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
+      throw new Error('Gemini returned an invalid translation response. Your original draft has not changed.');
     }
     const originalBullets = draft.workExperience[index].keyResponsibilities;
     if (
       item.keyResponsibilities.length !== originalBullets.length ||
       !item.keyResponsibilities.every(requireString)
     ) {
-      throw new Error('Groq returned an incomplete translation response. Your original draft has not changed.');
+      throw new Error('Gemini returned an incomplete translation response. Your original draft has not changed.');
     }
     assertFaithfulText(draft.workExperience[index].role, item.role);
     item.keyResponsibilities.forEach((bullet, bulletIndex) => {
@@ -89,7 +89,7 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
 
   const translatedEducation = education.map((item, index) => {
     if (!isRecord(item) || !requireString(item.degree) || !requireString(item.field)) {
-      throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
+      throw new Error('Gemini returned an invalid translation response. Your original draft has not changed.');
     }
     assertFaithfulText(draft.education[index].degree, item.degree);
     assertFaithfulText(draft.education[index].field || '', item.field);
@@ -98,7 +98,7 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
 
   const translatedProjects = projects.map((item, index) => {
     if (!isRecord(item) || !requireString(item.title) || !requireString(item.description)) {
-      throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
+      throw new Error('Gemini returned an invalid translation response. Your original draft has not changed.');
     }
     const original = (draft.projects || [])[index];
     assertFaithfulText(original.title, item.title);
@@ -108,7 +108,7 @@ function parseTranslatedCareerText(raw: string, draft: CareerApplicationFormStat
 
   const translatedCertifications = certifications.map((item, index) => {
     if (!isRecord(item) || !requireString(item.name)) {
-      throw new Error('Groq returned an invalid translation response. Your original draft has not changed.');
+      throw new Error('Gemini returned an invalid translation response. Your original draft has not changed.');
     }
     assertFaithfulText((draft.certifications || [])[index].name, item.name);
     return { name: item.name };
@@ -136,7 +136,7 @@ export async function translateCareerDraftToEnglish(
   apiKey: string
 ): Promise<CareerApplicationFormState> {
   if (!apiKey.trim()) {
-    throw new Error('A Groq API key is required for optional translation.');
+    throw new Error('A Gemini API key is required for optional translation.');
   }
   if (!sourceLanguage.trim() || sourceLanguage.toLowerCase() === 'english') {
     throw new Error('Choose the source language before requesting translation.');
@@ -176,7 +176,7 @@ export async function translateCareerDraftToEnglish(
     throw new Error('This draft is too long for one safe translation request. Shorten it or translate a smaller draft.');
   }
 
-  const raw = await callGroqChat(
+  const raw = await callGeminiChat(
     'You are a careful resume translator. Preserve facts exactly. Return valid JSON only.',
     userPrompt,
     apiKey
