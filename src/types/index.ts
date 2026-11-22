@@ -379,7 +379,13 @@ export type JobSourcePortal =
   | 'All'
   | 'Greenhouse'
   | 'Workable'
-  | 'User Import';
+  | 'User Import'
+  | 'LinkedIn'
+  | 'Glassdoor'
+  | 'Naukri'
+  | 'Indeed'
+  | 'Foundit'
+  | 'Instahyre';
 
 export interface PortalShortcut {
   id: string;
@@ -424,6 +430,7 @@ export type ActiveTab =
   | 'customization'
   | 'tracking'
   | 'prepzone'
+  | 'documents'
   | 'settings';
 
 /**
