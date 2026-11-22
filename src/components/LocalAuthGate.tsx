@@ -58,7 +58,6 @@ import {
   dedupeEmailInteractions,
   readLegacyEmailRecords
 } from '../services/emailSyncService';
-import { registerWebAuthnCredential } from '../utils/webauthn';
 
 export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const {
@@ -240,6 +239,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       let biometricEnabled = false;
       let biometricCredentialId: string | undefined = undefined;
       if (enableBiometricOnSignup) {
+        const { registerWebAuthnCredential } = await import('../utils/webauthn');
         const reg = await registerWebAuthnCredential(
           cleanName || 'BYOC Workspace',
           cleanEmail || 'local-vault@byoc.internal'

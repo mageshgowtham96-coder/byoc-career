@@ -41,6 +41,7 @@ export const SourcingTab: React.FC = () => {
     selectedJobId,
     setSelectedJobId,
     masterResume,
+    groqApiKey,
     hasMasterResume,
     setActiveTab,
     addJob,
@@ -124,7 +125,8 @@ export const SourcingTab: React.FC = () => {
           skills: masterResume?.skills.technical
         },
         masterResume,
-        jobs
+        jobs,
+        groqApiKey
       );
       setLiveSearchReport(res);
       if (res.jobs.length > 0) {
@@ -184,6 +186,8 @@ export const SourcingTab: React.FC = () => {
           if (!matches) return false;
         }
         const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes((job.source || '').toLowerCase());
+        const isGroqDiscoveryJob = (job.source || '').toLowerCase() === 'groq browser search — verify before applying';
+        if (isGroqDiscoveryJob && locFilter && !job.location.toLowerCase().includes(locFilter.toLowerCase())) return false;
         if (!isWorldwide && isLiveFeedJob) {
           const matchesLoc = matchesRemoteCountryAndLocation(
             job.location,
@@ -678,6 +682,12 @@ export const SourcingTab: React.FC = () => {
             ? 'Connected public job feeds provide remote roles only.'
             : `${workplaceFilter} filters saved or pasted listings only; connected public feeds currently provide remote roles only.`}
       </p>
+
+      {groqApiKey?.trim() && (
+        <p className="-mt-1 text-[11px] text-slate-400 leading-relaxed">
+          Groq Browser Search is also used when you run a search. It sends the search query, relevant role/skill keywords, and location filters to Groq — not your full resume or contact fields. Keep this box to job-related terms, never personal details. Results are unverified candidates; check the employer’s official careers page.
+        </p>
+      )}
 
       {/* Live Search Feedback Banner */}
       {liveSearchReport && (

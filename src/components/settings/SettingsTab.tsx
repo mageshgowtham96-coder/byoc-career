@@ -167,7 +167,15 @@ export const SettingsTab: React.FC = () => {
   };
 
   const handleExportEncryptedVault = async () => {
-    await syncVaultFromStoreNow();
+    const synced = await syncVaultFromStoreNow();
+    if (!synced) {
+      addToast({
+        type: 'error',
+        title: 'Encrypted Backup Not Exported',
+        message: 'BYOC could not confirm that the latest changes were saved. Retry the vault save before exporting a current backup.'
+      });
+      return;
+    }
     const envelope = readStoredVaultEnvelope();
     if (!envelope) {
       addToast({
@@ -484,6 +492,9 @@ export const SettingsTab: React.FC = () => {
             <h3 className="text-sm font-bold text-white">Data Portability, Encrypted Backup &amp; Reset</h3>
             <p className="text-xs text-slate-400">
               Export either an encrypted vault envelope (for cross-device restoration) or a redacted readable snapshot
+            </p>
+            <p className="mt-2 text-[11px] leading-relaxed text-amber-200">
+              Automatic Android cloud backup and device-to-device app-data transfer are disabled. Export the encrypted vault before uninstalling BYOC or moving to another device, and keep your recovery phrase somewhere safe. Readable snapshots are not encrypted.
             </p>
           </div>
         </div>

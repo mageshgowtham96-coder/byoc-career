@@ -109,11 +109,20 @@ export async function registerWebAuthnCredential(
 }
 
 /**
- * Executes authentic WebAuthn authentication ceremony
+ * Requests a platform-authenticator assertion and matches its raw credential ID
+ * to the credential enrolled for this workspace. userVerification is required.
+ * This local-only gate is a session convenience, not server-verified identity proof.
  */
 export async function verifyWebAuthnCredential(
   storedCredentialId?: string
 ): Promise<WebAuthnVerificationResult> {
+  if (!storedCredentialId) {
+    return {
+      success: false,
+      error: 'No enrolled device credential is associated with this workspace. Unlock with your passphrase and re-enroll.'
+    };
+  }
+
   const available = await isPlatformAuthenticatorAvailable();
   if (!available) {
     return {
@@ -148,11 +157,14 @@ export async function verifyWebAuthnCredential(
       publicKey: publicKeyRequestOptions
     })) as PublicKeyCredential;
 
-    if (assertion && assertion.id) {
+    if (assertion?.rawId && bufferToBase64(assertion.rawId) === storedCredentialId) {
       return { success: true };
     }
 
-    return { success: false, error: 'No credential returned from device.' };
+    return {
+      success: false,
+      error: 'The device did not return the enrolled BYOC credential. Unlock with your passphrase and try again.'
+    };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Biometric verification cancelled or failed.';
     return { success: false, error: msg };
