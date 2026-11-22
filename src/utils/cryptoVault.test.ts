@@ -275,6 +275,17 @@ describe('Legacy Migration', () => {
       expect(result.sensitiveData.geminiApiKey).toBe('AIza_test123');
     });
 
+    it('detects and scrubs an old Groq credential without migrating it into the Gemini slot', () => {
+      const rawStore = JSON.stringify({ state: { groqApiKey: 'gsk_legacy_value' } });
+      const result = extractLegacyPlaintextFromRawStore(rawStore);
+      expect(result.detected).toBe(true);
+      expect(result.sensitiveData.geminiApiKey).toBeUndefined();
+      const scrubbed = scrubPlaintextWorkspaceStore(rawStore);
+      expect(scrubbed).toBeTruthy();
+      expect(JSON.parse(scrubbed!).state).not.toHaveProperty('groqApiKey');
+      expect(JSON.parse(scrubbed!).state).not.toHaveProperty('geminiApiKey');
+    });
+
     it('returns empty for clean store', () => {
       const rawStore = JSON.stringify({ state: { activeTab: 'dashboard' } });
       const result = extractLegacyPlaintextFromRawStore(rawStore);
