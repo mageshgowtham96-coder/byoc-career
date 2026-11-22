@@ -201,7 +201,7 @@ export const DocumentsTab: React.FC = () => {
 
       <div className="flex items-start gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-100/90">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-        <p><strong>{t('Local by default.')}</strong> PDF operations and text extraction happen on this device. BYOC does not save this document or chat automatically. Extracted text is sent to Groq only when you submit a question below.</p>
+        <p><strong>{t('Local by default.')}</strong> PDF operations and text extraction happen on this device. BYOC does not save this document or chat automatically. The original PDF and your question are sent to Google only when you submit a question below.</p>
       </div>
 
       {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
