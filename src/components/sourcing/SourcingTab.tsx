@@ -74,7 +74,7 @@ export const SourcingTab: React.FC = () => {
   const liveSearchInFlight = React.useRef(false);
   const [workplaceFilter, setWorkplaceFilter] = useState<'All' | 'Remote' | 'Hybrid' | 'On-site'>('All');
   const [portalFilter, setPortalFilter] = useState<JobSourcePortal>('All');
-  const [postedWithinDays, setPostedWithinDays] = useState<number>(30);
+  const [postedWithinDays, setPostedWithinDays] = useState<number>(0);
   const [optionalLocation, setOptionalLocation] = useState(
     candidatePreferences?.preferredLocations?.[0] || ''
   );
@@ -516,7 +516,7 @@ export const SourcingTab: React.FC = () => {
             ? 'Worldwide mode checks BYOC’s currently configured India employer-board directory. It is not an exhaustive global job index.'
             : `BYOC checks public employer career boards directly and filters published locations for ${candidatePreferences?.country || 'IN'}${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' plus explicitly worldwide roles'}${
                 optionalLocation.trim() ? ` + "${optionalLocation.trim()}"` : ''
-              }. City mentions in descriptions do not count as location evidence; hybrid/on-site openings must be saved or pasted.`}
+              }. City mentions in descriptions do not count as location evidence; workplace details remain unspecified when the employer does not publish them.`}
         </p>
       </div>
 
@@ -540,7 +540,7 @@ export const SourcingTab: React.FC = () => {
             <option value={90}>Past 90 days</option>
             <option value={0}>Any date</option>
           </select>
-          <span className="text-[10px] text-slate-500">Undated feed listings are hidden unless “Any date” is selected.</span>
+          <span className="text-[10px] text-slate-500">Active employer-board listings are retained regardless of age; use Posted to narrow by date.</span>
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -772,7 +772,7 @@ export const SourcingTab: React.FC = () => {
           ? 'All shows saved/pasted roles and current openings published on configured employer career boards.'
           : workplaceFilter === 'Remote'
             ? 'Employer career boards publish their available workplace details; unknown work modes remain unspecified.'
-            : `${workplaceFilter} filters saved or pasted listings only; connected public feeds currently provide remote roles only.`}
+            : `${workplaceFilter} filters saved/pasted listings and employer postings with the selected published work mode.`}
       </p>
 
 
