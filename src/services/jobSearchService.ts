@@ -1,5 +1,13 @@
 import type { JobPosting, MasterResume, JobSourcePortal, PortalShortcut } from '../types';
 import { expandTamilJobSearchQuery, translateTamilJobSearchQuery } from '../utils/roleSuggestions';
+import {
+  DIRECT_EMPLOYER_BOARD_DIRECTORY,
+  fetchDirectEmployerBoard,
+  isDirectEmployerRefreshDue,
+  isRetiredAggregatedFeedJob,
+  markDirectEmployerRefreshCompleted,
+  reconcileDirectEmployerJobs
+} from './directEmployerJobs';
 
 export interface JobSearchQueryParams {
   query?: string;
@@ -989,13 +997,13 @@ export class JobicyJobAdapter implements JobProviderAdapter {
 export function buildLocationScopeNotice(country?: string, location?: string, includeWorldwideRemote = true): string {
   const cleanLoc = (location || '').trim();
   if (isWorldwideCountryCode(country)) {
-    return 'Worldwide mode queries Remotive, Remote OK, Jobicy, and Arbeitnow public feeds; results depend on each feed and are not an exhaustive global job index.';
+    return 'Direct employer discovery checks configured public Greenhouse and Lever career boards. The initial directory is India-focused and is not an exhaustive global job index.';
   }
   const code = (country || '').trim().toUpperCase();
   const eligibility = includeWorldwideRemote ? `${code} / explicitly worldwide` : `${code} only`;
-  const base = `Target region ${code}: Remotive, Remote OK, and Jobicy return remote postings only; BYOC filters locally for ${eligibility} eligibility.`;
+  const base = `Target region ${code}: BYOC checks public employer career boards directly and filters listings using published locations.`;
   if (cleanLoc) {
-    return `${base} The location filter uses the listing's published location, not city mentions in its description. City-specific non-remote boards require a configured regional source or pasted custom JDs.`;
+    return `${base} The initial employer directory is limited; roles with missing or ambiguous locations are not assumed to be in the selected city.`;
   }
   return base;
 }
@@ -1026,7 +1034,10 @@ export function identifyJobPortalSource(rawUrl: string): string {
 /** True for jobs discovered from a public live feed, not user-entered records. */
 export function isLiveDiscoveredJobSource(source?: string): boolean {
   const normalized = (source || '').toLowerCase();
-  return ['remotive live', 'remote ok live', 'jobicy live', 'arbeitnow live'].includes(normalized);
+  return normalized.includes('careers (greenhouse)')
+    || normalized.includes('careers (lever)')
+    || normalized.includes('careers (ashby)')
+    || normalized.includes('careers (smartrecruiters)');
 }
 
 /** Returns true only when a published date can be parsed and falls inside the selected freshness window. */
@@ -1063,14 +1074,26 @@ export function formatJobPostedDate(postedDate: string): string {
   return parsed ? parsed.toLocaleDateString() : (postedDate || 'Unspecified');
 }
 
+class DirectEmployerBoardAdapter implements JobProviderAdapter {
+  id: string;
+  name: string;
+  isConfigured = true;
+  requiresAuth = false;
+
+  constructor(private board: (typeof DIRECT_EMPLOYER_BOARD_DIRECTORY)[number]) {
+    this.id = board.id;
+    this.name = `${board.company} Careers`;
+  }
+
+  search(): Promise<JobPosting[]> {
+    return fetchDirectEmployerBoard(this.board);
+  }
+}
+
 export class LiveJobSearchEngine {
-  constructor(private providers: JobProviderAdapter[] = [
-    new PublicFeedsJobAdapter(),
-    new RemoteOkJobAdapter(),
-    new JobicyJobAdapter(),
-    new ArbeitnowJobAdapter(),
-    new AdzunaJobAdapter()
-  ]) {}
+  constructor(private providers: JobProviderAdapter[] = DIRECT_EMPLOYER_BOARD_DIRECTORY.map(
+    (board) => new DirectEmployerBoardAdapter(board)
+  )) {}
 
   async executeLiveSearch(
     params: JobSearchQueryParams,
@@ -1083,7 +1106,7 @@ export class LiveJobSearchEngine {
       location: isWorldwideCountryCode(params.country) ? undefined : params.location?.trim() || undefined
     };
 
-    const gatheredJobs: JobPosting[] = [...existingJobs];
+    const refreshDue = isDirectEmployerRefreshDue();
     const queriedSources: string[] = ['Local Stored Positions'];
     const providerStatuses: JobProviderStatus[] = [{
       id: 'local_store',
@@ -1093,9 +1116,20 @@ export class LiveJobSearchEngine {
       detail: `${existingJobs.length} locally saved or pasted position(s)`
     }];
 
-    // Run independent public feeds concurrently. One slow/unavailable provider must not delay
-    // successful results from the other providers; each adapter retains its own request timeout.
+    // Refresh direct employer boards no more than once per 12 hours. When the app
+    // is opened after the interval, this foreground search performs the refresh.
+    // Between refreshes, searches use the encrypted local job cache.
     const providerResults: Array<{ jobs: JobPosting[]; queried: boolean; error?: string; status: JobProviderStatus }> = await Promise.all(this.providers.map(async (provider) => {
+      if (!refreshDue) {
+        return {
+          jobs: [] as JobPosting[],
+          queried: false,
+          status: {
+            id: provider.id, name: provider.name, status: 'skipped' as const, count: 0,
+            detail: 'Using locally cached employer postings; the next live refresh is due after the 12-hour interval.'
+          }
+        };
+      }
       if (!provider.isConfigured) {
         return {
           jobs: [] as JobPosting[],
@@ -1152,10 +1186,19 @@ export class LiveJobSearchEngine {
       providerStatuses.push(result.status);
       if (result.queried) queriedSources.push(result.status.name);
       if (result.error) providerErrors.push(result.error);
-      gatheredJobs.push(...result.jobs);
     }
 
-    const uniqueJobs = deduplicateJobs(gatheredJobs);
+    const refreshedJobs = providerResults.flatMap((result) => result.jobs);
+    const successfulBoardIds = providerResults
+      .filter((result) => result.status.status === 'queried')
+      .map((result) => result.status.id);
+    if (refreshDue && successfulBoardIds.length > 0) {
+      markDirectEmployerRefreshCompleted();
+    }
+    const reconciledJobs = refreshDue && successfulBoardIds.length > 0
+      ? reconcileDirectEmployerJobs(existingJobs, refreshedJobs, successfulBoardIds)
+      : existingJobs.filter((job) => !isRetiredAggregatedFeedJob(job));
+    const uniqueJobs = deduplicateJobs(reconciledJobs);
     const scoredJobs = uniqueJobs.map((job) => {
       const honestMatch = calculateHonestMatch(job, masterResume);
       return {
