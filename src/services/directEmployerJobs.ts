@@ -102,13 +102,20 @@ function createPosting(
   rawDescription: unknown,
   rawUrl: unknown,
   rawDate: unknown,
-  rawWorkplace?: unknown
+  rawWorkplace?: unknown,
+  rawApplicationDeadline?: unknown
 ): JobPosting | null {
   const title = typeof rawTitle === 'string' ? rawTitle.trim() : '';
   const url = safeUrl(rawUrl);
   const location = typeof rawLocation === 'string' ? rawLocation.trim() : '';
   const description = cleanText(rawDescription);
   if (!title || !url || !location || !isIndiaLocation(location)) return null;
+  // Only an explicit employer-published past deadline proves expiry.
+  // Missing or malformed deadlines are never guessed to be expired.
+  if (typeof rawApplicationDeadline === 'string' && rawApplicationDeadline.trim()) {
+    const deadline = Date.parse(rawApplicationDeadline);
+    if (Number.isFinite(deadline) && deadline < Date.now()) return null;
+  }
 
   return {
     id: `${board.id}-${String(rawId || url)}`,
@@ -206,7 +213,8 @@ export async function fetchDirectEmployerBoard(board: DirectEmployerBoard): Prom
       const location = isRecord(item.location) ? item.location.name : '';
       return createPosting(
         board, item.id, item.title, location, item.content,
-        item.absolute_url, item.updated_at || item.first_published
+        item.absolute_url, item.updated_at || item.first_published,
+        undefined, item.application_deadline
       );
     }).filter((job): job is JobPosting => job !== null);
   }
@@ -223,7 +231,7 @@ export async function fetchDirectEmployerBoard(board: DirectEmployerBoard): Prom
     return createPosting(
       board, item.id, item.text, categories.location,
       description, item.hostedUrl, typeof item.createdAt === 'number' ? item.createdAt : undefined,
-      item.workplaceType
+      item.workplaceType, item.applyBy
     );
   }).filter((job): job is JobPosting => job !== null);
 }
