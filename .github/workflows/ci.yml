@@ -42,6 +42,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Live public employer board smoke test
+        run: node scripts/smoke-direct-employer-boards.mjs
+
       - name: Production web build
         run: npm run build
 
@@ -49,7 +52,7 @@ jobs:
         run: test -s dist/index.html
 
   android-apk:
-    # APK packaging is intentionally deferred; PR validation remains web/typecheck/tests only.
+    # APK packaging is deferred; pull requests run tests, live board checks and web build only.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     name: Build Android debug APK
     runs-on: ubuntu-latest
