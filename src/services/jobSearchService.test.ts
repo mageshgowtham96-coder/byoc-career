@@ -257,7 +257,7 @@ describe('non-blocking feed rate limits', () => {
     );
     expect(result.jobs.map((job) => job.id)).toEqual(['saved-fraud', 'live-fraud']);
     expect(result.error).toBeUndefined();
-    expect(result.providerStatuses.find((status) => status.id === 'failed-provider')?.status).toBe('rate-limited');
+    expect(result.providerStatuses.find((status) => status.id === 'failed-provider')?.status).toBe('skipped');
     expect(result.providerStatuses.find((status) => status.id === 'failed-provider')?.detail).toMatch(/other feeds and saved jobs are unaffected/i);
   });
 });
