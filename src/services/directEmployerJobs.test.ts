@@ -183,7 +183,7 @@ describe('public employer board adapters', () => {
             jobs: [{
               id: 77, title: 'Data Analyst',
               location: { name: 'Chennai, India' },
-              content: '<p>Build reports with SQL.</p>',
+              content: '&lt;p&gt;Build reports with SQL.&lt;/p&gt;',
               absolute_url: 'https://boards.greenhouse.io/groww/jobs/77',
               first_published: '2026-11-20T10:00:00Z'
             }]
@@ -201,6 +201,7 @@ describe('public employer board adapters', () => {
       title: 'Data Analyst',
       company: 'Groww',
       location: 'Chennai, India',
+      jobDescriptionRaw: 'Build reports with SQL.',
       url: 'https://boards.greenhouse.io/groww/jobs/77'
     });
     expect(script?.src).toContain('/v1/boards/groww/jobs?content=true&callback=');
