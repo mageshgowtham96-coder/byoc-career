@@ -199,13 +199,13 @@ function workableLocation(item: Record<string, any>): string {
     return [
       location.city,
       location.state || location.region,
-      location.country_name || location.country
+      location.country_name || location.country || (location.country_code === 'IN' ? 'India' : '')
     ].filter((part) => typeof part === 'string' && part.trim()).join(', ');
   }).filter(Boolean);
   const primary = isRecord(item.location)
     ? (item.location.location_str || [item.location.city, item.location.state, item.location.country].filter(Boolean).join(', '))
     : item.location;
-  const country = typeof item.country === 'string' ? item.country : '';
+  const country = typeof item.country === 'string' ? (item.country.toUpperCase() === 'IN' ? 'India' : item.country) : (item.country_code === 'IN' ? 'India' : '');
   const city = typeof item.city === 'string' ? item.city : '';
   const state = typeof item.state === 'string' ? item.state : '';
   const fallback = [city, state, country].filter(Boolean).join(', ');
