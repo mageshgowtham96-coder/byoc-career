@@ -884,6 +884,7 @@ export const SourcingTab: React.FC = () => {
           filteredJobs.map((job) => {
             const isSelected = selectedJobId === job.id;
             const isUpgrade = Boolean(job.isRoleUpgrade);
+            const isSummaryOnlyEmployerJob = isLiveDiscoveredJobSource(job.source) && !job.jobDescriptionRaw.trim();
             const isPreviouslyTracked = isJobPreviouslyTracked(job.company, job.title);
 
             return (
@@ -1088,6 +1089,13 @@ export const SourcingTab: React.FC = () => {
                   <button
                     onClick={() => {
                       setSelectedJobId(job.id);
+                      if (isSummaryOnlyEmployerJob) {
+                        addToast({
+                          type: 'warning',
+                          title: 'Full description needed',
+                          message: 'This low-data listing contains employer metadata only. Open the original posting and paste its full description before relying on complete vetting.'
+                        });
+                      }
                       setActiveTab('vetting');
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition cursor-pointer"
@@ -1133,6 +1141,7 @@ export const SourcingTab: React.FC = () => {
                   })()}
 
                   <button
+                    disabled={isSummaryOnlyEmployerJob}
                     onClick={() => {
                       setSelectedJobId(job.id);
                       if (!resumeIngested) {
@@ -1145,14 +1154,16 @@ export const SourcingTab: React.FC = () => {
                       setActiveTab('customization');
                     }}
                     title={
-                      !resumeIngested
-                        ? 'Add your master resume in the Intake tab to unlock AI tailoring'
-                        : 'Tailor application kit for this position'
+                      isSummaryOnlyEmployerJob
+                        ? 'Open the employer listing and paste its full job description before tailoring'
+                        : !resumeIngested
+                          ? 'Add your master resume in the Intake tab to unlock AI tailoring'
+                          : 'Tailor application kit for this position'
                     }
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold transition cursor-pointer ml-auto"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                    <span>Tailor Kit</span>
+                    <span>{isSummaryOnlyEmployerJob ? 'Description Needed' : 'Tailor Kit'}</span>
                   </button>
                 </div>
 
