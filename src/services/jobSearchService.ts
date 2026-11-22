@@ -5,6 +5,7 @@ import {
   fetchDirectEmployerBoard,
   isDirectEmployerRefreshDue,
   isRetiredAggregatedFeedJob,
+  markDirectEmployerRefreshAttempted,
   markDirectEmployerRefreshCompleted,
   reconcileDirectEmployerJobs
 } from './directEmployerJobs';
@@ -742,6 +743,7 @@ export class LiveJobSearchEngine {
     };
 
     const refreshDue = isDirectEmployerRefreshDue();
+    if (refreshDue) markDirectEmployerRefreshAttempted();
     const queriedSources: string[] = ['Local Stored Positions'];
     const providerStatuses: JobProviderStatus[] = [{
       id: 'local_store',
