@@ -49,11 +49,18 @@ export interface DocumentEvidenceQuote {
   field: string;
 }
 
+export interface DocumentSectionField {
+  label: string;
+  value: string;
+  evidence: DocumentEvidenceQuote[];
+}
+
 export interface DocumentSectionInsight {
   id: string;
   title: string;
   status: 'found' | 'partial' | 'not_found';
   summary: string;
+  fields: DocumentSectionField[];
   items: string[];
   confidence: 'high' | 'medium' | 'low';
   evidence: DocumentEvidenceQuote[];
