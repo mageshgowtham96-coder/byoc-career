@@ -43,7 +43,6 @@ export const IntakeTab: React.FC = () => {
     careerFormDraft,
     setCareerFormDraft,
     geminiApiKey,
-    geminiApiKey,
     stagedParsedResume,
     setStagedParsedResume,
     confirmStagedResume,
