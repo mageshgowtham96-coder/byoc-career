@@ -614,7 +614,7 @@ export function calculateHonestMatch(
 export function buildLocationScopeNotice(country?: string, location?: string, includeWorldwideRemote = true): string {
   const cleanLoc = (location || '').trim();
   if (isWorldwideCountryCode(country)) {
-    return 'Direct employer discovery checks configured public Greenhouse and Lever career boards. The initial directory is India-focused and is not an exhaustive global job index.';
+    return 'Direct employer discovery checks configured public Greenhouse and Workable career boards. The initial directory is India-focused and is not an exhaustive global job index.';
   }
   const code = (country || '').trim().toUpperCase();
   const eligibility = includeWorldwideRemote ? `${code} / explicitly worldwide` : `${code} only`;
