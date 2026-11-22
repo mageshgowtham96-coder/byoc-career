@@ -7,6 +7,7 @@ import {
   fetchDirectEmployerBoard,
   isDirectEmployerRefreshDue,
   isRetiredAggregatedFeedJob,
+  markDirectEmployerRefreshCompleted,
   reconcileDirectEmployerJobs
 } from './directEmployerJobs';
 
@@ -43,8 +44,12 @@ describe('12-hour direct employer refresh policy', () => {
     expect(isDirectEmployerRefreshDue(100000, memory('200000'))).toBe(true);
   });
 
-  it('does not mutate storage or throw when storage is unavailable', () => {
-    expect(isDirectEmployerRefreshDue(100000, null)).toBe(true);
+  it('uses a session-memory fallback when browser storage is unavailable', () => {
+    const now = 1_900_000_000_000;
+    expect(isDirectEmployerRefreshDue(now, null)).toBe(true);
+    markDirectEmployerRefreshCompleted(now, null);
+    expect(isDirectEmployerRefreshDue(now + DIRECT_EMPLOYER_REFRESH_INTERVAL_MS - 1, null)).toBe(false);
+    expect(isDirectEmployerRefreshDue(now + DIRECT_EMPLOYER_REFRESH_INTERVAL_MS, null)).toBe(true);
   });
 });
 
