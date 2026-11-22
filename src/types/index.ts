@@ -148,6 +148,7 @@ export interface JobPosting {
   salary: string;
   postedDate: string;
   jobDescriptionRaw: string; // Mandatory Raw JD Caching
+  metadataSummary?: string; // Lightweight employer-published job metadata; not a substitute for the full description
   url: string;
   source: string;
   skillsRequired: string[];
