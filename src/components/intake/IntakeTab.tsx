@@ -42,6 +42,7 @@ export const IntakeTab: React.FC = () => {
     restorePreviousMasterResume,
     careerFormDraft,
     setCareerFormDraft,
+    groqApiKey,
     geminiApiKey,
     stagedParsedResume,
     setStagedParsedResume,
