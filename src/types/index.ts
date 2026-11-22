@@ -430,7 +430,6 @@ export type ActiveTab =
   | 'customization'
   | 'tracking'
   | 'prepzone'
-  | 'documents'
   | 'settings';
 
 /**
