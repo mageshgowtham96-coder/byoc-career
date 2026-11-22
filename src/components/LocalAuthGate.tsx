@@ -590,6 +590,12 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         const merged = mergeLegacyIntoDecryptedVault(recoveredData, legacyCapture.sensitiveData);
         recoveredData = merged.merged;
       }
+      if (geminiApiKeyInput.trim()) {
+        await validateGeminiApiKey(geminiApiKeyInput);
+        recoveredData = { ...recoveredData, geminiApiKey: geminiApiKeyInput.trim() };
+      } else if (!recoveredData.geminiApiKey?.trim()) {
+        throw new Error('Enter your Gemini API key to complete recovery and activate BYOC.');
+      }
 
       const meta = sanitizeVaultMeta(envelope.meta);
       const { envelope: newEnvelope } = await encryptVault(
@@ -1181,6 +1187,18 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       {showNewPassphrase ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Gemini API Key (required if not already saved)</label>
+                  <input
+                    type="password"
+                    value={geminiApiKeyInput}
+                    onChange={(event) => setGeminiApiKeyInput(event.target.value)}
+                    placeholder="AIza..."
+                    autoComplete="off"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:outline-none focus:border-sky-500"
+                  />
                 </div>
 
                 <button
