@@ -519,7 +519,7 @@ export const SourcingTab: React.FC = () => {
         <p className="text-[11px] text-slate-400 leading-relaxed">
           {isWorldwide
             ? 'Worldwide mode checks BYOC’s currently configured India employer-board directory. It is not an exhaustive global job index.'
-            : `BYOC checks public employer career boards directly and filters published locations for ${candidatePreferences?.country || 'IN'}${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' plus explicitly worldwide roles'}${
+            : `${candidatePreferences?.country && candidatePreferences.country !== 'IN' ? `The configured direct-employer directory currently covers India, not ${candidatePreferences.country}; unrelated-country listings are not substituted.` : `BYOC checks public employer career boards directly and filters published locations for India${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' including employer-published India-wide remote roles'}`}${
                 optionalLocation.trim() ? ` + "${optionalLocation.trim()}"` : ''
               }. City mentions in descriptions do not count as location evidence; workplace details remain unspecified when the employer does not publish them.`}
         </p>
