@@ -151,19 +151,58 @@ function createPosting(
 
 function fetchJsonp(url: string, providerName: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.head) {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.documentElement) {
       reject(new Error(`${providerName} public board requires a browser session.`));
       return;
     }
+
     const callbackName = `byocBoard_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const registry = window as unknown as Record<string, unknown>;
-    const script = document.createElement('script');
+    const messageToken = `byocMessage_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const callbackLiteral = JSON.stringify(callbackName);
+    const tokenLiteral = JSON.stringify(messageToken);
+    const separator = url.includes('?') ? '&' : '?';
+    const requestUrl = `${url}${separator}callback=${encodeURIComponent(callbackName)}`;
+    const requestUrlLiteral = JSON.stringify(requestUrl);
+    const frame = document.createElement('iframe');
     let settled = false;
+
+    // JSONP executes remote JavaScript. Keep that code in an opaque-origin
+    // sandbox so it cannot read BYOC's DOM, localStorage, or unlocked app state.
+    frame.setAttribute('sandbox', 'allow-scripts');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.referrerPolicy = 'no-referrer';
+    frame.style.display = 'none';
+    frame.srcdoc = `<!doctype html><html><head></head><body><script>
+      window[${callbackLiteral}] = function(payload) {
+        window.parent.postMessage({ __byocJsonp: ${tokenLiteral}, payload: payload }, '*');
+      };
+      window.onerror = function() {
+        window.parent.postMessage({ __byocJsonp: ${tokenLiteral}, error: true }, '*');
+      };
+      var request = document.createElement('script');
+      request.async = true;
+      request.src = ${requestUrlLiteral};
+      request.onerror = function() {
+        window.parent.postMessage({ __byocJsonp: ${tokenLiteral}, error: true }, '*');
+      };
+      document.head.appendChild(request);
+    <\/script></body></html>`;
+
     const cleanup = () => {
       window.clearTimeout(timeoutId);
-      script.onerror = null;
-      script.remove();
-      delete registry[callbackName];
+      window.removeEventListener('message', onMessage);
+      frame.remove();
+    };
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== frame.contentWindow || !isRecord(event.data)
+        || event.data.__byocJsonp !== messageToken || settled) return;
+      settled = true;
+      cleanup();
+      if (event.data.error) {
+        reject(new Error(`${providerName} public board could not be reached or returned invalid JSONP.`));
+        return;
+      }
+      resolve(event.data.payload);
     };
     const timeoutId = window.setTimeout(() => {
       if (settled) return;
@@ -171,22 +210,17 @@ function fetchJsonp(url: string, providerName: string): Promise<unknown> {
       cleanup();
       reject(new Error(`${providerName} public board timed out.`));
     }, 15000);
-    registry[callbackName] = (payload: unknown) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      resolve(payload);
-    };
-    script.async = true;
-    script.onerror = () => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(new Error(`${providerName} public board could not be reached.`));
-    };
-    const separator = url.includes('?') ? '&' : '?';
-    script.src = `${url}${separator}callback=${callbackName}`;
-    document.head.appendChild(script);
+
+    window.addEventListener('message', onMessage);
+    try {
+      (document.body || document.documentElement).appendChild(frame);
+    } catch (error) {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        reject(error instanceof Error ? error : new Error(`${providerName} public board could not be loaded.`));
+      }
+    }
   });
 }
 
