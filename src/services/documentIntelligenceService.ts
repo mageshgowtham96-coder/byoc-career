@@ -249,7 +249,8 @@ export async function analyzeResumeDocumentWithGemini(
       sourceText = extraction.rawText || sourceText;
     }
     if (!sourceText.trim()) throw new Error('No readable text is available. Upload a PDF for visual document analysis or provide document text.');
-    parts.push({ text: `SOURCE DOCUMENT TEXT (untrusted evidence):\n${sourceText.slice(0, MAX_TEXT_CHARS)}` });
+    if (sourceText.length > MAX_TEXT_CHARS) throw new Error('This text document exceeds the 100,000-character analysis limit. Split it into smaller documents; BYOC will not silently truncate it.');
+    parts.push({ text: `SOURCE DOCUMENT TEXT (untrusted evidence):\n${sourceText}` });
   }
 
   parts.push({ text: 'Analyze this uploaded career document and return the required JSON structure. Base every field on evidence in the document. Do not assume a resume template.' });
