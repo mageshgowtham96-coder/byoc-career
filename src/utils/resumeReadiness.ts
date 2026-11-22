@@ -16,7 +16,12 @@ export function getCandidateDiscoverySignals(resume: MasterResume | null | undef
     ...(resume.education || []).flatMap((item) => [item.degree, item.field]),
     ...(resume.projects || []).flatMap((item) => [item.title, ...(item.technologies || [])]),
     ...(resume.certifications || []).map((item) => item.name),
-    ...(resume.additionalEvidence || [])
+    ...(resume.additionalEvidence || []),
+    ...(resume.documentInsights?.sections || []).flatMap((section) => [
+      section.title,
+      ...(section.fields || []).flatMap((field) => [field.label, field.value]),
+      ...(section.items || [])
+    ])
   ];
   const seen = new Set<string>();
   return values.filter((value): value is string => {
@@ -41,7 +46,8 @@ export function hasCareerEvidence(resume: MasterResume | null | undefined): bool
     resume.education?.length ||
     resume.projects?.length ||
     resume.certifications?.length ||
-    resume.additionalEvidence?.length
+    resume.additionalEvidence?.length ||
+    resume.documentInsights?.sections?.some((section) => section.fields?.some((field) => field.value.trim()) || section.items?.length)
   );
 }
 
@@ -62,7 +68,8 @@ export function hasStructuredCareerEvidence(resume: MasterResume | null | undefi
     resume.education?.length ||
     resume.projects?.length ||
     resume.certifications?.length ||
-    resume.additionalEvidence?.length
+    resume.additionalEvidence?.length ||
+    resume.documentInsights?.sections?.some((section) => section.fields?.some((field) => field.value.trim()) || section.items?.length)
   );
 }
 
@@ -111,9 +118,7 @@ export function assessResumeReadiness(resume: MasterResume | null | undefined): 
   if (hasContributionEvidence) score += 15;
   else if (hasCareerEvidence) missingSections.push('specific contribution or project details');
 
-  // Skills and other optional categories are not completeness requirements.
-  // Completeness is based on the presence of usable evidence, not a fixed resume template.
-  score += 20;
-
-  return { completenessPercent: Math.min(100, score), missingSections };
+  // Skills, certifications and other categories are optional. The score is
+  // normalized across the evidence checks above rather than requiring a fixed template.
+  return { completenessPercent: Math.min(100, Math.round((score / 80) * 100)), missingSections };
 }
