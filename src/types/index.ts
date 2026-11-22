@@ -80,6 +80,8 @@ export interface DocumentIntelligence {
 
 export interface MasterResume {
   rawText: string;
+  /** Evidence-led document analysis used to render document-specific intake sections. */
+  documentInsights?: DocumentIntelligence;
   contactInfo: ContactInfo;
   headline: string;
   summary: string;
