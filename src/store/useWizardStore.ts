@@ -76,7 +76,7 @@ export const DEFAULT_CANDIDATE_PREFERENCES: CandidatePreferences = {
   country: 'IN',
   includeWorldwideRemote: true,
   preferredLocations: [],
-  portals: ['Remotive Live', 'User Import'],
+  portals: ['Greenhouse', 'Workable', 'User Import'],
   portalShortcuts: DEFAULT_PORTAL_SHORTCUTS,
   noticePeriod: '',
   expectedCtc: '',
@@ -179,6 +179,8 @@ interface WizardState {
   // API Config & Key Presence
   geminiApiKey: string;
   setGeminiApiKey: (key: string) => void;
+  geminiApiKey: string;
+  setGeminiApiKey: (key: string) => void;
   isLiveApiMode: boolean;
   setIsLiveApiMode: (live: boolean) => void;
 
@@ -260,6 +262,7 @@ interface WizardState {
 
 export function buildVaultDataFromState(state: WizardState): VaultDataWithPreviousResume {
   return {
+    geminiApiKey: state.geminiApiKey || '',
     geminiApiKey: state.geminiApiKey || '',
     masterResume: state.masterResume || null,
     previousMasterResume: state.previousMasterResume || null,
@@ -430,6 +433,7 @@ export const useWizardStore = create<WizardState>()(
           isAuthenticated: false,
           isBiometricLocked: false,
           geminiApiKey: '',
+          geminiApiKey: '',
           masterResume: null,
           previousMasterResume: null,
           stagedParsedResume: null,
@@ -445,6 +449,8 @@ export const useWizardStore = create<WizardState>()(
       },
 
       // API
+      geminiApiKey: '',
+      setGeminiApiKey: (key) => set({ geminiApiKey: key }),
       geminiApiKey: '',
       setGeminiApiKey: (key) => set({ geminiApiKey: key }),
       isLiveApiMode: true,
@@ -1257,6 +1263,7 @@ export function restoreVaultDataToStore(
   useWizardStore.setState({
     user: sanitizeUserMetadata(currentUser),
     geminiApiKey: data.geminiApiKey || '',
+    geminiApiKey: data.geminiApiKey || '',
     masterResume: data.masterResume || null,
     previousMasterResume: (data as VaultDataWithPreviousResume).previousMasterResume || null,
     careerFormDraft: data.careerFormDraft ? sanitizeCareerFormState(data.careerFormDraft) : null,
@@ -1266,7 +1273,6 @@ export function restoreVaultDataToStore(
     tailoredArtifacts: data.tailoredArtifacts || {},
     applications: Array.isArray(data.applications) ? data.applications : [],
     unsavedQueue: Array.isArray(data.unsavedQueue) ? data.unsavedQueue : [],
-    isLiveApiMode: Boolean(data.geminiApiKey),
     candidatePreferences: data.candidatePreferences
       ? {
           ...DEFAULT_CANDIDATE_PREFERENCES,
@@ -1274,6 +1280,7 @@ export function restoreVaultDataToStore(
           portalShortcuts: mergePortalShortcuts(data.candidatePreferences.portalShortcuts)
         }
       : { ...DEFAULT_CANDIDATE_PREFERENCES },
+    isLiveApiMode: Boolean(data.geminiApiKey)
   });
 }
 
@@ -1296,6 +1303,7 @@ useWizardStore.subscribe((state, prevState) => {
     return;
   }
   const changed =
+    state.geminiApiKey !== prevState.geminiApiKey ||
     state.geminiApiKey !== prevState.geminiApiKey ||
     state.masterResume !== prevState.masterResume ||
     state.previousMasterResume !== prevState.previousMasterResume ||
