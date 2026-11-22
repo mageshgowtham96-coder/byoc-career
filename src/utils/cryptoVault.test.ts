@@ -56,16 +56,16 @@ import {
 } from '../services/jobSearchService';
 import { buildApplicationSnapshotRecord } from '../store/useWizardStore';
 import {
-  GroqApiError,
-  formatGroqError,
-  getAvailableGroqModels,
-  tailorResumeWithGroq,
+  GeminiApiError,
+  formatGeminiError,
+  getAvailableGeminiModels,
+  tailorResumeWithGemini,
   validateTailoredOutput,
   validateQuestionnaireDraft,
-  mergeGroqResumeProfile,
-  parseResumeWithGroq,
-  vetJobWithGroq
-} from '../services/groqService';
+  mergeGeminiResumeProfile,
+  parseResumeWithGemini,
+  vetJobWithGemini
+} from '../services/geminiCareerService';
 import type { MasterResume, JobPosting, TailoredArtifact, ApplicationRecord, ExperienceItem } from '../types';
 
 // Mock localStorage
@@ -278,14 +278,14 @@ describe('Legacy Migration', () => {
     it('detects legacy plaintext with sensitive data', () => {
       const rawStore = JSON.stringify({
         state: {
-          groqApiKey: 'gsk_test123',
+          geminiApiKey: 'gsk_test123',
           masterResume: { contactInfo: { name: 'Test User' } },
           jobs: [{ title: 'Engineer' }],
         }
       });
       const result = extractLegacyPlaintextFromRawStore(rawStore);
       expect(result.detected).toBe(true);
-      expect(result.sensitiveData.groqApiKey).toBe('gsk_test123');
+      expect(result.sensitiveData.geminiApiKey).toBe('gsk_test123');
     });
 
     it('returns empty for clean store', () => {
@@ -433,14 +433,14 @@ describe('Application Snapshot', () => {
   });
 });
 
-describe('Groq Service Errors', () => {
+describe('Gemini Service Errors', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('GroqApiError', () => {
+  describe('GeminiApiError', () => {
     it('creates error with all properties', () => {
-      const err = new GroqApiError('Test error', 401, 'UNAUTHORIZED', 'Check your API key');
+      const err = new GeminiApiError('Test error', 401, 'UNAUTHORIZED', 'Check your API key');
       expect(err.message).toBe('Test error');
       expect(err.status).toBe(401);
       expect(err.code).toBe('UNAUTHORIZED');
@@ -448,19 +448,19 @@ describe('Groq Service Errors', () => {
     });
   });
 
-  describe('formatGroqError', () => {
-    it('formats GroqApiError with recovery hint', () => {
-      const err = new GroqApiError('Auth failed', 401, 'UNAUTHORIZED', 'Check your key');
-      expect(formatGroqError(err)).toBe('Auth failed Check your key');
+  describe('formatGeminiError', () => {
+    it('formats GeminiApiError with recovery hint', () => {
+      const err = new GeminiApiError('Auth failed', 401, 'UNAUTHORIZED', 'Check your key');
+      expect(formatGeminiError(err)).toBe('Auth failed Check your key');
     });
 
     it('formats generic Error', () => {
-      expect(formatGroqError(new Error('Generic error'))).toBe('Generic error');
+      expect(formatGeminiError(new Error('Generic error'))).toBe('Generic error');
     });
 
     it('handles unknown errors', () => {
-      expect(formatGroqError('string error')).toBe('Groq request failed.');
-      expect(formatGroqError(null)).toBe('Groq request failed.');
+      expect(formatGeminiError('string error')).toBe('Gemini request failed.');
+      expect(formatGeminiError(null)).toBe('Gemini request failed.');
     });
   });
 });
