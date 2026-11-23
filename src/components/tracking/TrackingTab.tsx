@@ -24,9 +24,6 @@ import {
   MapPin,
   DollarSign,
   Mail,
-  RefreshCw,
-  Inbox,
-  AlertTriangle,
   History,
   ShieldAlert
 } from 'lucide-react';
@@ -35,16 +32,10 @@ export const TrackingTab: React.FC = () => {
   const { t } = useAuthLocale();
   const {
     applications,
-    unsavedQueue,
-    approveUnsavedApplication,
-    dismissUnsavedApplication,
     updateApplicationStatus,
     updateApplicationNotes,
     deleteApplication,
     addInterviewStage,
-    runEmailSync,
-    isEmailSyncing,
-    lastEmailSyncDate,
     generateFollowUpEmailContent,
     addToast
   } = useWizardStore();
@@ -135,85 +126,7 @@ export const TrackingTab: React.FC = () => {
           </p>
         </div>
 
-        {/* Email Vault Check Action & OAuth Disclosure */}
-        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 text-[11px] text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-            <span>Mailbox Sync: Not Connected (No OAuth)</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => runEmailSync()}
-            disabled={isEmailSyncing}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer shadow-sm"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${isEmailSyncing ? 'animate-spin' : ''}`} />
-            <span>{isEmailSyncing ? 'Checking...' : 'Check Local Email Vault'}</span>
-          </button>
-        </div>
       </div>
-
-      {/* Email-derived applications awaiting user review */}
-      {unsavedQueue.length > 0 && (
-        <div className="p-5 rounded-3xl bg-indigo-950/30 border border-indigo-500/40 space-y-3 animate-in fade-in">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
-                <Inbox className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>Unmatched Applications from Email</span>
-                  <span className="px-2 py-0.2 rounded-full bg-indigo-500/30 text-indigo-300 text-[10px] font-mono">
-                    {unsavedQueue.length} to Review
-                  </span>
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  These email-derived roles did not match a saved application. Review each record before adding it to your pipeline.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-            {unsavedQueue.map((item) => (
-              <div
-                key={item.id}
-                className="p-4 rounded-2xl bg-slate-900/80 border border-slate-700/80 flex flex-col justify-between text-left space-y-2"
-              >
-                <div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
-                    <span className="font-mono text-sky-400 font-bold">{item.company}</span>
-                    <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] text-slate-400">
-                      {item.infrastructure} {item.detectedReferenceNumber ? `• ${item.detectedReferenceNumber}` : ''}
-                    </span>
-                  </div>
-                  <h4 className="text-xs font-bold text-white mb-1">{item.role}</h4>
-                  <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed bg-slate-950/60 p-2 rounded-lg border border-slate-800">
-                    {item.snippet}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
-                  <button
-                    onClick={() => dismissUnsavedApplication(item.id)}
-                    className="px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-400 text-xs font-medium transition cursor-pointer"
-                  >
-                    Dismiss
-                  </button>
-                  <button
-                    onClick={() => approveUnsavedApplication(item.id)}
-                    className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
-                  >
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    <span>Approve & Ingest</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Main Kanban / Application Pipeline */}
       {applications.length === 0 ? (

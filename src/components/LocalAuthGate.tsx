@@ -48,19 +48,11 @@ import {
 } from '../utils/cryptoVault';
 import {
   CAREER_FORM_DRAFT_KEY,
-  EMAIL_FALLBACK_KEY,
   hasMeaningfulCareerFormDraft,
   mergeLegacyIntoDecryptedVault,
   migrateLegacyCareerFormDraft,
-  migrateLegacyEmailRecordsToVault,
-  parseLegacyEmailFallback,
   readLegacyCareerFormDraftFromStorage
 } from '../utils/vaultMigration';
-import {
-  clearLegacyEmailStores,
-  dedupeEmailInteractions,
-  readLegacyEmailRecords
-} from '../services/emailSyncService';
 
 export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { locale, setLocale } = useAuthLocale();
@@ -76,22 +68,8 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
   const storedEnvelope = readStoredVaultEnvelope();
   const legacyCapture = getPendingLegacyCapture();
   const legacyDraftCapture = readLegacyCareerFormDraftFromStorage();
-  const legacyEmailFallbackCapture = (() => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        return parseLegacyEmailFallback(window.localStorage.getItem(EMAIL_FALLBACK_KEY));
-      }
-    } catch {
-      // Ignore storage restriction
-    }
-    return { status: 'none' } as const;
-  })();
   const hasLegacyDraft = legacyDraftCapture.status === 'valid';
-  const [hasAsyncLegacyEmails, setHasAsyncLegacyEmails] = useState(
-    legacyEmailFallbackCapture.status === 'valid'
-  );
-  const hasLegacyEmails = legacyEmailFallbackCapture.status === 'valid' || hasAsyncLegacyEmails;
-  const hasLegacySensitive = hasSensitiveLegacyData(legacyCapture) || hasLegacyDraft || hasLegacyEmails;
+  const hasLegacySensitive = hasSensitiveLegacyData(legacyCapture) || hasLegacyDraft;
   const needsLegacyEncryptionMigration = !storedEnvelope && hasLegacySensitive;
   const hasExistingWorkspace = Boolean(storedEnvelope || user || hasLegacySensitive);
 
@@ -130,11 +108,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
   const [showGeminiApiKey, setShowGeminiApiKey] = useState(false);
   const [enableBiometricOnSignup, setEnableBiometricOnSignup] = useState(false);
   const [error, setError] = useState(
-    legacyDraftCapture.status === 'error'
-      ? legacyDraftCapture.error
-      : legacyEmailFallbackCapture.status === 'error'
-      ? legacyEmailFallbackCapture.error
-      : ''
+    legacyDraftCapture.status === 'error' ? legacyDraftCapture.error : ''
   );
 
   // Processing & inline confirmation states
@@ -162,25 +136,10 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isAuthenticated) return;
-    let cancelled = false;
     sanitizeStoredVaultEnvelopeMetadata();
     if (user && hasDemoWorkspaceIdentity(user)) {
       setUser(sanitizeUserMetadata(user));
     }
-    void readLegacyEmailRecords().then((res) => {
-      if (cancelled) return;
-      if (res.status === 'valid') {
-        setHasAsyncLegacyEmails(true);
-        if (!readStoredVaultEnvelope()) {
-          setStep((prev) => (prev === 'details' ? 'migrate' : prev));
-        }
-      } else if (res.status === 'error') {
-        setError((prev) => prev || res.error);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
   }, [isAuthenticated, user, setUser]);
 
   if (isAuthenticated && user) {
@@ -202,12 +161,10 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
   const emptyVaultPayload = (geminiKey: string = ''): DecryptedVaultData => ({
     geminiApiKey: geminiKey,
     masterResume: null,
-    emailInteractions: [],
     jobs: [],
     selectedJobId: null,
     tailoredArtifacts: {},
     applications: [],
-    unsavedQueue: [],
     candidatePreferences: { ...DEFAULT_CANDIDATE_PREFERENCES }
   });
 
@@ -290,15 +247,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         initialVaultData.careerFormDraft = currentDraftState.draft;
       }
 
-      // Preserve any legacy email interaction records (IndexedDB / localStorage fallback)
-      const legacyEmailRead = await readLegacyEmailRecords();
-      if (legacyEmailRead.status === 'valid') {
-        initialVaultData.emailInteractions = dedupeEmailInteractions([
-          ...(initialVaultData.emailInteractions || []),
-          ...legacyEmailRead.records
-        ]);
-      }
-
       const { envelope, generatedRecoveryPhrase } = await encryptVault(
         initialVaultData,
         passphrase,
@@ -310,16 +258,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       await verifyActiveSessionEnvelopeRestorable((restored) => {
         if (currentDraftState.status === 'valid' && !hasMeaningfulCareerFormDraft(restored.careerFormDraft)) {
           return false;
-        }
-        if (legacyEmailRead.status === 'valid') {
-          const restoredEmails = Array.isArray(restored.emailInteractions) ? restored.emailInteractions : [];
-          const restoredKeys = new Set(
-            restoredEmails.map((item) => (item.messageId ? `msg:${item.messageId}` : `id:${item.id}`))
-          );
-          const allEmailsPresent = legacyEmailRead.records.every((orig) =>
-            restoredKeys.has(orig.messageId ? `msg:${orig.messageId}` : `id:${orig.id}`)
-          );
-          if (!allEmailsPresent) return false;
         }
         return Boolean(restored);
       });
@@ -355,21 +293,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
           type: 'error',
           title: 'Intake Draft Migration Failed',
           message: currentDraftState.error
-        });
-      }
-
-      if (legacyEmailRead.status === 'valid' || legacyEmailRead.status === 'empty') {
-        try {
-          await clearLegacyEmailStores();
-          setHasAsyncLegacyEmails(false);
-        } catch {
-          // Retain silently if removal fails; encrypted copy already verified
-        }
-      } else if (legacyEmailRead.status === 'error') {
-        addToast({
-          type: 'error',
-          title: 'Email Vault Migration Failed',
-          message: legacyEmailRead.error
         });
       }
 
@@ -465,26 +388,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
           type: 'error',
           title: 'Intake Draft Migration Failed',
           message: draftMigration.error
-        });
-      }
-
-      const emailMigration = await migrateLegacyEmailRecordsToVault({
-        readLegacyEmails: () => readLegacyEmailRecords(),
-        clearLegacyEmails: () => clearLegacyEmailStores(),
-        writeEnvelope: async (env) => writeStoredVaultEnvelope(env),
-        readEnvelope: () => readStoredVaultEnvelope(),
-        currentVaultData: decrypted,
-        vaultMeta: buildVaultMetaFromUser(restoredUser)
-      });
-
-      if (emailMigration.status === 'migrated') {
-        decrypted = { ...decrypted, emailInteractions: emailMigration.emailInteractions };
-        setHasAsyncLegacyEmails(false);
-      } else if (emailMigration.status === 'error') {
-        addToast({
-          type: 'error',
-          title: 'Email Vault Migration Failed',
-          message: emailMigration.error
         });
       }
 
@@ -645,26 +548,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
           type: 'error',
           title: 'Intake Draft Migration Failed',
           message: draftMigration.error
-        });
-      }
-
-      const emailMigration = await migrateLegacyEmailRecordsToVault({
-        readLegacyEmails: () => readLegacyEmailRecords(),
-        clearLegacyEmails: () => clearLegacyEmailStores(),
-        writeEnvelope: async (env) => writeStoredVaultEnvelope(env),
-        readEnvelope: () => readStoredVaultEnvelope(),
-        currentVaultData: buildVaultDataFromState(useWizardStore.getState()),
-        vaultMeta: buildVaultMetaFromUser(restoredUser)
-      });
-
-      if (emailMigration.status === 'migrated') {
-        useWizardStore.getState().setEmailInteractions(emailMigration.emailInteractions);
-        setHasAsyncLegacyEmails(false);
-      } else if (emailMigration.status === 'error') {
-        addToast({
-          type: 'error',
-          title: 'Email Vault Migration Failed',
-          message: emailMigration.error
         });
       }
 
@@ -859,7 +742,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                   Your existing workspace data is ready to be protected on this device with zero data loss:
                   {legacyCapture?.sensitiveData.masterResume ? ' Master Resume' : ''}
                   {hasLegacyDraft ? ' · Intake Form Draft' : ''}
-                  {hasLegacyEmails ? ' · Email Records' : ''}
                   {legacyCapture?.sensitiveData.jobs?.length ? ` · ${legacyCapture.sensitiveData.jobs.length} Jobs` : ''}
                   {legacyCapture?.sensitiveData.applications?.length ? ` · ${legacyCapture.sensitiveData.applications.length} Applications` : ''}
                   {legacyCapture?.sensitiveData.geminiApiKey ? ' · API Key' : ''}.

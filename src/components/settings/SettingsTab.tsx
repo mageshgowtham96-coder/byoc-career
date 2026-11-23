@@ -6,7 +6,6 @@ import {
   readStoredVaultEnvelope
 } from '../../utils/cryptoVault';
 import { WORKSPACE_STORE_KEY } from '../../utils/vaultMigration';
-import { emailVault } from '../../services/emailSyncService';
 import { safeRemoveItem } from '../../utils/storagePersistence';
 import {
   Settings,
@@ -17,8 +16,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Fingerprint,
-  Mail,
-  RefreshCw,
   Database,
   BookOpen,
   FileKey2,
@@ -29,10 +26,6 @@ export const SettingsTab: React.FC = () => {
   const {
     user,
     toggleBiometricEnrollment,
-    emailInteractions,
-    runEmailSync,
-    isEmailSyncing,
-    lastEmailSyncDate,
     settingsFocusSection,
     setSettingsFocusSection,
     signOut,
@@ -81,7 +74,6 @@ export const SettingsTab: React.FC = () => {
       selectedJobId: fullState.selectedJobId,
       tailoredArtifacts: fullState.tailoredArtifacts,
       applications: fullState.applications,
-      unsavedQueue: fullState.unsavedQueue,
       candidatePreferences: fullState.candidatePreferences,
       exportDate: new Date().toISOString()
     };
@@ -138,15 +130,12 @@ export const SettingsTab: React.FC = () => {
     setIsWiping(true);
     try {
       lockVaultSession();
-      await emailVault.clear();
       safeRemoveItem(WORKSPACE_STORE_KEY);
       safeRemoveItem(VAULT_STORAGE_KEY);
-      safeRemoveItem('byoc_email_vault_fallback');
       safeRemoveItem('byoc_career_form_draft');
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem(WORKSPACE_STORE_KEY);
         window.localStorage.removeItem(VAULT_STORAGE_KEY);
-        window.localStorage.removeItem('byoc_email_vault_fallback');
         window.localStorage.removeItem('byoc_career_form_draft');
       }
       window.location.reload();
@@ -244,42 +233,6 @@ export const SettingsTab: React.FC = () => {
             {user?.biometricEnabled ? 'Disable Shield' : 'Enroll Biometrics'}
           </button>
         </div>
-      </section>
-
-      {/* Client-Side Email Vault */}
-      <section className="p-5 sm:p-6 rounded-2xl bg-[#0F172A] border border-slate-800 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0">
-              <Mail className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-white">Local Email Interaction Vault</h3>
-              <p className="text-xs text-slate-400">
-                Private device vault storage ({emailInteractions.length} stored) · OAuth external inbox sync is not connected
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => runEmailSync()}
-            disabled={isEmailSyncing}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0 self-start sm:self-auto"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${isEmailSyncing ? 'animate-spin' : ''}`} />
-            <span>{isEmailSyncing ? 'Checking...' : 'Check Local Email Vault'}</span>
-          </button>
-        </div>
-
-        <p className="text-xs text-slate-400 leading-relaxed">
-          No inbox is connected, so this check does not fetch new email. It checks access to records already stored in the encrypted local vault; Gmail/Workspace OAuth is not connected.
-          {lastEmailSyncDate && (
-            <span className="block text-[11px] font-mono text-slate-500 mt-1 tabular-nums">
-              Last Checked: {new Date(lastEmailSyncDate).toLocaleTimeString()}
-            </span>
-          )}
-        </p>
       </section>
 
       {/* Encrypted Vault Identity & Lock */}

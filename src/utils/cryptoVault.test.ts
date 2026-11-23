@@ -24,23 +24,16 @@ import {
 } from './cryptoVault';
 import {
   CAREER_FORM_DRAFT_KEY,
-  EMAIL_FALLBACK_KEY,
   WORKSPACE_STORE_KEY,
   extractLegacyPlaintextFromRawStore,
   mergeLegacyIntoDecryptedVault,
   mergeWorkspaceStoreState,
   migrateLegacyCareerFormDraft,
-  migrateLegacyEmailRecordsToVault,
   migrateWorkspaceStoreState,
-  parseLegacyEmailFallback,
   sanitizeStoredWorkspaceStoreMetadata,
   scrubAndVerifyStoredWorkspace,
   scrubPlaintextWorkspaceStore
 } from './vaultMigration';
-import {
-  configureEncryptedEmailVault,
-  emailVault
-} from '../services/emailSyncService';
 import {
   DEFAULT_PORTAL_SHORTCUTS,
   LiveJobSearchEngine,
@@ -148,7 +141,6 @@ describe('Crypto Vault Core', () => {
       selectedJobId: null,
       tailoredArtifacts: {},
       applications: [],
-      unsavedQueue: [],
       candidatePreferences: {}
     };
     const rawMvk = new Uint8Array(32).buffer;
@@ -187,7 +179,6 @@ describe('Crypto Vault Core', () => {
       selectedJobId: null,
       tailoredArtifacts: {},
       applications: [],
-      unsavedQueue: [],
       candidatePreferences: {}
     };
     const { envelope } = await encryptVault(data, 'correct horse battery staple', {
@@ -463,30 +454,6 @@ describe('Gemini Service Errors', () => {
   });
 });
 
-describe('Email Vault Configuration', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('configures encrypted email vault correctly', () => {
-    const mockStore = {
-      getState: vi.fn(() => ({
-        isAuthenticated: true,
-        user: { id: '1', name: 'Test', email: 'test@test.com' },
-        hasActiveVaultKey: vi.fn().mockReturnValue(true)
-      })),
-      subscribe: vi.fn()
-    };
-    
-    configureEncryptedEmailVault({
-      isUnlocked: () => true,
-      getAll: () => [],
-      replaceAll: vi.fn().mockResolvedValue(undefined)
-    });
-    
-    expect(emailVault).toBeDefined();
-  });
-});
 describe('vault key extractability', () => {
   it('keeps PBKDF2-derived wrapping keys non-exportable', async () => {
     await deriveVaultKey('test passphrase', new Uint8Array(16));

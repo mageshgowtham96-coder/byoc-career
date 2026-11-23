@@ -37,7 +37,7 @@ const evidence: JobVerificationEvidence = {
 
 describe('Gemini-only vault activation and logout', () => {
   afterEach(() => {
-    useWizardStore.setState({ geminiApiKey: '', isAuthenticated: false, masterResume: null, jobs: [], selectedJobId: null, tailoredArtifacts: {}, applications: [], unsavedQueue: [], vaultPersistenceError: null });
+    useWizardStore.setState({ geminiApiKey: '', isAuthenticated: false, masterResume: null, jobs: [], selectedJobId: null, tailoredArtifacts: {}, applications: [], vaultPersistenceError: null });
   });
 
   it('includes the verified Gemini key in encrypted vault data and no retired provider field', () => {
@@ -56,7 +56,6 @@ describe('Gemini-only vault activation and logout', () => {
       selectedJobId: job.id,
       tailoredArtifacts: { [job.id]: {} as any },
       applications: [],
-      unsavedQueue: [],
       vaultPersistenceError: null
     });
 

@@ -1,4 +1,4 @@
-import type { CareerApplicationFormState, EmailInteraction, UserWorkspace } from '../types';
+import type { CareerApplicationFormState, UserWorkspace } from '../types';
 import {
   decryptActiveSessionEnvelope,
   hasActiveVaultKey,
@@ -11,19 +11,11 @@ import {
   type DecryptedVaultData,
   type VaultEnvelope
 } from './cryptoVault';
-import {
-  EMAIL_FALLBACK_KEY,
-  dedupeEmailInteractions,
-  parseLegacyEmailFallback,
-  type LegacyEmailReadResult
-} from '../services/emailSyncService';
 import { sanitizeCareerFormState } from './storagePersistence';
 
 export const WORKSPACE_STORE_KEY = 'byoc_workspace_store';
 export const CAREER_FORM_DRAFT_KEY = 'byoc_career_form_draft';
 export {
-  EMAIL_FALLBACK_KEY,
-  parseLegacyEmailFallback,
   hasDemoWorkspaceIdentity,
   isDemoWorkspaceEmail,
   isDemoWorkspaceName,
@@ -257,136 +249,6 @@ export async function migrateLegacyCareerFormDraft(
   }
 }
 
-export type EmailVaultMigrationResult =
-  | { status: 'none' }
-  | { status: 'migrated'; emailInteractions: EmailInteraction[]; envelope: VaultEnvelope; didModifyVault: boolean }
-  | { status: 'error'; error: string };
-
-export interface MigrateLegacyEmailRecordsParams {
-  readLegacyEmails: () => Promise<LegacyEmailReadResult>;
-  clearLegacyEmails: () => Promise<void> | void;
-  writeEnvelope: (envelope: VaultEnvelope) => boolean | void | Promise<boolean | void>;
-  readEnvelope: () => VaultEnvelope | null;
-  currentVaultData: DecryptedVaultData;
-  vaultMeta: VaultEnvelope['meta'];
-}
-
-/**
- * Migrates legacy plaintext email records (`byoc_email_vault_db` / `byoc_email_vault_fallback`)
- * into the unlocked AES-256-GCM vault. Keeps old records intact until encrypted write AND
- * round-trip restoration verification succeed.
- */
-export async function migrateLegacyEmailRecordsToVault(
-  params: MigrateLegacyEmailRecordsParams
-): Promise<EmailVaultMigrationResult> {
-  let legacyRead: LegacyEmailReadResult;
-  try {
-    legacyRead = await params.readLegacyEmails();
-  } catch (err: unknown) {
-    const detail = err instanceof Error ? err.message : 'Legacy email read failed';
-    return {
-      status: 'error',
-      error: `Failed to read existing email records (${detail}); original email records retained.`
-    };
-  }
-
-  if (legacyRead.status === 'none') {
-    return { status: 'none' };
-  }
-  if (legacyRead.status === 'error') {
-    return { status: 'error', error: legacyRead.error };
-  }
-
-  if (!hasActiveVaultKey()) {
-    return {
-      status: 'error',
-      error: 'Vault session is locked. Unlock your vault before migrating email records; original records retained.'
-    };
-  }
-
-  const existingVaultEmails = Array.isArray(params.currentVaultData.emailInteractions)
-    ? params.currentVaultData.emailInteractions
-    : [];
-
-  if (legacyRead.status === 'empty') {
-    try {
-      const existingEnvelope = params.readEnvelope();
-      if (!existingEnvelope) {
-        return {
-          status: 'error',
-          error: 'Encrypted vault envelope not found; retained existing email store.'
-        };
-      }
-      await decryptActiveSessionEnvelope(existingEnvelope);
-      await params.clearLegacyEmails();
-      return {
-        status: 'migrated',
-        emailInteractions: existingVaultEmails,
-        envelope: existingEnvelope,
-        didModifyVault: false
-      };
-    } catch (err: unknown) {
-      const detail = err instanceof Error ? err.message : 'Verification failed';
-      return {
-        status: 'error',
-        error: `Vault verification failed (${detail}); original email records retained.`
-      };
-    }
-  }
-
-  const mergedEmails = dedupeEmailInteractions([...existingVaultEmails, ...legacyRead.records]);
-  const didModifyVault = mergedEmails.length > existingVaultEmails.length;
-
-  const nextVaultData: DecryptedVaultData = {
-    ...params.currentVaultData,
-    emailInteractions: mergedEmails
-  };
-
-  try {
-    const envelope = await syncUnlockedVault(nextVaultData, params.vaultMeta);
-    const wrote = await params.writeEnvelope(envelope);
-    if (wrote === false) {
-      throw new Error('Encrypted vault write returned false.');
-    }
-
-    const storedEnvelope = params.readEnvelope();
-    if (!storedEnvelope) {
-      throw new Error('Encrypted vault envelope could not be read back after write.');
-    }
-
-    const restoredPayload = await decryptActiveSessionEnvelope(storedEnvelope);
-    const restoredEmails = Array.isArray(restoredPayload.emailInteractions)
-      ? restoredPayload.emailInteractions
-      : [];
-
-    const restoredKeys = new Set(
-      restoredEmails.map((e) => (e.messageId ? `msg:${e.messageId}` : `id:${e.id}`))
-    );
-    const allRestored = legacyRead.records.every((orig) =>
-      restoredKeys.has(orig.messageId ? `msg:${orig.messageId}` : `id:${orig.id}`)
-    );
-
-    if (!allRestored) {
-      throw new Error('Restored encrypted payload was missing migrated email interaction records.');
-    }
-
-    await params.clearLegacyEmails();
-
-    return {
-      status: 'migrated',
-      emailInteractions: restoredEmails,
-      envelope: storedEnvelope,
-      didModifyVault
-    };
-  } catch (err: unknown) {
-    const detail = err instanceof Error ? err.message : 'Encryption or write error';
-    return {
-      status: 'error',
-      error: `Failed to migrate email records to encrypted vault (${detail}). Your original email records have been retained.`
-    };
-  }
-}
-
 function hasCustomCandidatePreferences(prefs: any): boolean {
   if (!prefs || typeof prefs !== 'object') return false;
   return Boolean(
@@ -447,10 +309,6 @@ export function extractLegacyPlaintextFromRawStore(rawJson: string | null): Lega
     }
     if (Array.isArray(state.applications) && state.applications.length > 0) {
       sensitiveData.applications = state.applications;
-      hasSensitive = true;
-    }
-    if (Array.isArray(state.unsavedQueue) && state.unsavedQueue.length > 0) {
-      sensitiveData.unsavedQueue = state.unsavedQueue;
       hasSensitive = true;
     }
     if (hasCustomCandidatePreferences(state.candidatePreferences)) {
@@ -590,12 +448,10 @@ export function mergeLegacyIntoDecryptedVault(
     geminiApiKey: vaultData.geminiApiKey || '',
     masterResume: vaultData.masterResume || null,
     careerFormDraft: vaultData.careerFormDraft || null,
-    emailInteractions: Array.isArray(vaultData.emailInteractions) ? [...vaultData.emailInteractions] : [],
     jobs: Array.isArray(vaultData.jobs) ? [...vaultData.jobs] : [],
     selectedJobId: vaultData.selectedJobId || null,
     tailoredArtifacts: { ...(vaultData.tailoredArtifacts || {}) },
     applications: Array.isArray(vaultData.applications) ? [...vaultData.applications] : [],
-    unsavedQueue: Array.isArray(vaultData.unsavedQueue) ? [...vaultData.unsavedQueue] : [],
     candidatePreferences: vaultData.candidatePreferences || { ...DEFAULT_PREFERENCES }
   };
 
@@ -638,17 +494,6 @@ export function mergeLegacyIntoDecryptedVault(
     }
   }
 
-  if (Array.isArray(legacy.unsavedQueue) && legacy.unsavedQueue.length > 0) {
-    const existingQueueIds = new Set(merged.unsavedQueue.map((q: any) => q.id));
-    for (const q of legacy.unsavedQueue) {
-      if (q && q.id && !existingQueueIds.has(q.id)) {
-        merged.unsavedQueue.push(q);
-        existingQueueIds.add(q.id);
-        didChange = true;
-      }
-    }
-  }
-
   if (legacy.tailoredArtifacts && typeof legacy.tailoredArtifacts === 'object') {
     for (const [jobId, artifact] of Object.entries(legacy.tailoredArtifacts)) {
       if (!merged.tailoredArtifacts[jobId] && artifact) {
@@ -661,17 +506,6 @@ export function mergeLegacyIntoDecryptedVault(
   if (!hasCustomCandidatePreferences(merged.candidatePreferences) && hasCustomCandidatePreferences(legacy.candidatePreferences)) {
     merged.candidatePreferences = { ...merged.candidatePreferences, ...legacy.candidatePreferences };
     didChange = true;
-  }
-
-  if (Array.isArray(legacy.emailInteractions) && legacy.emailInteractions.length > 0) {
-    const beforeCount = merged.emailInteractions?.length || 0;
-    merged.emailInteractions = dedupeEmailInteractions([
-      ...(merged.emailInteractions || []),
-      ...legacy.emailInteractions
-    ]);
-    if (merged.emailInteractions.length > beforeCount) {
-      didChange = true;
-    }
   }
 
   return { merged, didChange };

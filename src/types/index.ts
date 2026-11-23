@@ -326,40 +326,6 @@ export interface ApplicationRecord {
   }>;
 }
 
-export interface EmailInteraction {
-  id: string;
-  messageId: string;
-  from: string;
-  fromName: string;
-  to: string;
-  subject: string;
-  receivedDate: string;
-  snippet: string;
-  body: string;
-  detectedCompany: string;
-  detectedRole?: string;
-  detectedJobIdRef?: string;
-  detectedStatusTransition?: ApplicationStatus;
-  isRecruitingInfrastructure: boolean;
-  infrastructureName?: 'Workday' | 'Greenhouse' | 'Lever' | 'Ashby' | 'BambooHR' | 'Direct Email';
-  matchedApplicationId?: string;
-  status: 'matched_transitioned' | 'unsaved_external_queue' | 'dismissed';
-}
-
-export interface UnsavedApplicationCandidate {
-  id: string;
-  company: string;
-  role: string;
-  sourceEmailId: string;
-  detectedReferenceNumber?: string;
-  infrastructure: string;
-  dateReceived: string;
-  snippet: string;
-  rawEmailBody: string;
-  salary?: string;
-  workplaceType?: string;
-}
-
 export interface UserWorkspace {
   id: string;
   email: string;

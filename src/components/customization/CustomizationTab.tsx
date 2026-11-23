@@ -21,7 +21,6 @@ import {
   FileText,
   CheckCircle,
   AlertCircle,
-  HelpCircle,
   ChevronRight,
   MessageSquare,
   BookmarkCheck,
@@ -79,7 +78,7 @@ export const CustomizationTab: React.FC = () => {
   } | null>(null);
   const [isDraftingAnswer, setIsDraftingAnswer] = useState(false);
   const [questionnaireError, setQuestionnaireError] = useState<string | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'resume' | 'coverLetter' | 'interview'>('resume');
+  const [activeSubTab, setActiveSubTab] = useState<'resume' | 'coverLetter'>('resume');
   const [isExporting, setIsExporting] = useState<string | null>(null);
 
   // Assisted-Apply Review Drawer & Inline URL Editor State
@@ -604,17 +603,6 @@ export const CustomizationTab: React.FC = () => {
               <MessageSquare className="w-3.5 h-3.5" />
               <span>Cover Letter</span>
             </button>
-            <button
-              onClick={() => setActiveSubTab('interview')}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeSubTab === 'interview'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span>Interview Prep</span>
-            </button>
           </div>
 
           {/* Sub Tab: Tailored Resume */}
@@ -874,43 +862,6 @@ export const CustomizationTab: React.FC = () => {
                   No AI cover letter generated in this baseline offline kit. Configure your Gemini key and click &quot;Generate role-relevant resume variations&quot; above if you want a role-tailored cover letter draft.
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Sub Tab: Interview Prep */}
-          {activeSubTab === 'interview' && (
-            <div className="p-5 sm:p-6 rounded-3xl bg-slate-800/80 border border-slate-700 space-y-4">
-              {currentArtifact.variants.length > 0 && (
-                <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
-                  AI-generated interview material: verify every personal claim and suggested talking point against your own experience.
-                </p>
-              )}
-              <span className="text-[10px] uppercase font-mono text-indigo-400 block mb-1">
-                AI Interview Prep Drafts — Review Required
-              </span>
-
-              {currentArtifact.interviewPrepQuestions.map((q, i) => (
-                <div key={i} className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-mono font-bold">
-                      {q.category}
-                    </span>
-                    <h4 className="text-xs font-bold text-white">{q.question}</h4>
-                  </div>
-
-                  <div className="space-y-1.5 pl-3 border-l-2 border-indigo-500/40">
-                    {q.suggestedTalkingPoints.map((point, pIdx) => (
-                      <p key={pIdx} className="text-xs text-slate-300 leading-relaxed">
-                        • {point}
-                      </p>
-                    ))}
-                  </div>
-
-                  <p className="text-[10px] text-slate-500 pt-1">
-                    <strong>Evidence Ref:</strong> {q.authenticEvidenceRef}
-                  </p>
-                </div>
-              ))}
             </div>
           )}
 
