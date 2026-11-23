@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
 import { useAuthLocale } from '../../i18n/authLocale';
-import { vetJobWithGroq, formatGroqError } from '../../services/groqService';
+import { vetJobWithGemini, formatGeminiError } from '../../services/geminiCareerService';
 import { verifyJobPosting } from '../../services/jobVerificationService';
 import {
   ShieldCheck,
@@ -22,7 +22,7 @@ export const VettingTab: React.FC = () => {
     masterResume,
     updateJobVetting,
     updateJobVerification,
-    groqApiKey,
+    geminiApiKey,
     setActiveTab,
     addToast
   } = useWizardStore();
@@ -62,10 +62,10 @@ export const VettingTab: React.FC = () => {
     setIsVettingLoading(true);
     setVettingError(null);
     try {
-      const vetting = await vetJobWithGroq(
+      const vetting = await vetJobWithGemini(
         selectedJob,
         masterResume,
-        groqApiKey
+        geminiApiKey
       );
       updateJobVetting(selectedJob.id, vetting);
       addToast({
@@ -74,7 +74,7 @@ export const VettingTab: React.FC = () => {
         message: `AI Suggestion (Not a Hiring Prediction): ${vetting.recommendation}`
       });
     } catch (err: unknown) {
-      const msg = formatGroqError(err, 'Vetting evaluation failed.');
+      const msg = formatGeminiError(err, 'Vetting evaluation failed.');
       setVettingError(msg);
       addToast({ type: 'error', message: msg });
     } finally {
@@ -145,7 +145,7 @@ export const VettingTab: React.FC = () => {
             <button
               type="button"
               onClick={() => void runVetting()}
-              disabled={isVettingLoading || !groqApiKey}
+              disabled={isVettingLoading || !geminiApiKey}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-60"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isVettingLoading ? 'animate-spin' : ''}`} />
@@ -439,11 +439,11 @@ export const VettingTab: React.FC = () => {
           <button
             type="button"
             onClick={() => void runVetting()}
-            disabled={!groqApiKey}
+            disabled={!geminiApiKey}
             className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg transition cursor-pointer flex items-center gap-2 mx-auto disabled:opacity-50"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Retry Analysis with Groq</span>
+            <span>Retry Analysis with Gemini</span>
           </button>
         </div>
       ) : (
@@ -451,19 +451,19 @@ export const VettingTab: React.FC = () => {
           <div>
             <h3 className="text-base font-bold text-white mb-1">Ready for an AI Career-Fit Review?</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
-              No request is sent until you choose to run this review. BYOC will send the selected job details and, if available, your Master Resume headline, summary, skills, work experience, education, projects, certifications, and additional career evidence to Groq using your configured API key. Your contact details and unstructured source document text are not included.
+              No request is sent until you choose to run this review. BYOC will send the selected job details and, if available, your Master Resume headline, summary, skills, work experience, education, projects, certifications, and additional career evidence to Gemini using your configured API key. Your contact details and unstructured source document text are not included.
             </p>
             <p className="text-[11px] text-amber-300/90 mt-2 leading-relaxed">
               This is AI-generated guidance, not independent employer or vacancy verification. Check the employer and active job posting directly before sharing personal information or applying.
             </p>
           </div>
-          {!groqApiKey && (
-            <p className="text-xs text-amber-300">Add your Groq API key in Settings to enable this optional review.</p>
+          {!geminiApiKey && (
+            <p className="text-xs text-amber-300">Enter your Gemini API key on the login screen to enable this optional review.</p>
           )}
           <button
             type="button"
             onClick={() => void runVetting()}
-            disabled={!groqApiKey || isVettingLoading}
+            disabled={!geminiApiKey || isVettingLoading}
             className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg transition cursor-pointer disabled:opacity-50"
           >
             Run AI Vetting

@@ -3,7 +3,7 @@ import { openExternalPortalUrl, shouldUseNativeExternalBrowser } from '../../ser
 import { useWizardStore } from '../../store/useWizardStore';
 import { useAuthLocale } from '../../i18n/authLocale';
 import { getResumeExportGuidance } from '../../services/exporterService';
-import { tailorResumeWithGroq, draftQuestionnaireAnswer, formatGroqError } from '../../services/groqService';
+import { tailorResumeWithGemini, draftQuestionnaireAnswer, formatGeminiError } from '../../services/geminiCareerService';
 import { sanitizeExternalHttpUrl } from '../../services/jobSearchService';
 import {
   partitionTailoredBullets,
@@ -21,7 +21,6 @@ import {
   FileText,
   CheckCircle,
   AlertCircle,
-  HelpCircle,
   ChevronRight,
   MessageSquare,
   BookmarkCheck,
@@ -56,7 +55,7 @@ export const CustomizationTab: React.FC = () => {
     updateApplicationStatus,
     checkRejectionCollision,
     candidatePreferences,
-    groqApiKey,
+    geminiApiKey,
     setActiveTab,
     addToast
   } = useWizardStore();
@@ -79,7 +78,7 @@ export const CustomizationTab: React.FC = () => {
   } | null>(null);
   const [isDraftingAnswer, setIsDraftingAnswer] = useState(false);
   const [questionnaireError, setQuestionnaireError] = useState<string | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'resume' | 'coverLetter' | 'interview'>('resume');
+  const [activeSubTab, setActiveSubTab] = useState<'resume' | 'coverLetter'>('resume');
   const [isExporting, setIsExporting] = useState<string | null>(null);
 
   // Assisted-Apply Review Drawer & Inline URL Editor State
@@ -163,8 +162,8 @@ export const CustomizationTab: React.FC = () => {
       return;
     }
 
-    if (!groqApiKey.trim()) {
-      setTailoringError('AI tailoring uses an optional Groq key. The offline baseline kit uses only your saved evidence and can be exported without an API key.');
+    if (!geminiApiKey.trim()) {
+      setTailoringError('Gemini is the only AI provider. Re-enter or replace your Gemini key from the login screen if it is unavailable.');
       setActiveSubTab('resume');
       handleCreateOfflineBaselineKit();
       addToast({ type: 'info', title: 'Offline Baseline Kit Ready', message: 'No AI key is needed. Review your saved evidence and export the baseline kit below.' });
@@ -173,10 +172,10 @@ export const CustomizationTab: React.FC = () => {
     setIsGenerating(true);
     setTailoringError(null);
     try {
-      const artifact = await tailorResumeWithGroq(
+      const artifact = await tailorResumeWithGemini(
         selectedJob!,
         masterResume!,
-        groqApiKey
+        geminiApiKey
       );
       saveTailoredArtifact(selectedJob!.id, artifact);
       addToast({
@@ -185,7 +184,7 @@ export const CustomizationTab: React.FC = () => {
         message: `${artifact.variants.length} evidence-relevant draft variation${artifact.variants.length === 1 ? '' : 's'} generated. Review all generated wording before use.`
       });
     } catch (err: unknown) {
-      const msg = formatGroqError(err, 'Tailoring generation failed.');
+      const msg = formatGeminiError(err, 'Tailoring generation failed.');
       setTailoringError(msg);
       addToast({ type: 'error', message: msg });
     } finally {
@@ -194,7 +193,7 @@ export const CustomizationTab: React.FC = () => {
   };
 
   const handleDraftScreeningAnswer = async () => {
-    if (!masterResume || !hasResume || !selectedJob || !groqApiKey) {
+    if (!masterResume || !hasResume || !selectedJob || !geminiApiKey) {
       addToast({
         type: 'warning',
         title: 'Questionnaire Draft Unavailable',
@@ -202,7 +201,7 @@ export const CustomizationTab: React.FC = () => {
           ? 'Add a Master Resume first.'
           : !selectedJob
           ? 'Select a target job first.'
-          : 'Add your Groq API key in Settings to draft an answer.'
+          : 'Enter your Gemini API key on the login screen to draft an answer.'
       });
       return;
     }
@@ -215,10 +214,10 @@ export const CustomizationTab: React.FC = () => {
     setQuestionnaireError(null);
     setScreeningAnswer(null);
     try {
-      const result = await draftQuestionnaireAnswer(screeningQuestion, selectedJob, masterResume, groqApiKey);
+      const result = await draftQuestionnaireAnswer(screeningQuestion, selectedJob, masterResume, geminiApiKey);
       setScreeningAnswer({ jobId: selectedJob.id, ...result });
     } catch (err: unknown) {
-      const message = formatGroqError(err, 'Could not draft a screening answer.');
+      const message = formatGeminiError(err, 'Could not draft a screening answer.');
       setQuestionnaireError(message);
       addToast({ type: 'error', message });
     } finally {
@@ -442,7 +441,7 @@ export const CustomizationTab: React.FC = () => {
             </h3>
             <p className="text-xs text-slate-400 max-w-xl mt-1 leading-relaxed">
               Generates only the framing angles supported by your profile evidence and target role. Replacement bullets and listed skills are checked against your Master Resume; AI-written summaries, cover letters, and talking points still require your review before use. 
-                    <p className="mt-2 text-[10px] leading-relaxed text-slate-500">No request is sent until you choose Generate. The selected job details and structured Master Resume evidence (summary, skills, experience, education, projects, certifications and additional evidence) are sent to Groq using your configured key. Contact details and unstructured source-document text are excluded.</p>
+                    <p className="mt-2 text-[10px] leading-relaxed text-slate-500">No request is sent until you choose Generate. The selected job details and structured Master Resume evidence (summary, skills, experience, education, projects, certifications and additional evidence) are sent to Gemini using your configured key. Contact details and unstructured source-document text are excluded.</p>
             </p>
           </div>
 
@@ -455,8 +454,8 @@ export const CustomizationTab: React.FC = () => {
                   ? 'Add structured career evidence in the Intake tab to unlock AI tailoring'
                   : !hasJob
                   ? 'Pick a target position in Sourcing to tailor your kit against'
-                   : !groqApiKey.trim()
-                  ? t('Prepare the offline baseline kit (AI needs an optional Groq key)')
+                   : !geminiApiKey.trim()
+                  ? t('Prepare the offline baseline kit (AI needs an optional Gemini key)')
                   : 'Generate role-relevant resume variations'
               }
               className={`flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-white font-bold text-sm shadow-xl transition active:scale-95 cursor-pointer ${
@@ -466,10 +465,10 @@ export const CustomizationTab: React.FC = () => {
               }`}
             >
               <Sparkles className={`w-4 h-4 ${!hasResume || !hasJob ? 'text-amber-400' : 'text-sky-300'} ${isGenerating ? 'animate-spin' : ''}`} />
-              <span>{isGenerating ? 'Generating role-relevant variations...' : !groqApiKey.trim() ? t('Prepare Offline Baseline Kit') : currentArtifact ? 'Regenerate role-relevant variations' : 'Generate role-relevant resume variations'}</span>
+              <span>{isGenerating ? 'Generating role-relevant variations...' : !geminiApiKey.trim() ? t('Prepare Offline Baseline Kit') : currentArtifact ? 'Regenerate role-relevant variations' : 'Generate role-relevant resume variations'}</span>
             </button>
-            {!groqApiKey.trim() && hasResume && hasJob && (
-              <span className="text-[11px] text-sky-300 font-medium">{t('AI tailoring needs an optional Groq key. Choose the offline baseline kit to continue without one.')}</span>
+            {!geminiApiKey.trim() && hasResume && hasJob && (
+              <span className="text-[11px] text-sky-300 font-medium">{t('AI tailoring needs an optional Gemini key. Choose the offline baseline kit to continue without one.')}</span>
             )}
             {!hasResume && (
               <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
@@ -603,17 +602,6 @@ export const CustomizationTab: React.FC = () => {
             >
               <MessageSquare className="w-3.5 h-3.5" />
               <span>Cover Letter</span>
-            </button>
-            <button
-              onClick={() => setActiveSubTab('interview')}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeSubTab === 'interview'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span>Interview Prep</span>
             </button>
           </div>
 
@@ -871,46 +859,9 @@ export const CustomizationTab: React.FC = () => {
                 </div>
               ) : (
                 <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 text-xs text-slate-400">
-                  No AI cover letter generated in this baseline offline kit. Configure your Groq key and click &quot;Generate role-relevant resume variations&quot; above if you want a role-tailored cover letter draft.
+                  No AI cover letter generated in this baseline offline kit. Configure your Gemini key and click &quot;Generate role-relevant resume variations&quot; above if you want a role-tailored cover letter draft.
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Sub Tab: Interview Prep */}
-          {activeSubTab === 'interview' && (
-            <div className="p-5 sm:p-6 rounded-3xl bg-slate-800/80 border border-slate-700 space-y-4">
-              {currentArtifact.variants.length > 0 && (
-                <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
-                  AI-generated interview material: verify every personal claim and suggested talking point against your own experience.
-                </p>
-              )}
-              <span className="text-[10px] uppercase font-mono text-indigo-400 block mb-1">
-                AI Interview Prep Drafts — Review Required
-              </span>
-
-              {currentArtifact.interviewPrepQuestions.map((q, i) => (
-                <div key={i} className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-mono font-bold">
-                      {q.category}
-                    </span>
-                    <h4 className="text-xs font-bold text-white">{q.question}</h4>
-                  </div>
-
-                  <div className="space-y-1.5 pl-3 border-l-2 border-indigo-500/40">
-                    {q.suggestedTalkingPoints.map((point, pIdx) => (
-                      <p key={pIdx} className="text-xs text-slate-300 leading-relaxed">
-                        • {point}
-                      </p>
-                    ))}
-                  </div>
-
-                  <p className="text-[10px] text-slate-500 pt-1">
-                    <strong>Evidence Ref:</strong> {q.authenticEvidenceRef}
-                  </p>
-                </div>
-              ))}
             </div>
           )}
 
@@ -1076,7 +1027,7 @@ export const CustomizationTab: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => void handleDraftScreeningAnswer()}
-                        disabled={isDraftingAnswer || !screeningQuestion.trim() || !hasResume || !selectedJob || !groqApiKey}
+                        disabled={isDraftingAnswer || !screeningQuestion.trim() || !hasResume || !selectedJob || !geminiApiKey}
                         className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-45"
                       >
                         <Sparkles className="h-3.5 w-3.5" />
@@ -1413,7 +1364,7 @@ export const CustomizationTab: React.FC = () => {
       ) : (
         <div className="p-6 sm:p-8 rounded-3xl bg-slate-800/40 border border-slate-800 text-center space-y-3">
           <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
-            No tailored artifact synthesized yet. Click &quot;Generate role-relevant resume variations&quot; above (with a Groq key), or prepare an offline baseline kit using only your authentic Master Profile to export documents and launch Assisted-Apply without AI.
+            No tailored artifact synthesized yet. Click &quot;Generate role-relevant resume variations&quot; above (with a Gemini key), or prepare an offline baseline kit using only your authentic Master Profile to export documents and launch Assisted-Apply without AI.
           </p>
           {hasResume && hasJob && (
             <button

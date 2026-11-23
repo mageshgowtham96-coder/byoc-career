@@ -9,7 +9,6 @@ import {
   AlertCircle,
   Clock,
   TrendingUp,
-  Inbox,
   RefreshCw,
   Shield,
   FileKey2,
@@ -30,10 +29,9 @@ export const DashboardTab: React.FC = () => {
     jobs,
     applications,
     tailoredArtifacts,
-    unsavedQueue,
     setActiveTab,
     setSettingsFocusSection,
-    groqApiKey,
+    geminiApiKey,
     candidatePreferences,
     setJobs,
     getFollowUpRequiredApplications,
@@ -169,8 +167,8 @@ export const DashboardTab: React.FC = () => {
             <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400 mb-2.5 flex-wrap">
               <span className="text-sky-400 font-semibold uppercase tracking-wider">{t('Local Encrypted Vault')}</span>
               <span aria-hidden="true" className="text-slate-600">·</span>
-              <span className={groqApiKey ? 'text-emerald-400' : 'text-amber-400'}>
-                {t(groqApiKey ? 'Groq BYOK Ready' : 'Groq BYOK Key Pending')}
+              <span className={geminiApiKey ? 'text-emerald-400' : 'text-amber-400'}>
+                {t(geminiApiKey ? 'Gemini BYOK Ready' : 'Gemini BYOK Key Pending')}
               </span>
               {user?.biometricEnabled && (
                 <>
@@ -214,38 +212,6 @@ export const DashboardTab: React.FC = () => {
           </div>
         </div>
       </section>
-
-      {/* Unsaved Applications Alert Queue Banner */}
-      {unsavedQueue.length > 0 && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#0F172A] border border-indigo-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 text-indigo-300 flex items-center justify-center shrink-0">
-              <Inbox className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="text-xs font-bold text-white tabular-nums">
-                  {unsavedQueue.length} External Applications Discovered in Mail
-                </h4>
-                <span className="text-[10px] font-mono font-semibold text-indigo-300 uppercase tracking-wider">
-                  Mail Confirmation Sync
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-300 mt-0.5">
-                New confirmations from {unsavedQueue[0].company} ({unsavedQueue[0].infrastructure}). Review and approve in Tracking.
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('tracking')}
-            className="self-start sm:self-auto px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition cursor-pointer shrink-0"
-          >
-            {t('Review Queue')}
-          </button>
-        </div>
-      )}
 
       {/* Automated 7-Day Follow-Up Prompting Banner */}
       {followUpApps.length > 0 && (

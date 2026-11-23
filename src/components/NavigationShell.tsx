@@ -12,7 +12,6 @@ import {
   FileText,
   GraduationCap,
   ShieldCheck,
-  FileSearch
 } from 'lucide-react';
 
 interface NavItem {
@@ -38,7 +37,6 @@ export const NavigationShell: React.FC = () => {
     { id: 'customization', label: 'Tailor Kit', mobileLabel: 'Tailor', icon: Wand2 },
     { id: 'tracking', label: 'Applications', mobileLabel: 'Track', icon: KanbanSquare, badge: appCount > 0 ? appCount : undefined },
     { id: 'prepzone', label: 'Prep-Zone', mobileLabel: 'Prep', icon: GraduationCap },
-    { id: 'documents', label: 'PDF Workspace', mobileLabel: 'PDF', icon: FileSearch },
     { id: 'settings', label: 'Settings & Docs', mobileLabel: 'Setup', icon: Settings }
   ];
 

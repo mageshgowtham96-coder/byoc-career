@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { callGroqChat } from './groqService';
+import { callGeminiChat } from './geminiCareerService';
 import { translateCareerDraftToEnglish } from './careerTranslationService';
 import type { CareerApplicationFormState } from '../types';
 
-vi.mock('./groqService', () => ({
-  callGroqChat: vi.fn()
+vi.mock('./geminiCareerService', () => ({
+  callGeminiChat: vi.fn()
 }));
 
 const draft: CareerApplicationFormState = {
@@ -58,7 +58,7 @@ describe('translateCareerDraftToEnglish', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('translates only resume text fields and preserves personal/contact and factual fields', async () => {
-    vi.mocked(callGroqChat).mockResolvedValue(JSON.stringify({
+    vi.mocked(callGeminiChat).mockResolvedValue(JSON.stringify({
       targetRole: 'Data Analyst',
       currentRole: 'Data Intern',
       professionalSummary: 'Early-career professional interested in data analysis.',
@@ -68,7 +68,7 @@ describe('translateCareerDraftToEnglish', () => {
       certifications: [{ name: 'Power BI Certificate' }]
     }));
 
-    const translated = await translateCareerDraftToEnglish(draft, 'Tamil', 'test-groq-key');
+    const translated = await translateCareerDraftToEnglish(draft, 'Tamil', 'test-gemini-key');
 
     expect(translated.targetRole).toBe('Data Analyst');
     expect(translated.currentRole).toBe('Data Intern');
@@ -83,25 +83,25 @@ describe('translateCareerDraftToEnglish', () => {
     expect((translated.certifications || [])[0].issuer).toBe('Microsoft');
     expect(translated.translatedToEnglish).toBe(true);
     expect(translated.originalLanguageSnapshot).toContain('தரவு');
-    const groqPrompt = vi.mocked(callGroqChat).mock.calls[0][1];
-    expect(groqPrompt).not.toContain('asha@example.com');
-    expect(groqPrompt).not.toContain('123');
-    expect(groqPrompt).not.toContain('ABC Technologies');
-    expect(groqPrompt).not.toContain('சென்னை பல்கலைக்கழகம்');
-    expect(groqPrompt).toContain('தரவு');
+    const geminiPrompt = vi.mocked(callGeminiChat).mock.calls[0][1];
+    expect(geminiPrompt).not.toContain('asha@example.com');
+    expect(geminiPrompt).not.toContain('123');
+    expect(geminiPrompt).not.toContain('ABC Technologies');
+    expect(geminiPrompt).not.toContain('சென்னை பல்கலைக்கழகம்');
+    expect(geminiPrompt).toContain('தரவு');
   });
 
   it('rejects incomplete or malformed translation output without returning a partial draft', async () => {
-    vi.mocked(callGroqChat).mockResolvedValue(JSON.stringify({
+    vi.mocked(callGeminiChat).mockResolvedValue(JSON.stringify({
       targetRole: 'Data Analyst',
       professionalSummary: 'Translated'
     }));
 
-    await expect(translateCareerDraftToEnglish(draft, 'Tamil', 'test-groq-key')).rejects.toThrow(/translation response/i);
+    await expect(translateCareerDraftToEnglish(draft, 'Tamil', 'test-gemini-key')).rejects.toThrow(/translation response/i);
   });
 
   it('rejects a translation that changes a user-provided number or metric', async () => {
-    vi.mocked(callGroqChat).mockResolvedValue(JSON.stringify({
+    vi.mocked(callGeminiChat).mockResolvedValue(JSON.stringify({
       targetRole: 'Data Analyst',
       currentRole: 'Data Intern',
       professionalSummary: 'Early-career professional interested in data analysis.',
@@ -111,18 +111,18 @@ describe('translateCareerDraftToEnglish', () => {
       certifications: [{ name: 'Power BI Certificate' }]
     }));
 
-    await expect(translateCareerDraftToEnglish(draft, 'Tamil', 'test-groq-key')).rejects.toThrow(/changed a number or metric/i);
+    await expect(translateCareerDraftToEnglish(draft, 'Tamil', 'test-gemini-key')).rejects.toThrow(/changed a number or metric/i);
   });
 
-  it('does not make a Groq request when the API key is missing', async () => {
+  it('does not make a Gemini request when the API key is missing', async () => {
     await expect(translateCareerDraftToEnglish(draft, 'Tamil', '')).rejects.toThrow(/API key/i);
-    expect(callGroqChat).not.toHaveBeenCalled();
+    expect(callGeminiChat).not.toHaveBeenCalled();
   });
 
-  it('rejects oversized translation input before sending it to Groq', async () => {
+  it('rejects oversized translation input before sending it to Gemini', async () => {
     const oversized = { ...draft, professionalSummary: 'தமிழ்'.repeat(20000) };
 
-    await expect(translateCareerDraftToEnglish(oversized, 'Tamil', 'test-groq-key')).rejects.toThrow(/too long|shorten/i);
-    expect(callGroqChat).not.toHaveBeenCalled();
+    await expect(translateCareerDraftToEnglish(oversized, 'Tamil', 'test-gemini-key')).rejects.toThrow(/too long|shorten/i);
+    expect(callGeminiChat).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { extractResumeFile, parseRawResumeToStructured, validateExtractedSchema } from './extractionService';
-import { assessResumeReadiness } from '../utils/resumeReadiness';
+import { assessResumeReadiness, getCandidateDiscoverySignals, hasStructuredCareerEvidence } from '../utils/resumeReadiness';
 import { useWizardStore, buildVaultDataFromState } from '../store/useWizardStore';
 import { encryptVault, decryptVault } from '../utils/cryptoVault';
 
@@ -112,6 +112,49 @@ describe('resume upload parsing and readiness end-to-end fixture', () => {
     expect(parsed.rawText).toBe(DUMMY_FRAUD_ANALYST_RESUME);
   });
 
+
+  it('extracts a deliberately inconsistent resume without rewriting or inventing source facts', async () => {
+    const flawedResume = `PRIYA S.
+priya.s@example.com | +91 90000 12345 | Bengaluru
+
+PROFILE
+Fraud ops analyst. Worked with UPI/card alerts, customer disputes and case notes.
+Good with Excel, SQL (basic), AML/KYC.
+
+EMPLOYMENT
+Fraud Ops Analyst | NorthStar Payments | 2022 - Current
+* reviewed suspicious txn alerts and wrote case notes
+* helped the compliance team with escalations
+
+Customer Service Associate - CityPay | 2020 to 2022
+Handled chargebacks, customer calls and account misuse reports.
+
+PROJECTS / OTHER
+UPI dispute tracker - Excel
+Made a simple tracker for pending cases. No measured savings recorded.
+
+AWARD
+Team appreciation - 2021
+
+LANGUAGES
+Kannada (native), English - working level
+`;
+    const file = {
+      name: 'flawed-layout-resume.txt',
+      size: new TextEncoder().encode(flawedResume).length,
+      text: async () => flawedResume
+    } as File;
+    const extracted = await extractResumeFile(file);
+
+    expect(extracted.success, extracted.error).toBe(true);
+    expect(extracted.rawText).toContain('2022 - Current');
+    expect(extracted.rawText).toContain('No measured savings recorded.');
+    expect(extracted.rawText).toContain('Kannada (native)');
+    expect(extracted.parsedProfile).toBeDefined();
+    expect(extracted.parsedProfile?.rawText).toBe(flawedResume.trim());
+    expect(extracted.parsedProfile?.rawText).not.toContain('increased revenue');
+  });
+
   it('does not flag the complete dummy resume as half-built', () => {
     const parsed = parseRawResumeToStructured(DUMMY_FRAUD_ANALYST_RESUME);
     expect(assessResumeReadiness(parsed)).toEqual({
@@ -145,10 +188,60 @@ Experience
 Fraud Analyst - Example Bank - 2022 - Present
 - Reviewed payment alerts and documented case notes.`);
     const readiness = assessResumeReadiness(parsed);
-    expect(readiness.completenessPercent).toBe(80);
-    expect(readiness.missingSections).toContain('three or more relevant skills or competencies');
+    expect(readiness.completenessPercent).toBe(100);
+    expect(readiness.missingSections).not.toContain('three or more relevant skills or competencies');
     expect(readiness.missingSections).not.toContain('work experience');
   });
+  it('does not require skills or certifications when a resume contains other usable evidence', () => {
+    const profile = parseRawResumeToStructured(`Asha Rao
+asha@example.com
+Professional Summary
+Community organizer with experience coordinating local learning events.
+Experience
+Community Coordinator - Learning Centre - 2023 - Present
+- Coordinated weekly learning sessions for local students.`);
+    expect(profile.skills.technical).toEqual([]);
+    expect(profile.certifications).toEqual([]);
+    expect(assessResumeReadiness(profile).missingSections).not.toContain('three or more relevant skills or competencies');
+    expect(assessResumeReadiness(profile).completenessPercent).toBe(100);
+  });
+
+  it('retains arbitrary document-discovered sections as structured candidate evidence', () => {
+    const profile = parseRawResumeToStructured(`Asha Rao
+asha@example.com
+Professional Summary
+Community organizer with experience coordinating learning events.`);
+    profile.documentInsights = {
+      documentTitle: 'Asha career profile',
+      documentSummary: 'Community experience and public speaking.',
+      documentType: 'Career profile',
+      sections: [{
+        id: 'community-impact',
+        title: 'Community Impact',
+        status: 'found',
+        summary: 'Community leadership evidence',
+        fields: [
+          { label: 'Initiative', value: 'Started a neighbourhood reading circle', evidence: [{ quote: 'Started a neighbourhood reading circle', field: 'Initiative' }] },
+          { label: 'Audience', value: '30 local students', evidence: [{ quote: 'Supported 30 local students', field: 'Audience' }] }
+        ],
+        items: [],
+        confidence: 'high',
+        evidence: [{ quote: 'Started a neighbourhood reading circle', field: 'Initiative' }]
+      }],
+      followUpQuestions: [],
+      warnings: [],
+      analyzedAt: new Date().toISOString(),
+      provider: 'gemini',
+      model: 'test-model'
+    };
+    const signals = getCandidateDiscoverySignals(profile);
+    expect(signals).toContain('Community Impact');
+    expect(signals).toContain('Initiative');
+    expect(signals).toContain('Started a neighbourhood reading circle');
+    expect(signals).toContain('30 local students');
+    expect(hasStructuredCareerEvidence(profile)).toBe(true);
+  });
+
   it('recognizes a student profile with education and projects as meaningful resume evidence without employment history', () => {
     const student = parseRawResumeToStructured(`Asha Rao
 asha.rao@example.com

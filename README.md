@@ -12,9 +12,9 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS.
 - **Client state:** Zustand with encrypted-vault persistence and versioned workspace metadata migration.
 - **Android:** Capacitor 8, package ID `com.byoc.career`.
-- **AI:** Optional Groq BYOK requests initiated by the user, currently selecting supported GPT-OSS 120B / 20B chat models when available. Free-plan quota is limited and account-specific; AI-generated content must be reviewed before use. Experimental OpenRouter/Gemini adapters are not connected to the user-facing workflows.
+- **AI:** Gemini is the only AI provider. The Gemini API key is entered and verified on the login screen, then stored in the encrypted local vault. AI requests are user-triggered and generated content requires review.
 - **Documents:** Selectable-text PDF, DOCX, TXT, and Markdown intake; TXT, PDF, and DOCX export.
-- **Offline:** Local vault and previously downloaded app assets remain available offline. Live feeds, Groq actions, and first-time downloads of unvisited workspace modules require connectivity.
+- **Offline:** Local vault and previously downloaded app assets remain available offline. Live employer-board refreshes, Gemini actions, and first-time downloads of unvisited workspace modules require connectivity.
 
 ## 2. Career Workflow
 
@@ -25,15 +25,14 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - Extracted facts are staged for user review before replacing the Master Resume. The source file itself is not modified or retained as a separate encrypted binary archive; extracted source text remains in the encrypted profile.
 - Experience bullets and skills are grounded in user-provided source material; missing facts must not be invented.
 - A guided Master Resume builder supports people who do not already have a CV. It asks role- and experience-specific questions locally, saves drafts inside the encrypted vault, and replaces the active profile only after the user confirms.
-- An optional Groq wording-optimization action proposes changes to the staged Master Resume. The user compares the headline, summary, experience bullets and project descriptions before accepting; a second confirmation is required to update the active Master Resume. The optimized profile remains structured and encrypted.
-- Optional English translation uses the existing Groq key only after an explicit click. Dedicated contact, employer, institution, date, skill, technology, issuer, and link fields are omitted; free-text summaries, role titles, bullets, and project descriptions may still contain personal or organization details. Users preview the translation and can restore the original-language draft.
+- An optional Gemini wording-optimization action proposes changes to the staged Master Resume. The user compares the headline, summary, experience bullets and project descriptions before accepting; a second confirmation is required to update the active Master Resume. The optimized profile remains structured and encrypted.
+- Optional English translation uses the encrypted Gemini key only after an explicit click. Dedicated contact, employer, institution, date, skill, technology, issuer, and link fields are omitted; free-text summaries, role titles, bullets, and project descriptions may still contain personal or organization details. Users preview the translation and can restore the original-language draft.
 
 ### Job discovery
-- **Public live feeds:** Remotive, Remote OK, Jobicy, and Arbeitnow are queried on demand without a new API key. Jobicy uses its public seven-day feed with keyword filtering and bounded cursor pagination (up to three pages per search). Arbeitnow adds a public CORS-enabled Europe-focused feed (one bounded page per search); its API has no keyword filter, so BYOC filters results locally and links back to the original posting. These feeds are not a complete global or India-wide job index.
-- **Recent-post filter:** Live-feed results default to the past 30 days, with 7-day, 90-day, and any-date options. Listings with missing/unreadable publication dates are excluded from recent windows rather than assumed current. A recent date is a freshness signal, not proof that an employer is still accepting applications.
-- **External portal fallback:** LinkedIn, Indeed, Naukri, Foundit, Glassdoor, Instahyre, and saved custom portals open their own search pages. For city-specific or missing vacancies, users can verify the portal listing, then import its description and original URL into BYOC. No authenticated scraping or automatic application is performed.
-- **No-key source assessment:** The Himalayas remote-jobs API has a public no-key endpoint and an open-source client repository, but its own documentation says browser JavaScript calls are blocked by CORS. Adding it directly to this client-only app would therefore require a backend/proxy, which conflicts with BYOC's local-first/no-backend design. JobSpy-based LinkedIn/Naukri/Indeed scraping is not adopted because it scrapes portals against their terms and is brittle.
-- **Adzuna:** Not active in this client-only build because protected server-side credentials would be required.
+- **Live employer boards:** BYOC queries a curated directory of 13 public Greenhouse and Workable employer boards directly, without aggregator credentials. Job summaries are refreshed at a bounded interval and role search runs locally against published title/metadata. The directory is selective, not a complete India-wide or global vacancy index.
+- **Posted-date filter:** Employer-board listings are retained regardless of age by default, with 7-day, 30-day, 90-day and any-date filters available. Missing/unreadable dates are not treated as recent. A published date is a freshness signal, not proof that an employer is still accepting applications.
+- **Manual import:** Users can paste a job description and original URL from another employer page when it is not present in the curated live directory. BYOC does not scrape authenticated portals or apply automatically.
+- **Source limits:** BYOC deliberately avoids unverified aggregators and brittle portal scraping. A source is active only when its public employer-board endpoint passes the live smoke check; unsupported or unavailable sources are not presented as live feeds.
 - **Matching:** User-entered required skills are scored separately from optional preferred skills. Public-feed tags are stored as provider-listed skills because feeds do not reliably classify them as required or preferred; any overlap is labelled with that uncertainty. Market eligibility is classified only from the published location as explicit, regional, not stated, or not assessed; job-description mentions are not used as location proof. Experience depth is not assessed by the keyword score, and neither the score nor location label proves that a vacancy is still open or that an employer is legitimate.
 
 ### Public vacancy evidence
@@ -44,7 +43,7 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 - Local description checks flag certain fee/deposit, financial-detail, messaging-app, and consumer-email phrases. These are caution signals, not fraud determinations.
 
 ### Vetting and tailoring
-- AI vetting is explicitly user-triggered. The selected job details and relevant Master Resume evidence are sent to Groq only after the user chooses **Run AI Vetting**.
+- AI vetting is explicitly user-triggered. The selected job details and relevant Master Resume evidence are sent to Gemini only after the user chooses **Run AI Vetting**.
 - Vetting compares the supplied job description with candidate evidence. It does **not** independently verify employer identity, company legitimacy, vacancy status, culture, salary-market competitiveness, or hiring probability. Profile alignment is labelled as an AI estimate, not a verified match.
 - Tailored resume versions are selected from evidence actually present in the profile (work experience, projects/education, and ATS alignment); BYOC does not force leadership or systems-architecture variants onto unrelated roles.
 - AI-generated summaries, cover letters, screening answers, and interview prompts require user review.
@@ -57,24 +56,25 @@ BYOC is a mobile-first career workspace for resume intake, remote-job discovery,
 
 ## 3. Privacy and Security
 
-- Career records and the Groq API key are stored in the local encrypted vault using AES-256-GCM. Vault v5 uses PBKDF2-HMAC-SHA256 with 600,000 iterations for user passphrases and separately records the recovery-phrase KDF. Existing v3/v4 vaults remain readable and are upgraded after successful passphrase unlock.
+- Career records and the Gemini API key are stored in the local encrypted vault using AES-256-GCM. Vault v5 uses PBKDF2-HMAC-SHA256 with 600,000 iterations for user passphrases and separately records the recovery-phrase KDF. Existing v3/v4 vaults remain readable and are upgraded after successful passphrase unlock.
 - A passphrase or Emergency Recovery Phrase is required to unlock the vault after a cold start.
 - Platform biometrics are an in-session convenience gate for an already-unlocked session. They do not unlock the encrypted vault and are not server-verified identity proof.
-- BYOC sends no career data to Groq merely because the app is opened. Job discovery uses public no-key feeds and external portal links; it does not send job-search terms to Groq. Each remaining AI action is user-triggered. Resume structuring sends the extracted resume text, which may contain contact information. Vetting sends the selected job and relevant profile evidence, without contact fields. Tailoring sends the selected job and resume evidence, including the candidate name, but not email, phone, or social-profile URLs.
+- BYOC sends no career data to Gemini merely because the app is opened. Job discovery reads public employer-board endpoints directly and does not send job-search terms or the Master Resume to Gemini. Each remaining AI action is user-triggered. Resume structuring sends the extracted resume text, which may contain contact information. Vetting sends the selected job and relevant profile evidence, without contact fields. Tailoring sends the selected job and resume evidence, including the candidate name, but not email, phone, or social-profile URLs.
 - Optional Master Resume optimization sends the structured headline, summary, skills, experience bullets, project descriptions, education, certifications and additional evidence. Dedicated contact fields and the original raw document text are excluded, but free-text career fields may themselves contain personal or organization details.
-- Groq processes requests under its own service terms. BYOC does not control the provider's processing or retention policies. Do not use AI features on a shared device if you are not comfortable sending the selected content to Groq.
-- BYOC does not silently fail over to another AI company. Resume/job data is sent only to the provider the user explicitly configured for that action. This avoids an unexpected change in data recipient. Groq 429 responses are retried only when a short `Retry-After` is supplied; other transient failures receive one bounded retry with jitter. Daily quota exhaustion is not retried in a loop.
-- Gemini's API offers a free tier on eligible models, but Google's published pricing page states that free-tier submitted content may be used to improve its products. Because BYOC can transmit personal resume data, Gemini is not enabled in this browser-only release. It would require a separately reviewed opt-in integration and clear data-use disclosure.
+- Google Gemini processes requests under Google's API terms. BYOC does not control the provider's processing or retention policies. Do not use AI features on a shared device if you are not comfortable sending the selected content to Google Gemini.
+- BYOC does not silently fail over to another AI company. BYOC has no provider switching or silent failover: all AI-assisted workflows use the single Gemini key entered at login. Transient provider failures receive a bounded retry; quota exhaustion is not retried in a loop.
+- The Gemini key is requested at login and kept in the encrypted vault. Before using document analysis, tailoring or vetting, the user should understand that the selected document text/PDF or structured career evidence is sent directly to Google Gemini. Review Google's current API data-use terms and never send material you do not want processed by that provider.
 - Automatic Android cloud backup and device-to-device app-data transfer are explicitly excluded so local workspace metadata is not silently copied into system backups. Use BYOC's encrypted vault export for manual device migration and recovery. **Readable Workspace Snapshot exports are unencrypted** and may contain personal career information; store them carefully.
 - If BYOC reports a vault save failure, keep the app open and retry before closing. Sign-out is blocked while an unsaved-vault warning is active.
 
 ## 4. Known Limits
 
-- No scanned-document OCR.
+- Local extraction does not perform OCR. When the user explicitly chooses Gemini document analysis, Gemini can inspect the original PDF, including scanned pages; its interpretation still requires user review.
 - No Gmail/Workspace inbox integration.
 - No automatic applications or authenticated job-portal scraping.
+- The separate PDF Workspace navigation page has been removed; supported PDF resume intake remains inside Master Intake.
 - Public ATS evidence checks currently support Greenhouse only. A matching record does not independently guarantee employer legitimacy or that applications remain open.
-- AI providers can still be unavailable or quota-limited. BYOC keeps local workflows available, but AI vetting/tailoring cannot be guaranteed free, uninterrupted, or available offline. Check the provider's current model and rate-limit dashboard before relying on a quota.
+- Gemini can still be unavailable or quota-limited. BYOC keeps local workflows available, but AI vetting/tailoring cannot be guaranteed free, uninterrupted, or available offline. Check the provider's current model and rate-limit dashboard before relying on a quota.
 - No BYOC cloud account, cloud sync, or server-side data recovery. Keep an encrypted backup and protect the recovery phrase.
 - The Android debug APK is suitable for installation/testing, not a signed production release. A release signing key has not been configured in this repository.
 

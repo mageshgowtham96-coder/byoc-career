@@ -24,23 +24,16 @@ import {
 } from './cryptoVault';
 import {
   CAREER_FORM_DRAFT_KEY,
-  EMAIL_FALLBACK_KEY,
   WORKSPACE_STORE_KEY,
   extractLegacyPlaintextFromRawStore,
   mergeLegacyIntoDecryptedVault,
   mergeWorkspaceStoreState,
   migrateLegacyCareerFormDraft,
-  migrateLegacyEmailRecordsToVault,
   migrateWorkspaceStoreState,
-  parseLegacyEmailFallback,
   sanitizeStoredWorkspaceStoreMetadata,
   scrubAndVerifyStoredWorkspace,
   scrubPlaintextWorkspaceStore
 } from './vaultMigration';
-import {
-  configureEncryptedEmailVault,
-  emailVault
-} from '../services/emailSyncService';
 import {
   DEFAULT_PORTAL_SHORTCUTS,
   LiveJobSearchEngine,
@@ -51,17 +44,8 @@ import {
   sanitizeExternalHttpUrl
 } from '../services/jobSearchService';
 import { buildApplicationSnapshotRecord } from '../store/useWizardStore';
-import {
-  GroqApiError,
-  formatGroqError,
-  getAvailableGroqModels,
-  tailorResumeWithGroq,
-  validateTailoredOutput,
-  validateQuestionnaireDraft,
-  mergeGroqResumeProfile,
-  parseResumeWithGroq,
-  vetJobWithGroq
-} from '../services/groqService';
+import { GeminiApiError, formatGeminiError } from '../services/geminiCareerService';
+
 import type { MasterResume, JobPosting, TailoredArtifact, ApplicationRecord, ExperienceItem } from '../types';
 
 // Mock localStorage
@@ -157,7 +141,6 @@ describe('Crypto Vault Core', () => {
       selectedJobId: null,
       tailoredArtifacts: {},
       applications: [],
-      unsavedQueue: [],
       candidatePreferences: {}
     };
     const rawMvk = new Uint8Array(32).buffer;
@@ -196,7 +179,6 @@ describe('Crypto Vault Core', () => {
       selectedJobId: null,
       tailoredArtifacts: {},
       applications: [],
-      unsavedQueue: [],
       candidatePreferences: {}
     };
     const { envelope } = await encryptVault(data, 'correct horse battery staple', {
@@ -274,14 +256,25 @@ describe('Legacy Migration', () => {
     it('detects legacy plaintext with sensitive data', () => {
       const rawStore = JSON.stringify({
         state: {
-          groqApiKey: 'gsk_test123',
+          geminiApiKey: 'AIza_test123',
           masterResume: { contactInfo: { name: 'Test User' } },
           jobs: [{ title: 'Engineer' }],
         }
       });
       const result = extractLegacyPlaintextFromRawStore(rawStore);
       expect(result.detected).toBe(true);
-      expect(result.sensitiveData.groqApiKey).toBe('gsk_test123');
+      expect(result.sensitiveData.geminiApiKey).toBe('AIza_test123');
+    });
+
+    it('detects and scrubs an old Groq credential without migrating it into the Gemini slot', () => {
+      const rawStore = JSON.stringify({ state: { groqApiKey: 'gsk_legacy_value' } });
+      const result = extractLegacyPlaintextFromRawStore(rawStore);
+      expect(result.detected).toBe(true);
+      expect(result.sensitiveData.geminiApiKey).toBeUndefined();
+      const scrubbed = scrubPlaintextWorkspaceStore(rawStore);
+      expect(scrubbed).toBeTruthy();
+      expect(JSON.parse(scrubbed!).state).not.toHaveProperty('groqApiKey');
+      expect(JSON.parse(scrubbed!).state).not.toHaveProperty('geminiApiKey');
     });
 
     it('returns empty for clean store', () => {
@@ -429,14 +422,14 @@ describe('Application Snapshot', () => {
   });
 });
 
-describe('Groq Service Errors', () => {
+describe('Gemini Service Errors', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('GroqApiError', () => {
+  describe('GeminiApiError', () => {
     it('creates error with all properties', () => {
-      const err = new GroqApiError('Test error', 401, 'UNAUTHORIZED', 'Check your API key');
+      const err = new GeminiApiError('Test error', 401, 'UNAUTHORIZED', 'Check your API key');
       expect(err.message).toBe('Test error');
       expect(err.status).toBe(401);
       expect(err.code).toBe('UNAUTHORIZED');
@@ -444,47 +437,23 @@ describe('Groq Service Errors', () => {
     });
   });
 
-  describe('formatGroqError', () => {
-    it('formats GroqApiError with recovery hint', () => {
-      const err = new GroqApiError('Auth failed', 401, 'UNAUTHORIZED', 'Check your key');
-      expect(formatGroqError(err)).toBe('Auth failed Check your key');
+  describe('formatGeminiError', () => {
+    it('formats GeminiApiError with recovery hint', () => {
+      const err = new GeminiApiError('Auth failed', 401, 'UNAUTHORIZED', 'Check your key');
+      expect(formatGeminiError(err)).toBe('Auth failed Check your key');
     });
 
     it('formats generic Error', () => {
-      expect(formatGroqError(new Error('Generic error'))).toBe('Generic error');
+      expect(formatGeminiError(new Error('Generic error'))).toBe('Generic error');
     });
 
     it('handles unknown errors', () => {
-      expect(formatGroqError('string error')).toBe('Groq request failed.');
-      expect(formatGroqError(null)).toBe('Groq request failed.');
+      expect(formatGeminiError('string error')).toBe('Gemini request failed.');
+      expect(formatGeminiError(null)).toBe('Gemini request failed.');
     });
   });
 });
 
-describe('Email Vault Configuration', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('configures encrypted email vault correctly', () => {
-    const mockStore = {
-      getState: vi.fn(() => ({
-        isAuthenticated: true,
-        user: { id: '1', name: 'Test', email: 'test@test.com' },
-        hasActiveVaultKey: vi.fn().mockReturnValue(true)
-      })),
-      subscribe: vi.fn()
-    };
-    
-    configureEncryptedEmailVault({
-      isUnlocked: () => true,
-      getAll: () => [],
-      replaceAll: vi.fn().mockResolvedValue(undefined)
-    });
-    
-    expect(emailVault).toBeDefined();
-  });
-});
 describe('vault key extractability', () => {
   it('keeps PBKDF2-derived wrapping keys non-exportable', async () => {
     await deriveVaultKey('test passphrase', new Uint8Array(16));

@@ -9,8 +9,8 @@ import type { CareerApplicationFormState } from '../../types';
 vi.mock('../../services/careerTranslationService', () => ({
   translateCareerDraftToEnglish: vi.fn()
 }));
-vi.mock('../../services/groqService', () => ({
-  formatGroqError: vi.fn(() => 'Translation failed')
+vi.mock('../../services/geminiCareerService', () => ({
+  formatGeminiError: vi.fn(() => 'Translation failed')
 }));
 
 describe('GuidedMasterResumeBuilder privacy and translation flow', () => {
@@ -53,7 +53,7 @@ describe('GuidedMasterResumeBuilder privacy and translation flow', () => {
     vi.useRealTimers();
   });
 
-  it('does not call Groq when the builder opens; translation requires an explicit click', async () => {
+  it('does not call Gemini when the builder opens; translation requires an explicit click', async () => {
     const translatedDraft: CareerApplicationFormState = {
       ...initialDraft,
       targetRole: 'Data Analyst',
@@ -66,7 +66,7 @@ describe('GuidedMasterResumeBuilder privacy and translation flow', () => {
       root.render(
         <GuidedMasterResumeBuilder
           initialDraft={initialDraft}
-          groqApiKey="test-key"
+          geminiApiKey="test-key"
           onDraftChange={onDraftChange}
           onComplete={onComplete}
           onCancel={onCancel}
@@ -104,7 +104,7 @@ describe('GuidedMasterResumeBuilder privacy and translation flow', () => {
       root.render(
         <GuidedMasterResumeBuilder
           initialDraft={initialDraft}
-          groqApiKey=""
+          geminiApiKey=""
           onDraftChange={onDraftChange}
           onComplete={onComplete}
           onCancel={onCancel}
@@ -124,7 +124,7 @@ describe('GuidedMasterResumeBuilder privacy and translation flow', () => {
       root.render(
         <GuidedMasterResumeBuilder
           initialDraft={initialDraft}
-          groqApiKey=""
+          geminiApiKey=""
           onDraftChange={onDraftChange}
           onComplete={onComplete}
           onCancel={onCancel}
@@ -167,7 +167,7 @@ describe('GuidedMasterResumeBuilder privacy and translation flow', () => {
       root.render(
         <GuidedMasterResumeBuilder
           initialDraft={initialDraft}
-          groqApiKey="test-key"
+          geminiApiKey="test-key"
           onDraftChange={onDraftChange}
           onComplete={onComplete}
           onCancel={onCancel}

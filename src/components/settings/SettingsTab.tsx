@@ -6,25 +6,16 @@ import {
   readStoredVaultEnvelope
 } from '../../utils/cryptoVault';
 import { WORKSPACE_STORE_KEY } from '../../utils/vaultMigration';
-import { emailVault } from '../../services/emailSyncService';
 import { safeRemoveItem } from '../../utils/storagePersistence';
-import { getAvailableGroqModels, selectGroqChatModel, formatGroqError } from '../../services/groqService';
 import {
   Settings,
-  Zap,
-  Key,
   Shield,
   Download,
   Trash2,
   LogOut,
   CheckCircle2,
   AlertCircle,
-  Eye,
-  EyeOff,
-  Cpu,
   Fingerprint,
-  Mail,
-  RefreshCw,
   Database,
   BookOpen,
   FileKey2,
@@ -33,25 +24,14 @@ import {
 
 export const SettingsTab: React.FC = () => {
   const {
-    groqApiKey,
-    setGroqApiKey,
-    setIsLiveApiMode,
     user,
     toggleBiometricEnrollment,
-    emailInteractions,
-    runEmailSync,
-    isEmailSyncing,
-    lastEmailSyncDate,
     settingsFocusSection,
     setSettingsFocusSection,
     signOut,
     addToast
   } = useWizardStore();
 
-  const [inputKey, setInputKey] = useState(groqApiKey);
-  const [showKey, setShowKey] = useState(false);
-  const [isTestingKey, setIsTestingKey] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null);
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [showPlaintextBackupConfirm, setShowPlaintextBackupConfirm] = useState(false);
   const [isWiping, setIsWiping] = useState(false);
@@ -60,10 +40,6 @@ export const SettingsTab: React.FC = () => {
   );
   const backupSectionRef = useRef<HTMLElement>(null);
   const docsSectionRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    setInputKey(groqApiKey);
-  }, [groqApiKey]);
 
   useEffect(() => {
     if (settingsFocusSection === 'backup') {
@@ -75,61 +51,6 @@ export const SettingsTab: React.FC = () => {
       setSettingsFocusSection(null);
     }
   }, [settingsFocusSection, setSettingsFocusSection]);
-
-  const handleSaveKey = async () => {
-    const trimmed = inputKey.trim();
-    setGroqApiKey(trimmed);
-    setIsLiveApiMode(Boolean(trimmed));
-    const synced = await syncVaultFromStoreNow();
-
-    if (trimmed) {
-      addToast({
-        type: 'success',
-        title: 'Groq API Key Saved',
-        message: synced
-          ? 'Encrypted in your private device vault. Live Groq inference active.'
-          : 'Groq key active for this session.'
-      });
-    } else {
-      addToast({
-        type: 'info',
-        message: 'Groq API Key cleared from vault. Local non-AI tools remain available.'
-      });
-    }
-  };
-
-  const handleTestGroq = async () => {
-    const trimmed = inputKey.trim();
-    if (!trimmed) {
-      setTestResult({ success: false, msg: 'Please enter a Groq API key first.' });
-      return;
-    }
-
-    setIsTestingKey(true);
-    setTestResult(null);
-
-    try {
-      const models = await getAvailableGroqModels(trimmed);
-      const selectedModel = selectGroqChatModel(models);
-      if (!selectedModel) {
-        throw new Error('The key is valid, but no supported BYOC chat model is available to it. Check your Groq model access and plan.');
-      }
-      setGroqApiKey(trimmed);
-      setIsLiveApiMode(true);
-      await syncVaultFromStoreNow();
-      setTestResult({
-        success: true,
-        msg: `Connection verified. BYOC can use ${selectedModel}; ${models.length} model IDs are visible to this key. Key saved cleanly into your encrypted vault.`
-      });
-    } catch (err: unknown) {
-      setTestResult({
-        success: false,
-        msg: formatGroqError(err, 'Connection failed. Check your API key and network status.')
-      });
-    } finally {
-      setIsTestingKey(false);
-    }
-  };
 
   const handleExportWorkspaceJson = () => {
     const fullState = useWizardStore.getState();
@@ -153,7 +74,6 @@ export const SettingsTab: React.FC = () => {
       selectedJobId: fullState.selectedJobId,
       tailoredArtifacts: fullState.tailoredArtifacts,
       applications: fullState.applications,
-      unsavedQueue: fullState.unsavedQueue,
       candidatePreferences: fullState.candidatePreferences,
       exportDate: new Date().toISOString()
     };
@@ -210,15 +130,12 @@ export const SettingsTab: React.FC = () => {
     setIsWiping(true);
     try {
       lockVaultSession();
-      await emailVault.clear();
       safeRemoveItem(WORKSPACE_STORE_KEY);
       safeRemoveItem(VAULT_STORAGE_KEY);
-      safeRemoveItem('byoc_email_vault_fallback');
       safeRemoveItem('byoc_career_form_draft');
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem(WORKSPACE_STORE_KEY);
         window.localStorage.removeItem(VAULT_STORAGE_KEY);
-        window.localStorage.removeItem('byoc_email_vault_fallback');
         window.localStorage.removeItem('byoc_career_form_draft');
       }
       window.location.reload();
@@ -233,113 +150,21 @@ export const SettingsTab: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20 max-w-4xl">
-      <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
         <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
           <Settings className="w-6 h-6 text-sky-400" />
           <span>System &amp; Workspace Settings</span>
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-          Manage your Groq BYOK credentials, private device backups, biometric screen shield, and documentation.
+          Manage your private device backups, biometric screen shield, and documentation.
         </p>
+        </div>
+        <button type="button" onClick={signOut} className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2.5 text-xs font-bold text-rose-200 hover:bg-rose-500/20 transition">
+          <LogOut className="h-4 w-4" />
+          Log Out
+        </button>
       </div>
-
-      {/* Groq Intelligence Configuration */}
-      <section className="p-5 sm:p-6 rounded-2xl bg-[#0F172A] border border-slate-800 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400 shrink-0">
-              <Cpu className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-white">Groq API &amp; Model Orchestration</h3>
-              <p className="text-xs text-slate-400">
-                Direct browser-to-Groq inference (GPT-OSS 120B / 20B)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-xs font-medium self-start sm:self-auto">
-            {groqApiKey ? (
-              <span className="text-emerald-400 flex items-center gap-1">
-                <Zap className="w-3.5 h-3.5" />
-                <span>Groq Key Configured</span>
-              </span>
-            ) : (
-              <span className="text-amber-400 flex items-center gap-1">
-                <Key className="w-3.5 h-3.5" />
-                <span>Key Required for AI</span>
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="settings-groq-key" className="block text-xs font-semibold text-slate-300 mb-1.5">
-            Groq API Key (Stored Exclusively Inside Encrypted Vault)
-          </label>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <input
-                id="settings-groq-key"
-                type={showKey ? 'text' : 'password'}
-                value={inputKey}
-                onChange={(e) => setInputKey(e.target.value)}
-                placeholder="gsk_..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#070B14] border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-sky-500 pr-10"
-              />
-              <button
-                type="button"
-                aria-label={showKey ? 'Hide Groq API Key' : 'Show Groq API Key'}
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
-              >
-                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleSaveKey}
-                className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition cursor-pointer whitespace-nowrap shrink-0"
-              >
-                Save Key
-              </button>
-              <button
-                type="button"
-                onClick={handleTestGroq}
-                disabled={isTestingKey}
-                className="px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0"
-              >
-                {isTestingKey ? 'Pinging...' : 'Test Connection'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {testResult && (
-          <div
-            className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
-              testResult.success
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-            }`}
-          >
-            {testResult.success ? (
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-            ) : (
-              <AlertCircle className="w-4 h-4 shrink-0" />
-            )}
-            <span>{testResult.msg}</span>
-          </div>
-        )}
-
-        <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-400">
-          <span>
-            Groq BYOK handles vetting, tailoring, and evidence-anchored prep with strict zero-fabrication prompts. Gemini remains disabled in this browser-only build; adding another provider requires explicit consent and a reviewed secure integration.
-          </span>
-          <span className="text-emerald-400 font-mono text-[11px] shrink-0">Live BYOK Architecture</span>
-        </div>
-      </section>
 
       {/* Hardware Biometric Security Shield */}
       <section className="p-5 sm:p-6 rounded-2xl bg-[#0F172A] border border-slate-800 space-y-4">
@@ -410,42 +235,6 @@ export const SettingsTab: React.FC = () => {
         </div>
       </section>
 
-      {/* Client-Side Email Vault */}
-      <section className="p-5 sm:p-6 rounded-2xl bg-[#0F172A] border border-slate-800 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0">
-              <Mail className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-white">Local Email Interaction Vault</h3>
-              <p className="text-xs text-slate-400">
-                Private device vault storage ({emailInteractions.length} stored) · OAuth external inbox sync is not connected
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => runEmailSync()}
-            disabled={isEmailSyncing}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0 self-start sm:self-auto"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-sky-400 ${isEmailSyncing ? 'animate-spin' : ''}`} />
-            <span>{isEmailSyncing ? 'Checking...' : 'Check Local Email Vault'}</span>
-          </button>
-        </div>
-
-        <p className="text-xs text-slate-400 leading-relaxed">
-          No inbox is connected, so this check does not fetch new email. It checks access to records already stored in the encrypted local vault; Gmail/Workspace OAuth is not connected.
-          {lastEmailSyncDate && (
-            <span className="block text-[11px] font-mono text-slate-500 mt-1 tabular-nums">
-              Last Checked: {new Date(lastEmailSyncDate).toLocaleTimeString()}
-            </span>
-          )}
-        </p>
-      </section>
-
       {/* Encrypted Vault Identity & Lock */}
       <section className="p-5 sm:p-6 rounded-2xl bg-[#0F172A] border border-slate-800 space-y-4">
         <div className="flex items-center gap-3">
@@ -476,16 +265,6 @@ export const SettingsTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 pt-1">
-          <button
-            type="button"
-            onClick={signOut}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer"
-          >
-            <LogOut className="w-3.5 h-3.5 text-slate-400" />
-            <span>Lock Workspace Vault</span>
-          </button>
-        </div>
       </section>
 
       {/* Data Backup, Encrypted Envelope Export & Wipe */}
@@ -576,8 +355,8 @@ export const SettingsTab: React.FC = () => {
               <p className="font-semibold text-white">5-Stage Career Execution Pipeline</p>
               <ol className="list-decimal list-inside space-y-1.5 text-slate-400">
                 <li><strong className="text-slate-200">Intake:</strong> Upload your master resume or paste raw text, verify extracted milestones in the Review Gate, and approve into your vault.</li>
-                <li><strong className="text-slate-200">Sourcing:</strong> Paste job descriptions from any board or query the public Remotive, Remote OK, and Jobicy remote feeds. These are not an exhaustive global index; Adzuna needs server-side credentials, and LinkedIn/Glassdoor/Naukri/Indeed/Foundit/Instahyre remain shortcuts rather than live feeds.</li>
-                <li><strong className="text-slate-200">Vetting:</strong> Compare stated job requirements with your career evidence via Groq. Company culture and salary-market competitiveness are not independently verified.</li>
+                <li><strong className="text-slate-200">Sourcing:</strong> BYOC checks 13 configured public Greenhouse and Workable employer boards directly. These are the only live job sources; the directory is selective and India-focused, not an exhaustive index. Other portals are external links or manual imports, not live feeds.</li>
+                <li><strong className="text-slate-200">Vetting:</strong> Compare stated job requirements with your career evidence via Gemini. Company culture and salary-market competitiveness are not independently verified.</li>
                 <li><strong className="text-slate-200">Customize:</strong> Generate role-relevant resume versions from available evidence, review generated wording, export PDF/DOCX/TXT, and use questionnaire chips.</li>
                 <li><strong className="text-slate-200">Tracking &amp; Prep-Zone:</strong> Save immutable application snapshots, track interview stages, and practice domain-grounded prompts.</li>
               </ol>
@@ -600,9 +379,10 @@ export const SettingsTab: React.FC = () => {
             <>
               <p className="font-semibold text-white">Supported Document Formats &amp; BYOK Behavior</p>
               <ul className="space-y-1.5 text-slate-400">
-                <li>• <strong className="text-slate-200">Supported Local Extraction:</strong> Processes <span className="font-mono text-slate-200">.txt</span>, <span className="font-mono text-slate-200">.md</span>, standard compressed XML <span className="font-mono text-slate-200">.docx</span>, and basic selectable-text <span className="font-mono text-slate-200">.pdf</span> files up to 10MB 100% locally on-device.</li>
-                <li>• <strong className="text-slate-200">Unsupported Formats (No OCR):</strong> Raster image OCR (PNG/JPG/scanned PDFs), encrypted PDFs, and complex CID/custom-font PDF glyph maps remain unsupported. When readable text cannot be extracted, BYOC directs you to the Manual Paste Fallback box.</li>
-                <li>• <strong className="text-slate-200">Groq BYOK (Active AI Provider):</strong> Create a free or paid key at <span className="font-mono text-sky-400">console.groq.com</span> and paste it above. Gemini is not active in this client-only build; its free tier has separate quotas and data-use terms. Without a Groq key (or if Groq is unreachable/rate-limited), all local vault, sourcing, offline baseline export, Assisted-Apply, and tracking workflows remain functional offline.</li>
+                <li>• <strong className="text-slate-200">Local Extraction:</strong> Extracts <span className="font-mono text-slate-200">.txt</span>, <span className="font-mono text-slate-200">.md</span>, <span className="font-mono text-slate-200">.docx</span> and selectable text from <span className="font-mono text-slate-200">.pdf</span> files locally, up to 10 MB. The original document remains unchanged.</li>
+                <li>• <strong className="text-slate-200">Local Extraction Limits:</strong> Scanned/image-only PDFs, encrypted PDFs and complex custom-font glyph maps may not yield selectable text locally. If you explicitly choose Gemini Document Analysis, BYOC sends the original PDF so Gemini can inspect rendered pages; review its interpretation against the source.</li>
+                <li>• <strong className="text-slate-200">Gemini Document Analysis:</strong> Enter and verify the Gemini API key on the login screen; there is no separate provider setup in Settings. Original PDF bytes are sent only after you explicitly choose Analyze. DOCX/TXT/MD are extracted locally and sent as text only after that action. Review Google's current data-use terms and quotas.</li>
+                <li>• <strong className="text-slate-200">One AI Provider:</strong> The same login-verified Gemini key powers document understanding, resume optimization, translation, role vetting, tailoring and interview preparation. These actions are user-triggered; BYOC does not switch providers or silently send data elsewhere.</li>
               </ul>
             </>
           )}

@@ -29,18 +29,12 @@ import type {
   AppToast,
   ActiveTab,
   ApplicationStatus,
-  UnsavedApplicationCandidate,
   ExperienceItem,
   CandidatePreferences,
   CareerApplicationFormState,
-  EmailInteraction,
   PortalShortcut,
   ExportedMaterialRecord
 } from '../types';
-import {
-  configureEncryptedEmailVault,
-  syncAndProcessIncomingEmails
-} from '../services/emailSyncService';
 import {
   DEFAULT_PORTAL_SHORTCUTS,
   mergePortalShortcuts,
@@ -177,8 +171,6 @@ interface WizardState {
   signOut: () => void;
 
   // API Config & Key Presence
-  groqApiKey: string;
-  setGroqApiKey: (key: string) => void;
   geminiApiKey: string;
   setGeminiApiKey: (key: string) => void;
   isLiveApiMode: boolean;
@@ -234,19 +226,6 @@ interface WizardState {
   getFollowUpRequiredApplications: () => ApplicationRecord[];
   generateFollowUpEmailContent: (app: ApplicationRecord) => { subject: string; body: string };
 
-  // Unsaved Applications Queue (External Discovery Engine)
-  unsavedQueue: UnsavedApplicationCandidate[];
-  addUnsavedQueueItem: (candidate: UnsavedApplicationCandidate) => void;
-  approveUnsavedApplication: (id: string) => ApplicationRecord | null;
-  dismissUnsavedApplication: (id: string) => void;
-
-  // Client-Side Email Polling & Sync Engine (Encrypted Vault Backed)
-  emailInteractions: EmailInteraction[];
-  setEmailInteractions: (items: EmailInteraction[]) => void;
-  isEmailSyncing: boolean;
-  lastEmailSyncDate: string | null;
-  runEmailSync: () => Promise<void>;
-
   // UI Toast System
   toasts: AppToast[];
   addToast: (toast: Omit<AppToast, 'id'>) => void;
@@ -262,17 +241,14 @@ interface WizardState {
 
 export function buildVaultDataFromState(state: WizardState): VaultDataWithPreviousResume {
   return {
-    groqApiKey: state.groqApiKey || '',
     geminiApiKey: state.geminiApiKey || '',
     masterResume: state.masterResume || null,
     previousMasterResume: state.previousMasterResume || null,
     careerFormDraft: state.careerFormDraft || null,
-    emailInteractions: Array.isArray(state.emailInteractions) ? state.emailInteractions : [],
     jobs: state.jobs || [],
     selectedJobId: state.selectedJobId || null,
     tailoredArtifacts: state.tailoredArtifacts || {},
     applications: state.applications || [],
-    unsavedQueue: state.unsavedQueue || [],
     candidatePreferences: state.candidatePreferences || { ...DEFAULT_CANDIDATE_PREFERENCES }
   };
 }
@@ -432,25 +408,20 @@ export const useWizardStore = create<WizardState>()(
           user: currentUser ? sanitizeUserMetadata({ ...currentUser, lastActive: new Date().toISOString() }) : null,
           isAuthenticated: false,
           isBiometricLocked: false,
-          groqApiKey: '',
           geminiApiKey: '',
           masterResume: null,
           previousMasterResume: null,
           stagedParsedResume: null,
           careerFormDraft: null,
-          emailInteractions: [],
           jobs: [],
           selectedJobId: null,
           tailoredArtifacts: {},
           applications: [],
-          unsavedQueue: [],
           candidatePreferences: { ...DEFAULT_CANDIDATE_PREFERENCES }
         });
       },
 
       // API
-      groqApiKey: '',
-      setGroqApiKey: (key) => set({ groqApiKey: key }),
       geminiApiKey: '',
       setGeminiApiKey: (key) => set({ geminiApiKey: key }),
       isLiveApiMode: true,
@@ -938,148 +909,6 @@ export const useWizardStore = create<WizardState>()(
         };
       },
 
-      // Unsaved Applications Queue (External Discovery Engine)
-      unsavedQueue: [],
-      addUnsavedQueueItem: (candidate) => {
-        set((state) => ({
-          unsavedQueue: [candidate, ...state.unsavedQueue.filter((q) => q.id !== candidate.id)]
-        }));
-      },
-
-      approveUnsavedApplication: (id) => {
-        const item = get().unsavedQueue.find((q) => q.id === id);
-        if (!item) return null;
-
-        const workplace =
-          item.workplaceType === 'Remote' || item.workplaceType === 'Hybrid' || item.workplaceType === 'On-site'
-            ? item.workplaceType
-            : 'Unspecified';
-
-        const newJob: JobPosting = {
-          id: 'ext-' + Date.now(),
-          title: item.role,
-          company: item.company,
-          location: 'Location Unspecified',
-          workplaceType: workplace,
-          salary: item.salary || 'Undisclosed',
-          postedDate: new Date(item.dateReceived).toLocaleDateString(),
-          jobDescriptionRaw: item.rawEmailBody,
-          url: '#',
-          source: item.infrastructure,
-          skillsRequired: [],
-          fitScore: null,
-          matchedKeywords: [],
-          missingKeywords: [],
-          experienceLevel: 'Unspecified'
-        };
-
-        get().addJob(newJob);
-
-        const newApp: ApplicationRecord = {
-          id: 'app-ext-' + Date.now(),
-          jobId: newJob.id,
-          company: newJob.company,
-          role: newJob.title,
-          location: newJob.location,
-          workplaceType: newJob.workplaceType,
-          salary: newJob.salary,
-          appliedDate: item.dateReceived,
-          status: 'Applied',
-          jobDescriptionRaw: newJob.jobDescriptionRaw,
-          tailoredResumeSnapshot: {
-            id: 'snap-ext-' + Date.now(),
-            jobId: newJob.id,
-            jobTitle: newJob.title,
-            company: newJob.company,
-            selectedVariantId: 'external-import',
-            variants: [],
-            tailoredSummary: get().masterResume?.summary || '',
-            highlightedSkills: [],
-            optimizedBullets: [],
-            coverLetter: '',
-            interviewPrepQuestions: [],
-            generationTimestamp: item.dateReceived,
-            authenticityGuaranteed: false
-          },
-          notes: `Discovered from external recruiting system: ${item.infrastructure}. Reference ID: ${item.detectedReferenceNumber || 'N/A'}.`,
-          interviewStages: [
-            {
-              id: 'stg-ext',
-              stageName: 'External Portal Registration',
-              date: item.dateReceived,
-              notes: `Registered via ${item.infrastructure}`,
-              completed: true
-            }
-          ]
-        };
-
-        set((state) => ({
-          applications: [newApp, ...state.applications],
-          unsavedQueue: state.unsavedQueue.filter((q) => q.id !== id)
-        }));
-
-        get().addToast({
-          type: 'success',
-          title: 'External Role Ingested',
-          message: `Added ${item.role} at ${item.company} into Tracking Pipeline.`
-        });
-
-        return newApp;
-      },
-
-      dismissUnsavedApplication: (id) => {
-        set((state) => ({
-          unsavedQueue: state.unsavedQueue.filter((q) => q.id !== id)
-        }));
-        get().addToast({
-          type: 'info',
-          message: 'Dismissed candidate from queue.'
-        });
-      },
-
-      // Client-Side Email Polling & Sync Engine (Encrypted Vault Backed)
-      emailInteractions: [],
-      setEmailInteractions: (items) => set({ emailInteractions: items }),
-      isEmailSyncing: false,
-      lastEmailSyncDate: null,
-      runEmailSync: async () => {
-        set({ isEmailSyncing: true });
-        try {
-          const result = await syncAndProcessIncomingEmails(
-            get().applications,
-            (title, body) => {
-              get().addToast({ type: 'info', title, message: body });
-            },
-            []
-          );
-
-          if (result.matchedTransitions.length > 0) {
-            for (const t of result.matchedTransitions) {
-              get().updateApplicationStatus(t.applicationId, t.newStatus);
-            }
-          }
-
-          if (result.unsavedQueueItems.length > 0) {
-            for (const item of result.unsavedQueueItems) {
-              get().addUnsavedQueueItem(item);
-            }
-          }
-
-          get().addToast({
-            type: 'info',
-            title: 'Recruiter Email Status: Offline',
-            message: 'No external email account is authorized via OAuth. Local mail interaction vault is idle.'
-          });
-
-          set({ lastEmailSyncDate: new Date().toISOString() });
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : 'Sync check failed';
-          get().addToast({ type: 'error', message: msg });
-        } finally {
-          set({ isEmailSyncing: false });
-        }
-      },
-
       // Toasts
       toasts: [],
       addToast: (toast) => {
@@ -1262,40 +1091,24 @@ export function restoreVaultDataToStore(
   const currentUser = userOverride ?? useWizardStore.getState().user;
   useWizardStore.setState({
     user: sanitizeUserMetadata(currentUser),
-    groqApiKey: data.groqApiKey || '',
     geminiApiKey: data.geminiApiKey || '',
+    isLiveApiMode: Boolean(data.geminiApiKey),
     masterResume: data.masterResume || null,
     previousMasterResume: (data as VaultDataWithPreviousResume).previousMasterResume || null,
     careerFormDraft: data.careerFormDraft ? sanitizeCareerFormState(data.careerFormDraft) : null,
-    emailInteractions: Array.isArray(data.emailInteractions) ? data.emailInteractions : [],
     jobs: Array.isArray(data.jobs) ? data.jobs : [],
     selectedJobId: data.selectedJobId || null,
     tailoredArtifacts: data.tailoredArtifacts || {},
     applications: Array.isArray(data.applications) ? data.applications : [],
-    unsavedQueue: Array.isArray(data.unsavedQueue) ? data.unsavedQueue : [],
     candidatePreferences: data.candidatePreferences
       ? {
           ...DEFAULT_CANDIDATE_PREFERENCES,
           ...data.candidatePreferences,
           portalShortcuts: mergePortalShortcuts(data.candidatePreferences.portalShortcuts)
         }
-      : { ...DEFAULT_CANDIDATE_PREFERENCES },
-    isLiveApiMode: Boolean(data.groqApiKey)
+      : { ...DEFAULT_CANDIDATE_PREFERENCES }
   });
 }
-
-// Route live email interaction vault operations strictly through AES-256-GCM vault session
-configureEncryptedEmailVault({
-  isUnlocked: () => {
-    const state = useWizardStore.getState();
-    return Boolean(state.isAuthenticated && state.user && hasActiveVaultKey());
-  },
-  getAll: () => useWizardStore.getState().emailInteractions || [],
-  replaceAll: async (items) => {
-    useWizardStore.setState({ emailInteractions: items });
-    return syncVaultFromStoreNow();
-  }
-});
 
 // Subscribe to store mutations while unlocked and auto-persist into AES-256-GCM encrypted vault
 useWizardStore.subscribe((state, prevState) => {
@@ -1303,17 +1116,14 @@ useWizardStore.subscribe((state, prevState) => {
     return;
   }
   const changed =
-    state.groqApiKey !== prevState.groqApiKey ||
     state.geminiApiKey !== prevState.geminiApiKey ||
     state.masterResume !== prevState.masterResume ||
     state.previousMasterResume !== prevState.previousMasterResume ||
     state.careerFormDraft !== prevState.careerFormDraft ||
-    state.emailInteractions !== prevState.emailInteractions ||
     state.jobs !== prevState.jobs ||
     state.selectedJobId !== prevState.selectedJobId ||
     state.tailoredArtifacts !== prevState.tailoredArtifacts ||
     state.applications !== prevState.applications ||
-    state.unsavedQueue !== prevState.unsavedQueue ||
     state.candidatePreferences !== prevState.candidatePreferences ||
     state.user !== prevState.user;
 

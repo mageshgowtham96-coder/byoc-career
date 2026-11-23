@@ -43,7 +43,51 @@ export interface CertificationItem {
   issueDate: string;
 }
 
+export interface DocumentEvidenceQuote {
+  quote: string;
+  page?: number;
+  field: string;
+}
+
+export interface DocumentSectionField {
+  label: string;
+  value: string;
+  evidence: DocumentEvidenceQuote[];
+}
+
+export interface DocumentSectionInsight {
+  id: string;
+  title: string;
+  status: 'found' | 'partial' | 'not_found';
+  summary: string;
+  fields: DocumentSectionField[];
+  items: string[];
+  confidence: 'high' | 'medium' | 'low';
+  evidence: DocumentEvidenceQuote[];
+}
+
+export interface DocumentFollowUpQuestion {
+  id: string;
+  question: string;
+  reason: string;
+  relatedSection: string;
+}
+
+export interface DocumentIntelligence {
+  documentTitle: string;
+  documentSummary: string;
+  documentType: string;
+  sections: DocumentSectionInsight[];
+  followUpQuestions: DocumentFollowUpQuestion[];
+  warnings: string[];
+  analyzedAt: string;
+  provider: 'gemini';
+  model: string;
+}
+
 export interface MasterResume {
+  /** Evidence-led document analysis used to render document-specific intake sections. */
+  documentInsights?: DocumentIntelligence;
   rawText: string;
   contactInfo: ContactInfo;
   headline: string;
@@ -280,40 +324,6 @@ export interface ApplicationRecord {
     notes: string;
     completed: boolean;
   }>;
-}
-
-export interface EmailInteraction {
-  id: string;
-  messageId: string;
-  from: string;
-  fromName: string;
-  to: string;
-  subject: string;
-  receivedDate: string;
-  snippet: string;
-  body: string;
-  detectedCompany: string;
-  detectedRole?: string;
-  detectedJobIdRef?: string;
-  detectedStatusTransition?: ApplicationStatus;
-  isRecruitingInfrastructure: boolean;
-  infrastructureName?: 'Workday' | 'Greenhouse' | 'Lever' | 'Ashby' | 'BambooHR' | 'Direct Email';
-  matchedApplicationId?: string;
-  status: 'matched_transitioned' | 'unsaved_external_queue' | 'dismissed';
-}
-
-export interface UnsavedApplicationCandidate {
-  id: string;
-  company: string;
-  role: string;
-  sourceEmailId: string;
-  detectedReferenceNumber?: string;
-  infrastructure: string;
-  dateReceived: string;
-  snippet: string;
-  rawEmailBody: string;
-  salary?: string;
-  workplaceType?: string;
 }
 
 export interface UserWorkspace {

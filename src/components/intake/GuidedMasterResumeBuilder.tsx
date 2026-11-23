@@ -11,7 +11,7 @@ import {
   X
 } from 'lucide-react';
 import type { CareerApplicationFormState, MasterResume } from '../../types';
-import { formatGroqError } from '../../services/groqService';
+import { formatGeminiError } from '../../services/geminiCareerService';
 import { useAuthLocale } from '../../i18n/authLocale';
 import { translateCareerDraftToEnglish } from '../../services/careerTranslationService';
 import { buildMasterResumeFromCareerDraft } from '../../utils/guidedResumeMapper';
@@ -20,7 +20,7 @@ import { sanitizeCareerFormState } from '../../utils/storagePersistence';
 
 interface GuidedMasterResumeBuilderProps {
   initialDraft: CareerApplicationFormState | null;
-  groqApiKey: string;
+  geminiApiKey: string;
   isEditingExisting?: boolean;
   onDraftChange: (draft: CareerApplicationFormState) => void;
   onComplete: (profile: MasterResume) => void;
@@ -44,7 +44,7 @@ const textAreaClass = `${inputClass} min-h-24 resize-y leading-relaxed`;
 
 export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps> = ({
   initialDraft,
-  groqApiKey,
+  geminiApiKey,
   isEditingExisting = false,
   onDraftChange,
   onComplete,
@@ -173,8 +173,8 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
   };
 
   const handleTranslate = async () => {
-    if (!groqApiKey.trim()) {
-      setError('Add your Groq API key in Settings to use optional translation. You can still complete the resume in your chosen language.');
+    if (!geminiApiKey.trim()) {
+      setError('Add your Gemini API key in Settings to use optional translation. You can still complete the resume in your chosen language.');
       return;
     }
     const sourceLanguage = draft.sourceLanguage === 'Other'
@@ -187,10 +187,10 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
     setIsTranslating(true);
     setError('');
     try {
-      const translated = await translateCareerDraftToEnglish(draft, sourceLanguage, groqApiKey);
+      const translated = await translateCareerDraftToEnglish(draft, sourceLanguage, geminiApiKey);
       setTranslationPreview(translated);
     } catch (err) {
-      setError(formatGroqError(err));
+      setError(formatGeminiError(err));
     } finally {
       setIsTranslating(false);
     }
@@ -406,14 +406,14 @@ export const GuidedMasterResumeBuilder: React.FC<GuidedMasterResumeBuilderProps>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-2">
                   <Languages className="mt-0.5 h-4 w-4 shrink-0 text-indigo-300" />
-                  <div><p className="text-xs font-bold text-white">{t('Optional English translation')}</p><p className="mt-1 text-[11px] leading-relaxed text-slate-400">Sends selected resume text fields to Groq only when you press the button. Contact fields and dedicated employer, school, date, and skills fields are omitted. Names or personal details typed into free-text summaries, role titles, bullets, or project descriptions may still be sent. Your original text is preserved.</p></div>
+                  <div><p className="text-xs font-bold text-white">{t('Optional English translation')}</p><p className="mt-1 text-[11px] leading-relaxed text-slate-400">Sends selected resume text fields to Gemini only when you press the button. Contact fields and dedicated employer, school, date, and skills fields are omitted. Names or personal details typed into free-text summaries, role titles, bullets, or project descriptions may still be sent. Your original text is preserved.</p></div>
                 </div>
-                <button type="button" onClick={() => void handleTranslate()} disabled={isTranslating || !groqApiKey.trim()} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-3 py-2 text-[11px] font-bold text-indigo-100 hover:bg-indigo-500/25 disabled:opacity-50">
+                <button type="button" onClick={() => void handleTranslate()} disabled={isTranslating || !geminiApiKey.trim()} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-indigo-400/30 bg-indigo-500/15 px-3 py-2 text-[11px] font-bold text-indigo-100 hover:bg-indigo-500/25 disabled:opacity-50">
                   {isTranslating ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200/30 border-t-indigo-200" /> : <Sparkles className="h-3.5 w-3.5" />}
                   {isTranslating ? 'Translating…' : 'Translate to English'}
                 </button>
               </div>
-              {!groqApiKey.trim() && <p className="mt-2 text-[10px] text-slate-500">Translation is optional. Add your existing Groq key in Settings if you want to use it.</p>}
+              {!geminiApiKey.trim() && <p className="mt-2 text-[10px] text-slate-500">Translation is optional. Add your existing Gemini key in Settings if you want to use it.</p>}
               {draft.translatedToEnglish && draft.originalLanguageSnapshot && (
                 <button type="button" onClick={handleRestoreOriginalLanguage} className="mt-2 text-[11px] font-semibold text-sky-300 underline underline-offset-2 hover:text-sky-200">
                   Restore original-language draft

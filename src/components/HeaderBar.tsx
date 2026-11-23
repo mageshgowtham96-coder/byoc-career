@@ -6,10 +6,10 @@ import { useAuthLocale } from '../i18n/authLocale';
 import { Zap, Key, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export const HeaderBar: React.FC = () => {
-  const { groqApiKey, isLiveApiMode, setActiveTab, user, vaultPersistenceError } = useWizardStore();
+  const { geminiApiKey, isLiveApiMode, setActiveTab, user, vaultPersistenceError } = useWizardStore();
   const { t } = useAuthLocale();
 
-  const isLiveActive = Boolean(groqApiKey && groqApiKey.trim().length > 0 && isLiveApiMode);
+  const isLiveActive = Boolean(geminiApiKey && geminiApiKey.trim().length > 0 && isLiveApiMode);
 
   return (
     <header
@@ -39,12 +39,12 @@ export const HeaderBar: React.FC = () => {
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
                 : 'bg-[#0F172A] border-slate-700 text-slate-300 hover:text-white'
             }`}
-            title={t('Configure Groq BYOK in Settings')}
+            title={t('Configure Gemini BYOK in Settings')}
           >
             {isLiveActive ? (
               <>
                 <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{t('Groq Connected')}</span>
+                <span>{t('Gemini Connected')}</span>
               </>
             ) : (
               <>

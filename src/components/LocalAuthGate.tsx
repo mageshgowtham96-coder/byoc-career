@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { validateGeminiApiKey } from '../services/geminiApiKeyService';
 import { AUTH_COPY, AUTH_LANGUAGES, type AuthLocale, useAuthLocale, translateUiText } from '../i18n/authLocale';
 import {
   useWizardStore,
@@ -47,19 +48,11 @@ import {
 } from '../utils/cryptoVault';
 import {
   CAREER_FORM_DRAFT_KEY,
-  EMAIL_FALLBACK_KEY,
   hasMeaningfulCareerFormDraft,
   mergeLegacyIntoDecryptedVault,
   migrateLegacyCareerFormDraft,
-  migrateLegacyEmailRecordsToVault,
-  parseLegacyEmailFallback,
   readLegacyCareerFormDraftFromStorage
 } from '../utils/vaultMigration';
-import {
-  clearLegacyEmailStores,
-  dedupeEmailInteractions,
-  readLegacyEmailRecords
-} from '../services/emailSyncService';
 
 export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { locale, setLocale } = useAuthLocale();
@@ -69,29 +62,14 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
     user,
     isAuthenticated,
     setUser,
-    setIsLiveApiMode,
     addToast
   } = useWizardStore();
 
   const storedEnvelope = readStoredVaultEnvelope();
   const legacyCapture = getPendingLegacyCapture();
   const legacyDraftCapture = readLegacyCareerFormDraftFromStorage();
-  const legacyEmailFallbackCapture = (() => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        return parseLegacyEmailFallback(window.localStorage.getItem(EMAIL_FALLBACK_KEY));
-      }
-    } catch {
-      // Ignore storage restriction
-    }
-    return { status: 'none' } as const;
-  })();
   const hasLegacyDraft = legacyDraftCapture.status === 'valid';
-  const [hasAsyncLegacyEmails, setHasAsyncLegacyEmails] = useState(
-    legacyEmailFallbackCapture.status === 'valid'
-  );
-  const hasLegacyEmails = legacyEmailFallbackCapture.status === 'valid' || hasAsyncLegacyEmails;
-  const hasLegacySensitive = hasSensitiveLegacyData(legacyCapture) || hasLegacyDraft || hasLegacyEmails;
+  const hasLegacySensitive = hasSensitiveLegacyData(legacyCapture) || hasLegacyDraft;
   const needsLegacyEncryptionMigration = !storedEnvelope && hasLegacySensitive;
   const hasExistingWorkspace = Boolean(storedEnvelope || user || hasLegacySensitive);
 
@@ -124,17 +102,13 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const [passphrase, setPassphrase] = useState('');
   const [showPassphrase, setShowPassphrase] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState(
-    needsLegacyEncryptionMigration ? (legacyCapture?.sensitiveData.groqApiKey || '') : ''
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState(
+    needsLegacyEncryptionMigration ? (legacyCapture?.sensitiveData.geminiApiKey || '') : ''
   );
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [showGeminiApiKey, setShowGeminiApiKey] = useState(false);
   const [enableBiometricOnSignup, setEnableBiometricOnSignup] = useState(false);
   const [error, setError] = useState(
-    legacyDraftCapture.status === 'error'
-      ? legacyDraftCapture.error
-      : legacyEmailFallbackCapture.status === 'error'
-      ? legacyEmailFallbackCapture.error
-      : ''
+    legacyDraftCapture.status === 'error' ? legacyDraftCapture.error : ''
   );
 
   // Processing & inline confirmation states
@@ -162,25 +136,10 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     if (isAuthenticated) return;
-    let cancelled = false;
     sanitizeStoredVaultEnvelopeMetadata();
     if (user && hasDemoWorkspaceIdentity(user)) {
       setUser(sanitizeUserMetadata(user));
     }
-    void readLegacyEmailRecords().then((res) => {
-      if (cancelled) return;
-      if (res.status === 'valid') {
-        setHasAsyncLegacyEmails(true);
-        if (!readStoredVaultEnvelope()) {
-          setStep((prev) => (prev === 'details' ? 'migrate' : prev));
-        }
-      } else if (res.status === 'error') {
-        setError((prev) => prev || res.error);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
   }, [isAuthenticated, user, setUser]);
 
   if (isAuthenticated && user) {
@@ -199,16 +158,13 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
     stripDemoWorkspaceEmail(legacyCapture?.user?.email) ||
     '';
 
-  const emptyVaultPayload = (groqKey: string = ''): DecryptedVaultData => ({
-    groqApiKey: groqKey,
-    geminiApiKey: '',
+  const emptyVaultPayload = (geminiKey: string = ''): DecryptedVaultData => ({
+    geminiApiKey: geminiKey,
     masterResume: null,
-    emailInteractions: [],
     jobs: [],
     selectedJobId: null,
     tailoredArtifacts: {},
     applications: [],
-    unsavedQueue: [],
     candidatePreferences: { ...DEFAULT_CANDIDATE_PREFERENCES }
   });
 
@@ -278,28 +234,17 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         updatedAt: new Date().toISOString()
       };
 
-      let initialVaultData = emptyVaultPayload(apiKeyInput.trim());
+      await validateGeminiApiKey(geminiApiKeyInput);
+      let initialVaultData = emptyVaultPayload(geminiApiKeyInput.trim());
       if (step === 'migrate' && legacyCapture?.detected) {
         const merged = mergeLegacyIntoDecryptedVault(initialVaultData, legacyCapture.sensitiveData);
         initialVaultData = merged.merged;
-        if (apiKeyInput.trim()) {
-          initialVaultData.groqApiKey = apiKeyInput.trim();
-        }
       }
 
       // Preserve any existing plaintext intake form draft inside the new encrypted vault
       const currentDraftState = readLegacyCareerFormDraftFromStorage();
       if (currentDraftState.status === 'valid' && !hasMeaningfulCareerFormDraft(initialVaultData.careerFormDraft)) {
         initialVaultData.careerFormDraft = currentDraftState.draft;
-      }
-
-      // Preserve any legacy email interaction records (IndexedDB / localStorage fallback)
-      const legacyEmailRead = await readLegacyEmailRecords();
-      if (legacyEmailRead.status === 'valid') {
-        initialVaultData.emailInteractions = dedupeEmailInteractions([
-          ...(initialVaultData.emailInteractions || []),
-          ...legacyEmailRead.records
-        ]);
       }
 
       const { envelope, generatedRecoveryPhrase } = await encryptVault(
@@ -313,16 +258,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       await verifyActiveSessionEnvelopeRestorable((restored) => {
         if (currentDraftState.status === 'valid' && !hasMeaningfulCareerFormDraft(restored.careerFormDraft)) {
           return false;
-        }
-        if (legacyEmailRead.status === 'valid') {
-          const restoredEmails = Array.isArray(restored.emailInteractions) ? restored.emailInteractions : [];
-          const restoredKeys = new Set(
-            restoredEmails.map((item) => (item.messageId ? `msg:${item.messageId}` : `id:${item.id}`))
-          );
-          const allEmailsPresent = legacyEmailRead.records.every((orig) =>
-            restoredKeys.has(orig.messageId ? `msg:${orig.messageId}` : `id:${orig.id}`)
-          );
-          if (!allEmailsPresent) return false;
         }
         return Boolean(restored);
       });
@@ -340,7 +275,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
       })!;
 
       restoreVaultDataToStore(initialVaultData, newUser);
-      setIsLiveApiMode(true);
 
       // Scrub legacy plaintext only after encrypted vault write & restoration verification succeeded
       if (step === 'migrate' || legacyCapture?.detected) {
@@ -359,21 +293,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
           type: 'error',
           title: 'Intake Draft Migration Failed',
           message: currentDraftState.error
-        });
-      }
-
-      if (legacyEmailRead.status === 'valid' || legacyEmailRead.status === 'empty') {
-        try {
-          await clearLegacyEmailStores();
-          setHasAsyncLegacyEmails(false);
-        } catch {
-          // Retain silently if removal fails; encrypted copy already verified
-        }
-      } else if (legacyEmailRead.status === 'error') {
-        addToast({
-          type: 'error',
-          title: 'Email Vault Migration Failed',
-          message: legacyEmailRead.error
         });
       }
 
@@ -425,6 +344,13 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         mergedLegacy = merged.didChange;
       }
 
+      if (geminiApiKeyInput.trim()) {
+        await validateGeminiApiKey(geminiApiKeyInput);
+        decrypted = { ...decrypted, geminiApiKey: geminiApiKeyInput.trim() };
+      } else if (!decrypted.geminiApiKey?.trim()) {
+        throw new Error('Enter your Gemini API key on the login screen to activate BYOC.');
+      }
+
       const cleanedEnvelopeMeta = sanitizeVaultMeta(envelope.meta);
       const restoredUser = sanitizeUserMetadata({
         id: user?.id || cleanedEnvelopeMeta.id,
@@ -462,26 +388,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
           type: 'error',
           title: 'Intake Draft Migration Failed',
           message: draftMigration.error
-        });
-      }
-
-      const emailMigration = await migrateLegacyEmailRecordsToVault({
-        readLegacyEmails: () => readLegacyEmailRecords(),
-        clearLegacyEmails: () => clearLegacyEmailStores(),
-        writeEnvelope: async (env) => writeStoredVaultEnvelope(env),
-        readEnvelope: () => readStoredVaultEnvelope(),
-        currentVaultData: decrypted,
-        vaultMeta: buildVaultMetaFromUser(restoredUser)
-      });
-
-      if (emailMigration.status === 'migrated') {
-        decrypted = { ...decrypted, emailInteractions: emailMigration.emailInteractions };
-        setHasAsyncLegacyEmails(false);
-      } else if (emailMigration.status === 'error') {
-        addToast({
-          type: 'error',
-          title: 'Email Vault Migration Failed',
-          message: emailMigration.error
         });
       }
 
@@ -587,6 +493,12 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         const merged = mergeLegacyIntoDecryptedVault(recoveredData, legacyCapture.sensitiveData);
         recoveredData = merged.merged;
       }
+      if (geminiApiKeyInput.trim()) {
+        await validateGeminiApiKey(geminiApiKeyInput);
+        recoveredData = { ...recoveredData, geminiApiKey: geminiApiKeyInput.trim() };
+      } else if (!recoveredData.geminiApiKey?.trim()) {
+        throw new Error('Enter your Gemini API key to complete recovery and activate BYOC.');
+      }
 
       const meta = sanitizeVaultMeta(envelope.meta);
       const { envelope: newEnvelope } = await encryptVault(
@@ -636,26 +548,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
           type: 'error',
           title: 'Intake Draft Migration Failed',
           message: draftMigration.error
-        });
-      }
-
-      const emailMigration = await migrateLegacyEmailRecordsToVault({
-        readLegacyEmails: () => readLegacyEmailRecords(),
-        clearLegacyEmails: () => clearLegacyEmailStores(),
-        writeEnvelope: async (env) => writeStoredVaultEnvelope(env),
-        readEnvelope: () => readStoredVaultEnvelope(),
-        currentVaultData: buildVaultDataFromState(useWizardStore.getState()),
-        vaultMeta: buildVaultMetaFromUser(restoredUser)
-      });
-
-      if (emailMigration.status === 'migrated') {
-        useWizardStore.getState().setEmailInteractions(emailMigration.emailInteractions);
-        setHasAsyncLegacyEmails(false);
-      } else if (emailMigration.status === 'error') {
-        addToast({
-          type: 'error',
-          title: 'Email Vault Migration Failed',
-          message: emailMigration.error
         });
       }
 
@@ -821,7 +713,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       setName('');
                       setEmail('');
                       setPassphrase('');
-                      setApiKeyInput('');
+                      setGeminiApiKeyInput('');
                       setStep('details');
                     }}
                     className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer"
@@ -850,10 +742,9 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                   Your existing workspace data is ready to be protected on this device with zero data loss:
                   {legacyCapture?.sensitiveData.masterResume ? ' Master Resume' : ''}
                   {hasLegacyDraft ? ' · Intake Form Draft' : ''}
-                  {hasLegacyEmails ? ' · Email Records' : ''}
                   {legacyCapture?.sensitiveData.jobs?.length ? ` · ${legacyCapture.sensitiveData.jobs.length} Jobs` : ''}
                   {legacyCapture?.sensitiveData.applications?.length ? ` · ${legacyCapture.sensitiveData.applications.length} Applications` : ''}
-                  {legacyCapture?.sensitiveData.groqApiKey ? ' · API Key' : ''}.
+                  {legacyCapture?.sensitiveData.geminiApiKey ? ' · API Key' : ''}.
                 </p>
               </div>
             )}
@@ -919,36 +810,41 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-semibold text-slate-300">
-                      Groq API Key (Optional)
+                      Gemini API Key (Required)
                     </label>
                     <a
-                      href="https://console.groq.com/keys"
+                      href="https://aistudio.google.com/apikey"
                       target="_blank"
                       rel="noreferrer"
                       className="text-[11px] text-sky-400 hover:underline"
                     >
-                      Get Free Key &rarr;
+                      Get Gemini API Key &rarr;
                     </a>
                   </div>
                   <div className="relative">
                     <input
-                      type={showApiKey ? 'text' : 'password'}
-                      value={apiKeyInput}
-                      onChange={(e) => setApiKeyInput(e.target.value)}
-                      placeholder="gsk_... (Can be added later in Settings)"
+                      type={showGeminiApiKey ? 'text' : 'password'}
+                      value={geminiApiKeyInput}
+                      onChange={(e) => setGeminiApiKeyInput(e.target.value)}
+                      placeholder="AIza... (Required to activate BYOC)"
+                      required
+                      autoComplete="off"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono focus:outline-none focus:border-sky-500 pr-10"
                     />
                     <button
                       type="button"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+                      onClick={() => setShowGeminiApiKey(!showGeminiApiKey)}
+                      aria-label={showGeminiApiKey ? 'Hide API key' : 'Show API key'}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
                     >
-                      {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showGeminiApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-1">
-                    Encrypted inside your vault envelope. Offline unlock never requires Groq.
+                    Validated before activation and encrypted inside your local vault. BYOC uses Gemini as its only AI provider.
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    AI actions send only the selected resume or job content to Google Gemini after you choose the action. Opening BYOC alone sends no career data. Review Google's API data-use terms before sending personal documents.
                   </p>
                 </div>
 
@@ -978,7 +874,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                     </>
                   ) : (
                     <>
-                      <span>{step === 'migrate' ? 'Encrypt & Migrate Workspace' : t('create')}</span>
+                      <span>{step === 'migrate' ? 'Verify Gemini & Encrypt Workspace' : 'Verify Gemini & Activate BYOC'}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -1083,6 +979,19 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       </p>
                     </div>
 
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">Gemini API Key (leave blank if already saved in this vault)</label>
+                      <input
+                        type="password"
+                        value={geminiApiKeyInput}
+                        onChange={(event) => setGeminiApiKeyInput(event.target.value)}
+                        placeholder="AIza..."
+                        autoComplete="off"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono focus:outline-none focus:border-sky-500"
+                      />
+                      <p className="text-[11px] text-slate-500 mt-1">A newly entered key is verified and saved encrypted before BYOC opens.</p>
+                    </div>
+
                     <button
                       type="submit"
                       disabled={isProcessing}
@@ -1165,6 +1074,18 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       {showNewPassphrase ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Gemini API Key (required if not already saved)</label>
+                  <input
+                    type="password"
+                    value={geminiApiKeyInput}
+                    onChange={(event) => setGeminiApiKeyInput(event.target.value)}
+                    placeholder="AIza..."
+                    autoComplete="off"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:outline-none focus:border-sky-500"
+                  />
                 </div>
 
                 <button

@@ -12,7 +12,7 @@
  * 5. Wrong-passphrase and ciphertext tamper detection.
  */
 
-import type { CareerApplicationFormState, EmailInteraction } from '../types';
+import type { CareerApplicationFormState } from '../types';
 import { readVaultEnvelopeRecord, writeVaultEnvelopeRecord } from './storagePersistence';
 
 export const VAULT_STORAGE_KEY = 'byoc_secure_vault_envelope';
@@ -73,16 +73,13 @@ export interface VaultEnvelope {
 }
 
 export interface DecryptedVaultData {
-  groqApiKey?: string;
   geminiApiKey?: string;
   masterResume: any | null;
   careerFormDraft?: CareerApplicationFormState | null;
-  emailInteractions?: EmailInteraction[];
   jobs: any[];
   selectedJobId: string | null;
   tailoredArtifacts: Record<string, any>;
   applications: any[];
-  unsavedQueue: any[];
   candidatePreferences: any;
 }
 
