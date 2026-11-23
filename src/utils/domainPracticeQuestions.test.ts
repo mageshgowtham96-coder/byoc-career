@@ -55,6 +55,49 @@ describe('role-neutral interview practice', () => {
     expect(questions.every((question) => !/Staff \/ Lead|Senior Tier/.test(question.difficulty))).toBe(true);
   });
 
+  it('supports role-neutral practice across occupational families, not only IT', () => {
+    const occupations = [
+      ['Registered Nurse', 'Patient assessment'],
+      ['Primary School Teacher', 'Lesson planning'],
+      ['Accountant', 'Financial reporting'],
+      ['Electrician', 'Electrical safety'],
+      ['Manufacturing Technician', 'Quality inspection'],
+      ['Agricultural Supervisor', 'Crop management'],
+      ['Hotel Front Desk Associate', 'Guest services'],
+      ['Chef', 'Food safety'],
+      ['Commercial Driver', 'Vehicle safety'],
+      ['Paralegal', 'Legal research'],
+      ['Public Health Officer', 'Community outreach'],
+      ['Graphic Designer', 'Visual communication'],
+      ['Laboratory Technician', 'Sample handling'],
+      ['Retail Store Manager', 'Inventory control'],
+      ['Social Worker', 'Case management'],
+      ['Plumber', 'Pipe installation'],
+      ['Civil Engineer', 'Site supervision'],
+      ['Museum Curator', 'Collections management'],
+      ['Financial Adviser', 'Client suitability'],
+      ['Human Resources Officer', 'Employee relations'],
+      ['Emergency Medical Technician', 'First response'],
+      ['Logistics Coordinator', 'Shipment planning']
+    ] as const;
+
+    for (const [title, skill] of occupations) {
+      const questions = buildDomainPracticeQuestions(profile({
+        headline: title,
+        skills: { technical: [], soft: ['Communication'], tools: [], domains: [skill] }
+      }), job({ title, skillsRequired: [skill] }));
+
+      expect(questions[0].title).toContain(title);
+      expect(questions[0].question).toContain(title);
+      expect(questions[1].question).toContain(skill);
+      expect(questions).toHaveLength(4);
+      expect(questions.some((question) =>
+        /software architecture|write code|deploy an api|database schema|programming language/i
+          .test(question.title + ' ' + question.question + ' ' + question.suggestedFramework)
+      )).toBe(false);
+    }
+  });
+
   it('keeps a blank profile in clearly labelled generic practice mode', () => {
     const questions = buildDomainPracticeQuestions(null, job());
     expect(questions.every((question) => question.isGenericPractice)).toBe(true);
