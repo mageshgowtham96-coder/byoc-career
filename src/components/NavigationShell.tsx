@@ -30,8 +30,10 @@ export const NavigationShell: React.FC = () => {
   const hasResume = Boolean(masterResume && (masterResume.rawText.length > 20 || masterResume.experiences.length > 0));
 
   const navItems: NavItem[] = [
+    // The user's intended workflow starts with the Master Resume immediately
+    // after authentication. Dashboard follows it; do not reorder these entries.
+    { id: 'intake', label: 'Master Resume', mobileLabel: 'Resume', icon: FileText, badge: hasResume ? undefined : '•' },
     { id: 'dashboard', label: 'Dashboard', mobileLabel: 'Home', icon: LayoutDashboard },
-    { id: 'intake', label: 'Master Intake', mobileLabel: 'Intake', icon: FileText, badge: hasResume ? undefined : '•' },
     { id: 'sourcing', label: 'Job Sourcing', mobileLabel: 'Jobs', icon: Search, badge: jobs.length > 0 ? jobs.length : undefined },
     { id: 'vetting', label: 'Role Vetting', mobileLabel: 'Vet', icon: CheckCircle, badge: selectedJobId ? 1 : undefined },
     { id: 'customization', label: 'Tailor Kit', mobileLabel: 'Tailor', icon: Wand2 },
