@@ -277,7 +277,9 @@ export interface JobsEveryHourFeedJob { title?:string; company?:string; location
 export interface JobsEveryHourFeed { jobs?:JobsEveryHourFeedJob[]; total?:number; name?:string; }
 const JEH_CATEGORIES=['engineering','healthcare','sales','operations','marketing','finance','accounting','customer-support','human-resources','education','logistics','legal','design','product','data','manufacturing','retail','administration','hospitality','construction','security','science','writing','consulting','management'];
 const jehFeedCache=new Map<string,{at:number,jobs:JobPosting[]}>();
-const JEH_CACHE_MS=60*60*1000;\nfunction readJobsFeedCache(url:string){const inMemory=jehFeedCache.get(url);if(inMemory)return inMemory;try{const raw=localStorage.getItem('byoc_jeh_feed_'+encodeURIComponent(url));if(raw){const parsed=JSON.parse(raw) as {at:number,jobs:JobPosting[]};jehFeedCache.set(url,parsed);return parsed;}}catch{/* storage may be unavailable */}return undefined;}\nfunction writeJobsFeedCache(url:string,value:{at:number,jobs:JobPosting[]}){jehFeedCache.set(url,value);try{localStorage.setItem('byoc_jeh_feed_'+encodeURIComponent(url),JSON.stringify(value));}catch{/* storage quota/privacy mode */}}
+const JEH_CACHE_MS=60*60*1000;
+function readJobsFeedCache(url:string){const inMemory=jehFeedCache.get(url);if(inMemory)return inMemory;try{const raw=localStorage.getItem('byoc_jeh_feed_'+encodeURIComponent(url));if(raw){const parsed=JSON.parse(raw) as {at:number,jobs:JobPosting[]};jehFeedCache.set(url,parsed);return parsed;}}catch{/* storage may be unavailable */}return undefined;}
+function writeJobsFeedCache(url:string,value:{at:number,jobs:JobPosting[]}){jehFeedCache.set(url,value);try{localStorage.setItem('byoc_jeh_feed_'+encodeURIComponent(url),JSON.stringify(value));}catch{/* storage quota/privacy mode */}}
 function mapJobsEveryHourJob(raw:JobsEveryHourFeedJob,index:number):JobPosting {
  return {id:'jeh-'+index+'-'+(raw.url||raw.title||'job'),title:raw.title||'Untitled role',company:raw.company||'Company not listed',location:raw.location||'Location unspecified',workplaceType:raw.remote?'Remote':'Unspecified',salary:raw.salary||'Undisclosed',postedDate:raw.posted||'Recently posted',jobDescriptionRaw:raw.description||raw.jobDescription||'',url:sanitizeExternalHttpUrl(raw.url)||'#',source:'JobsEveryHour',skillsRequired:raw.skills||[],fitScore:null,fitStatusText:'Fetching or full JD required',matchedKeywords:[],missingKeywords:[],experienceLevel:'Unspecified'};
 }
@@ -299,11 +301,15 @@ export interface ExtractedJobDetails { title:string;company:string;location:stri
 export function parseJobPageMarkdown(markdown:string):ExtractedJobDetails|null {
  const normalized=markdown.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
  if(normalized.length<250||(/sign in|login required|captcha|access denied|verify you are human/i.test(normalized)&&normalized.length<1800))return null;
- const lines=markdown.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ const lines=markdown.split(/\r?
+/).map(x=>x.trim()).filter(Boolean);
  const title=lines.find(x=>x.startsWith('# '))?.replace(/^#+\s*/,'')||'Job Listing';
  const company=lines.find(x=>/^company:|^employer:/i.test(x))?.replace(/^[^:]+:/,'').trim()||'Company not listed';
  const location=lines.find(x=>/^location:/i.test(x))?.replace(/^location:/i,'').trim()||'Location unspecified';
- const description=markdown.replace(/\n{3,}/g,'\n\n').trim();
+ const description=markdown.replace(/
+{3,}/g,'
+
+').trim();
  const keywords=['JavaScript','TypeScript','Python','Java','SQL','Excel','Communication','Sales','Customer Service','Accounting','Nursing','Project Management','Logistics','Marketing','Leadership','React','Node.js','AWS','Healthcare','Teaching'];
  const skills=keywords.filter(k=>normalized.toLowerCase().includes(k.toLowerCase()));
  return {title,company,location,workplaceType:/remote/i.test(normalized)?'Remote':/hybrid/i.test(normalized)?'Hybrid':/on.site/i.test(normalized)?'On-site':'Unspecified',skillsRequired:skills,jobDescriptionRaw:description};
