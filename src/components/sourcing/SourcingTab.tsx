@@ -123,7 +123,7 @@ export const SourcingTab: React.FC = () => {
     setIsAutoImporting(true);
     try{
       const cleanUrl=sanitizeExternalHttpUrl(url);
-      const cached=cleanUrl?jobs.find(j=>sanitizeExternalHttpUrl(j.url)===cleanUrl):undefined;
+      const cached=cleanUrl?jobs.find(j=>sanitizeExternalHttpUrl(j.url)===cleanUrl&&(j.jobDescriptionRaw||'').trim().length>=500):undefined;
       if(cached){setSelectedJobId(cached.id);setJobUrlInput('');addToast({type:'info',title:'Already Imported',message:'Reusing the locally cached job description; no page fetch was needed.'});return;}
       const extracted=await fetchAndExtractJobFromUrl(url);
       const match=calculateHonestMatch(extracted,masterResume);
