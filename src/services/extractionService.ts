@@ -172,7 +172,14 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
   let pdf: Awaited<ReturnType<typeof pdfjsLib.getDocument>['promise']> | undefined;
 
   try {
-    const loadingTask = pdfjsLib.getDocument({ data, useSystemFonts: true, isEvalSupported: false });
+    const loadingTask = pdfjsLib.getDocument({
+      data,
+      useSystemFonts: true,
+      isEvalSupported: false,
+      cMapUrl: `${import.meta.env.BASE_URL}cmaps/`,
+      cMapPacked: true,
+      standardFontDataUrl: `${import.meta.env.BASE_URL}standard_fonts/`
+    });
     pdf = await loadingTask.promise;
     const pages: string[] = [];
 
