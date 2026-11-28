@@ -19,19 +19,28 @@ function androidIconGeneratorPlugin() {
 }
 
 function pdfJsOfflineAssetsPlugin() {
+  const copyAssets = (destinationRoot: string) => {
+    const packageRoot = path.resolve(process.cwd(), 'node_modules/pdfjs-dist');
+    for (const assetDirectory of ['cmaps', 'standard_fonts']) {
+      const source = path.join(packageRoot, assetDirectory);
+      const destination = path.join(destinationRoot, assetDirectory);
+      if (fs.existsSync(source)) {
+        fs.mkdirSync(destinationRoot, { recursive: true });
+        fs.cpSync(source, destination, { recursive: true });
+      }
+    }
+  };
+
   return {
     name: 'pdfjs-offline-assets',
     buildStart() {
-      const packageRoot = path.resolve(process.cwd(), 'node_modules/pdfjs-dist');
-      const publicRoot = path.resolve(process.cwd(), 'public');
-      for (const assetDirectory of ['cmaps', 'standard_fonts']) {
-        const source = path.join(packageRoot, assetDirectory);
-        const destination = path.join(publicRoot, assetDirectory);
-        if (fs.existsSync(source)) {
-          fs.mkdirSync(publicRoot, { recursive: true });
-          fs.cpSync(source, destination, { recursive: true });
-        }
-      }
+      // Make the assets available to Vite's dev server.
+      copyAssets(path.resolve(process.cwd(), 'public'));
+    },
+    closeBundle() {
+      // Vite copies publicDir before buildStart; copy again after bundling so
+      // production and Capacitor output always contain the worker's resources.
+      copyAssets(path.resolve(process.cwd(), 'dist'));
     },
   };
 }
