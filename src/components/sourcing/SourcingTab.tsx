@@ -179,11 +179,13 @@ export const SourcingTab: React.FC = () => {
     return jobs
       .map((job) => {
         const match = calculateHonestMatch(job, masterResume);
+        const incompleteDiscovery=job.source==='JobsEveryHour'&&(job.jobDescriptionRaw||'').trim().length<500;
         return {
           ...job,
-          fitScore: match.score,
-          matchedKeywords: match.matchedKeywords,
-          missingKeywords: match.missingKeywords
+          fitScore: incompleteDiscovery?null:match.score,
+          fitStatusText:incompleteDiscovery?'Fetching or full JD required':job.fitStatusText,
+          matchedKeywords: incompleteDiscovery?[]:match.matchedKeywords,
+          missingKeywords: incompleteDiscovery?[]:match.missingKeywords
         };
       })
       .filter((job) => {
