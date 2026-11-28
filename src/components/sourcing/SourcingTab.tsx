@@ -105,7 +105,9 @@ export const SourcingTab: React.FC = () => {
     setIsDiscoveringJobs(true);
     try{
       const expanded=await expandOccupationSearchTermsWithGemini(title,geminiApiKey);
-      const allDiscovered=await jobsEveryHourAdapter.discover('',800);\n      const terms=expanded.map(t=>t.toLowerCase());\n      const results=allDiscovered.filter(job=>terms.some(term=>job.title.toLowerCase().includes(term)||term.split(' ').every(word=>job.title.toLowerCase().includes(word))||job.company.toLowerCase().includes(term)||job.jobDescriptionRaw.toLowerCase().includes(term))).slice(0,120);
+      const allDiscovered=await jobsEveryHourAdapter.discover('',800);
+      const terms=expanded.map(t=>t.toLowerCase());
+      const results=allDiscovered.filter(job=>terms.some(term=>job.title.toLowerCase().includes(term)||term.split(' ').every(word=>job.title.toLowerCase().includes(word))||job.company.toLowerCase().includes(term)||job.jobDescriptionRaw.toLowerCase().includes(term))).slice(0,120);
       const merged=[...jobs];
       for(const job of results)if(!merged.some(x=>x.id===job.id))merged.push(job);
       setJobs(merged);
