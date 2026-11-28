@@ -67,7 +67,8 @@ export const SourcingTab: React.FC = () => {
   const [isSearchingLive, setIsSearchingLive] = useState(false);
   const [liveSearchReport, setLiveSearchReport] = useState<JobSearchResult | null>(null);
   const [showAddJobModal, setShowAddJobModal] = useState(false);
-  const [occupationSuggestionsOpen,setOccupationSuggestionsOpen]=useState(false);\n  const [activeSuggestionIndex,setActiveSuggestionIndex]=useState(0);
+  const [occupationSuggestionsOpen,setOccupationSuggestionsOpen]=useState(false);
+  const [activeSuggestionIndex,setActiveSuggestionIndex]=useState(0);
   const [isDiscoveringJobs,setIsDiscoveringJobs]=useState(false);
   const [jobUrlInput,setJobUrlInput]=useState('');
   const [isAutoImporting,setIsAutoImporting]=useState(false);
@@ -590,7 +591,8 @@ export const SourcingTab: React.FC = () => {
             role="combobox"
             aria-autocomplete="list"
             aria-expanded={occupationSuggestionsOpen&&occupationSuggestions.length>0}
-            aria-controls="occupation-suggestions"\n            aria-activedescendant={occupationSuggestionsOpen&&occupationSuggestions[activeSuggestionIndex]?`occupation-option-${activeSuggestionIndex}`:undefined}
+            aria-controls="occupation-suggestions"
+            aria-activedescendant={occupationSuggestionsOpen&&occupationSuggestions[activeSuggestionIndex]?`occupation-option-${activeSuggestionIndex}`:undefined}
             value={searchQuery}
             onFocus={()=>setOccupationSuggestionsOpen(true)}
             onChange={(e) => {setSearchQuery(e.target.value);setActiveSuggestionIndex(0);setOccupationSuggestionsOpen(true);}}
