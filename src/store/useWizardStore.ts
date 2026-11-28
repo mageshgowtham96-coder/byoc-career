@@ -195,7 +195,8 @@ interface WizardState {
   applyForJob: (jobId: string, notes?: string, overrideRejection?: boolean, portalSource?: string) => ApplicationRecord | null;
   checkRejectionCollision: (company: string, role: string) => RejectionCollisionCheck;
   updateApplicationStatus: (id: string, status: ApplicationStatus, rejectionData?: { reason: string; notes: string }) => void;
-  updateApplicationNotes: (id: string, notes: string) => void;\n  acknowledgeApplicationCheckIn: (id: string, stage: 7 | 14) => void;
+  updateApplicationNotes: (id: string, notes: string) => void;
+  acknowledgeApplicationCheckIn: (id: string, stage: 7 | 14) => void;
   deleteApplication: (id: string) => void;
   addInterviewStage: (applicationId: string, stageName: string, date: string, notes: string) => void;
   getFollowUpRequiredApplications: () => ApplicationRecord[];
