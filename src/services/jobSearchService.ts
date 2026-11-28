@@ -1,4 +1,5 @@
 import type { JobPosting, MasterResume, JobSourcePortal, PortalShortcut } from '../types';
+import { callGeminiChat } from './geminiService';
 
 export interface JobSearchQueryParams {
   query?: string;
@@ -269,6 +270,56 @@ export class LiveJobSearchEngine {
       lastUpdated: new Date().toISOString()
     };
   }
+}
+
+
+export interface JobsEveryHourFeedJob { title?:string; company?:string; location?:string; remote?:boolean; salary?:string; posted?:string; url?:string; description?:string; jobDescription?:string; skills?:string[]; }
+export interface JobsEveryHourFeed { jobs?:JobsEveryHourFeedJob[]; total?:number; name?:string; }
+const JEH_CATEGORIES=['engineering','healthcare','sales','operations','marketing','finance','accounting','customer-support','human-resources','education','logistics','legal','design','product','data','manufacturing','retail','administration','hospitality','construction','security','science','writing','consulting','management'];
+const jehFeedCache=new Map<string,{at:number,jobs:JobPosting[]}>();
+const JEH_CACHE_MS=60*60*1000;
+function mapJobsEveryHourJob(raw:JobsEveryHourFeedJob,index:number):JobPosting {
+ return {id:'jeh-'+index+'-'+(raw.url||raw.title||'job'),title:raw.title||'Untitled role',company:raw.company||'Company not listed',location:raw.location||'Location unspecified',workplaceType:raw.remote?'Remote':'Unspecified',salary:raw.salary||'Undisclosed',postedDate:raw.posted||'Recently posted',jobDescriptionRaw:raw.description||raw.jobDescription||'',url:sanitizeExternalHttpUrl(raw.url)||'#',source:'JobsEveryHour',skillsRequired:raw.skills||[],fitScore:null,fitStatusText:'Fetching or full JD required',matchedKeywords:[],missingKeywords:[],experienceLevel:'Unspecified'};
+}
+/** Searches cross-industry feeds; cached category requests are limited to one per hour. */
+export class JobsEveryHourAdapter {
+ async discover(query='',limit=60):Promise<JobPosting[]> {
+  const feeds=await Promise.all(['latest',...JEH_CATEGORIES].map(async slug=>{
+   const url=slug==='latest'?'https://jobseveryhour.com/api/v1/latest.json':'https://jobseveryhour.com/api/v1/categories/'+slug+'.json';
+   const cached=jehFeedCache.get(url);if(cached&&Date.now()-cached.at<JEH_CACHE_MS)return cached.jobs;
+   try{const res=await fetch(url,{signal:AbortSignal.timeout(15000)});if(!res.ok)throw new Error('Feed status '+res.status);const data=await res.json() as JobsEveryHourFeed;const jobs=(data.jobs||[]).map(mapJobsEveryHourJob);jehFeedCache.set(url,{at:Date.now(),jobs});return jobs;}catch{return cached?.jobs||[];}
+  }));
+  const q=query.toLowerCase().trim();const all=deduplicateJobs(feeds.flat());
+  return (q?all.filter(j=>j.title.toLowerCase().includes(q)||j.company.toLowerCase().includes(q)||j.location.toLowerCase().includes(q)||j.jobDescriptionRaw.toLowerCase().includes(q)):all).slice(0,limit);
+ }
+}
+export const jobsEveryHourAdapter=new JobsEveryHourAdapter();
+
+export interface ExtractedJobDetails { title:string;company:string;location:string;workplaceType:JobPosting['workplaceType'];skillsRequired:string[];jobDescriptionRaw:string; }
+export function parseJobPageMarkdown(markdown:string):ExtractedJobDetails|null {
+ const normalized=markdown.replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim();
+ if(normalized.length<250||(/sign in|login required|captcha|access denied|verify you are human/i.test(normalized)&&normalized.length<1800))return null;
+ const lines=markdown.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
+ const title=lines.find(x=>x.startsWith('# '))?.replace(/^#+\\s*/,'')||'Job Listing';
+ const company=lines.find(x=>/^company:|^employer:/i.test(x))?.replace(/^[^:]+:/,'').trim()||'Company not listed';
+ const location=lines.find(x=>/^location:/i.test(x))?.replace(/^location:/i,'').trim()||'Location unspecified';
+ const description=markdown.replace(/\\n{3,}/g,'\\n\\n').trim();
+ const keywords=['JavaScript','TypeScript','Python','Java','SQL','Excel','Communication','Sales','Customer Service','Accounting','Nursing','Project Management','Logistics','Marketing','Leadership','React','Node.js','AWS','Healthcare','Teaching'];
+ const skills=keywords.filter(k=>normalized.toLowerCase().includes(k.toLowerCase()));
+ return {title,company,location,workplaceType:/remote/i.test(normalized)?'Remote':/hybrid/i.test(normalized)?'Hybrid':/on.site/i.test(normalized)?'On-site':'Unspecified',skillsRequired:skills,jobDescriptionRaw:description};
+}
+export async function fetchAndExtractJobFromUrl(jobUrl:string,geminiApiKey?:string):Promise<JobPosting> {
+ const clean=sanitizeExternalHttpUrl(jobUrl);if(!clean)throw new Error('Please enter a valid HTTP(S) job listing URL.');
+ const response=await fetch('https://r.jina.ai/'+clean,{signal:AbortSignal.timeout(20000),headers:{Accept:'text/plain'}});
+ if(!response.ok)throw new Error('Automatic page reading failed ('+response.status+'). Paste the job description manually instead.');
+ const markdown=await response.text();let parsed=parseJobPageMarkdown(markdown);
+ if(!parsed)throw new Error('Listing is blocked, login-walled, or lacks enough job details. Paste the job description manually.');
+ if(geminiApiKey?.trim())try{
+  const raw=await callGeminiChat('Extract the job posting. Return JSON fields title, company, location, workplaceType (Remote, Hybrid, On-site, Unspecified), skillsRequired array, jobDescriptionRaw. Preserve all available description and do not invent details.',markdown.slice(0,24000),geminiApiKey);
+  const model=JSON.parse(raw.replace(/\`\`\`json|\`\`\`/g,'').trim()) as Partial<ExtractedJobDetails>;
+  if(model.jobDescriptionRaw&&model.jobDescriptionRaw.length>200)parsed={...parsed,...model,skillsRequired:Array.isArray(model.skillsRequired)?model.skillsRequired:parsed.skillsRequired};
+ }catch{/* Local extraction fallback */}
+ return {id:'url-import-'+Date.now(),title:parsed.title,company:parsed.company,location:parsed.location,workplaceType:parsed.workplaceType,salary:'Undisclosed',postedDate:'Imported just now',jobDescriptionRaw:parsed.jobDescriptionRaw,url:clean,source:'URL Auto-Import',skillsRequired:parsed.skillsRequired,fitScore:null,matchedKeywords:[],missingKeywords:[],experienceLevel:'Unspecified'};
 }
 
 export const jobSearchEngine = new LiveJobSearchEngine();
