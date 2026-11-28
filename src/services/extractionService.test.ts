@@ -16,7 +16,13 @@ vi.mock('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url', () => ({
 import { extractResumeFile } from './extractionService';
 
 function makePdfFile(): File {
-  return new File([new Uint8Array([37, 80, 68, 70])], 'resume.pdf', { type: 'application/pdf' });
+  const bytes = new Uint8Array([37, 80, 68, 70]);
+  return {
+    name: 'resume.pdf',
+    size: bytes.byteLength,
+    type: 'application/pdf',
+    arrayBuffer: async () => bytes.buffer
+  } as File;
 }
 
 function mockPdf(pages: string[][]) {
