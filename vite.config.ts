@@ -1,6 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'node:fs';
 import { defineConfig } from 'vite';
 import { generateAllAndroidIcons } from './scripts/generate_icons.js';
 
@@ -17,12 +18,30 @@ function androidIconGeneratorPlugin() {
   };
 }
 
+function pdfJsOfflineAssetsPlugin() {
+  return {
+    name: 'pdfjs-offline-assets',
+    buildStart() {
+      const packageRoot = path.resolve(process.cwd(), 'node_modules/pdfjs-dist');
+      const publicRoot = path.resolve(process.cwd(), 'public');
+      for (const assetDirectory of ['cmaps', 'standard_fonts']) {
+        const source = path.join(packageRoot, assetDirectory);
+        const destination = path.join(publicRoot, assetDirectory);
+        if (fs.existsSync(source)) {
+          fs.mkdirSync(publicRoot, { recursive: true });
+          fs.cpSync(source, destination, { recursive: true });
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig(() => {
   return {
     // Relative base path ensures assets resolve correctly in Capacitor Android WebView
     // (e.g. file:///android_asset/public/ or https://localhost/ schemes)
     base: './',
-    plugins: [react(), tailwindcss(), androidIconGeneratorPlugin()],
+    plugins: [react(), tailwindcss(), androidIconGeneratorPlugin(), pdfJsOfflineAssetsPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(process.cwd(), '.'),
