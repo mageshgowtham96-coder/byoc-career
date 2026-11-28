@@ -296,6 +296,7 @@ export const TrackingTab: React.FC = () => {
                             <button type="button" onClick={e=>{e.stopPropagation();acknowledgeApplicationCheckIn(app.id,getApplicationCheckInStage(app) as 7|14);acknowledgeApplicationCheckIn(app.id,getApplicationCheckInStage(app) as 7|14);setSelectedApp(app);setActiveModalTab('followup');}} className="px-2 py-1 rounded bg-amber-500 text-slate-950 font-bold">Draft Follow-Up Email</button>
                             <button type="button" onClick={e=>{e.stopPropagation();updateApplicationStatus(app.id,'Interview');acknowledgeApplicationCheckIn(app.id,getApplicationCheckInStage(app) as 7|14);}} className="px-2 py-1 rounded bg-sky-600 text-white">Moved to Interview</button>
                             <button type="button" onClick={e=>{e.stopPropagation();updateApplicationStatus(app.id,'Rejected',{reason:'Did not progress',notes:''});}} className="px-2 py-1 rounded border border-rose-500/40 text-rose-300">Mark Rejected / Did Not Progress</button>
+                            <button type="button" onClick={e=>{e.stopPropagation();acknowledgeApplicationCheckIn(app.id,getApplicationCheckInStage(app) as 7|14);}} className="px-2 py-1 rounded border border-slate-600 text-slate-300">Snooze Check-In</button>
                           </div>
                         </div>
                       )}
