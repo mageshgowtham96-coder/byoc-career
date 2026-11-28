@@ -8,7 +8,7 @@ export function getApplicationCheckInStage(app:Pick<ApplicationRecord,'status'|'
  return null;
 }
 export function compactRejectedApplication(app:ApplicationRecord,reason='Did not progress',now=new Date().toISOString()):ApplicationRecord {
- const jd=(app.jobDescriptionRaw||'').replace(/\\s+/g,' ').trim();
+ const jd=(app.jobDescriptionRaw||'').replace(/\s+/g,' ').trim();
  const snapshot=app.tailoredResumeSnapshot;
  return {...app,status:'Rejected',rejectionReason:reason||app.rejectionReason||'Did not progress',rejectionDate:app.rejectionDate||now,lastActivityDate:now,jobDescriptionRaw:jd.length>200?jd.slice(0,197)+'…':jd,
  tailoredResumeSnapshot:{...snapshot,variants:[],tailoredSummary:(snapshot.tailoredSummary||'').slice(0,200),highlightedSkills:(snapshot.highlightedSkills||[]).slice(0,10),optimizedBullets:[],coverLetter:'',interviewPrepQuestions:[],exportedMaterials:[]}};
