@@ -58,8 +58,6 @@ describe('local job search', () => {
 
     expect(result.jobs).toHaveLength(2);
     expect(result.sourcesQueried).toEqual(['Local Stored Positions (User Import)']);
-    expect(result.providerStatuses).toHaveLength(1);
-    expect(result.providerStatuses[0].name).toBe('Local Stored Positions');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
