@@ -51,7 +51,10 @@ describe('PDF.js resume extraction', () => {
     expect(getDocument).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.any(Uint8Array),
       useSystemFonts: true,
-      isEvalSupported: false
+      isEvalSupported: false,
+      cMapUrl: './cmaps/',
+      cMapPacked: true,
+      standardFontDataUrl: './standard_fonts/'
     }));
     expect(result.success).toBe(true);
     expect(result.pageCount).toBe(2);
