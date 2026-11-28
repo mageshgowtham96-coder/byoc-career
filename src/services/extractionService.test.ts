@@ -36,7 +36,7 @@ function mockPdf(pages: string[][]) {
     })),
     destroy: vi.fn(async () => undefined)
   };
-  getDocument.mockReturnValue({ promise: Promise.resolve(pdf) });
+  getDocument.mockReturnValue({ promise: Promise.resolve(pdf), destroy: vi.fn(async () => undefined) });
   return pdf;
 }
 
@@ -58,9 +58,9 @@ describe('PDF.js resume extraction', () => {
       data: expect.any(Uint8Array),
       useSystemFonts: true,
       isEvalSupported: false,
-      cMapUrl: './cmaps/',
+      cMapUrl: '/cmaps/',
       cMapPacked: true,
-      standardFontDataUrl: './standard_fonts/'
+      standardFontDataUrl: '/standard_fonts/'
     }));
     expect(result.success).toBe(true);
     expect(result.pageCount).toBe(2);
@@ -95,7 +95,7 @@ describe('PDF.js resume extraction', () => {
 
   it('returns a clear password-protected PDF error without calling it a scan', async () => {
     const passwordError = Object.assign(new Error('No password given'), { name: 'PasswordException' });
-    getDocument.mockReturnValue({ promise: Promise.reject(passwordError) });
+    getDocument.mockReturnValue({ promise: Promise.reject(passwordError), destroy: vi.fn(async () => undefined) });
 
     const result = await extractResumeFile(makePdfFile());
 
