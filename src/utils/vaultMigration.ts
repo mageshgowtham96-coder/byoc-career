@@ -418,10 +418,6 @@ export function extractLegacyPlaintextFromRawStore(rawJson: string | null): Lega
     const sensitiveData: Partial<DecryptedVaultData> = {};
     let hasSensitive = false;
 
-    if (typeof state.groqApiKey === 'string' && state.groqApiKey.trim()) {
-      sensitiveData.groqApiKey = state.groqApiKey.trim();
-      hasSensitive = true;
-    }
     if (typeof state.geminiApiKey === 'string' && state.geminiApiKey.trim()) {
       sensitiveData.geminiApiKey = state.geminiApiKey.trim();
       hasSensitive = true;
@@ -463,6 +459,7 @@ export function extractLegacyPlaintextFromRawStore(rawJson: string | null): Lega
     }
 
     // Also flag if legacy store still had `masterResume: null` or `jobs: []` keys persisted in plaintext
+    // Legacy Groq credentials are deliberately discarded, but their presence still triggers the verified plaintext-store scrub.
     const hasPlaintextKeysPresent =
       'masterResume' in state ||
       'careerFormDraft' in state ||
@@ -590,7 +587,6 @@ export function mergeLegacyIntoDecryptedVault(
 ): { merged: DecryptedVaultData; didChange: boolean } {
   let didChange = false;
   const merged: DecryptedVaultData = {
-    groqApiKey: vaultData.groqApiKey || '',
     geminiApiKey: vaultData.geminiApiKey || '',
     masterResume: vaultData.masterResume || null,
     careerFormDraft: vaultData.careerFormDraft || null,
@@ -603,10 +599,6 @@ export function mergeLegacyIntoDecryptedVault(
     candidatePreferences: vaultData.candidatePreferences || { ...DEFAULT_PREFERENCES }
   };
 
-  if (!merged.groqApiKey && legacy.groqApiKey) {
-    merged.groqApiKey = legacy.groqApiKey;
-    didChange = true;
-  }
   if (!merged.geminiApiKey && legacy.geminiApiKey) {
     merged.geminiApiKey = legacy.geminiApiKey;
     didChange = true;
