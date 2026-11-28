@@ -111,7 +111,8 @@ export const SourcingTab: React.FC = () => {
       const combined=[...targeted.flat(),...broad];
       const results=[...new Map(combined.map(job=>[`${job.company.toLowerCase()}::${job.title.toLowerCase()}`,job])).values()].slice(0,120);
       const merged=[...jobs];
-      for(const job of results)if(!merged.some(x=>x.id===job.id))merged.push(job);
+      const indexed=new Set(merged.map(job=>job.company.trim().toLowerCase()+'::'+job.title.trim().toLowerCase()));
+      for(const job of results){const fingerprint=job.company.trim().toLowerCase()+'::'+job.title.trim().toLowerCase();if(!indexed.has(fingerprint)){indexed.add(fingerprint);merged.push(job);}}
       setJobs(merged);
       setSearchQuery(title);
       setLiveSearchReport({jobs:results,totalFound:results.length,sourcesQueried:['JobsEveryHour (cross-industry categories)'],locationNotice:'JobsEveryHour listings are indexed locally. Full descriptions are retrieved on selection; incomplete listings remain unscored.',lastUpdated:new Date().toISOString()});
