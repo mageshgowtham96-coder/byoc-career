@@ -222,11 +222,13 @@ export class LiveJobSearchEngine {
 
     const scoredJobs = deduplicateJobs(existingJobs).map((job) => {
       const honestMatch = calculateHonestMatch(job, masterResume);
+      const incompleteDiscovery=job.source==='JobsEveryHour'&&(job.jobDescriptionRaw||'').trim().length<500;
       return {
         ...job,
-        fitScore: honestMatch.score,
-        matchedKeywords: honestMatch.matchedKeywords,
-        missingKeywords: honestMatch.missingKeywords
+        fitScore: incompleteDiscovery?null:honestMatch.score,
+        fitStatusText:incompleteDiscovery?'Fetching or full JD required':job.fitStatusText,
+        matchedKeywords: incompleteDiscovery?[]:honestMatch.matchedKeywords,
+        missingKeywords: incompleteDiscovery?[]:honestMatch.missingKeywords
       };
     });
 
