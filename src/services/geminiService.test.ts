@@ -275,7 +275,7 @@ describe('Gemini service', () => {
 });
 
   it('uses Gemini to expand a title into related occupations',async()=>{
-    generateContent.mockResolvedValueOnce({text:'```json\n{"titles":["Fraud Risk Analyst","Fraud Analyst","Transaction Monitoring Analyst"]}\n```'});
+    generateContent.mockResolvedValueOnce({text:'{"titles":["Fraud Risk Analyst","Fraud Analyst","Transaction Monitoring Analyst"]}'});
     expect(await expandOccupationSearchTermsWithGemini('Fraud Risk Analyst','test-key')).toEqual(['Fraud Risk Analyst','Fraud Analyst','Transaction Monitoring Analyst']);
   });
 describe('optional Gemini occupation expansion',()=>{
