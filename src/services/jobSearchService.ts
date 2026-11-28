@@ -301,15 +301,11 @@ export interface ExtractedJobDetails { title:string;company:string;location:stri
 export function parseJobPageMarkdown(markdown:string):ExtractedJobDetails|null {
  const normalized=markdown.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
  if(normalized.length<250||(/sign in|login required|captcha|access denied|verify you are human/i.test(normalized)&&normalized.length<1800))return null;
- const lines=markdown.split(/\r?
-/).map(x=>x.trim()).filter(Boolean);
+ const lines=markdown.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
  const title=lines.find(x=>x.startsWith('# '))?.replace(/^#+\s*/,'')||'Job Listing';
  const company=lines.find(x=>/^company:|^employer:/i.test(x))?.replace(/^[^:]+:/,'').trim()||'Company not listed';
  const location=lines.find(x=>/^location:/i.test(x))?.replace(/^location:/i,'').trim()||'Location unspecified';
- const description=markdown.replace(/
-{3,}/g,'
-
-').trim();
+ const description=markdown.replace(/\n{3,}/g,'\n\n').trim();
  const keywords=['JavaScript','TypeScript','Python','Java','SQL','Excel','Communication','Sales','Customer Service','Accounting','Nursing','Project Management','Logistics','Marketing','Leadership','React','Node.js','AWS','Healthcare','Teaching'];
  const skills=keywords.filter(k=>normalized.toLowerCase().includes(k.toLowerCase()));
  return {title,company,location,workplaceType:/remote/i.test(normalized)?'Remote':/hybrid/i.test(normalized)?'Hybrid':/on.site/i.test(normalized)?'On-site':'Unspecified',skillsRequired:skills,jobDescriptionRaw:description};
