@@ -194,7 +194,7 @@ interface WizardState {
   applyForJob: (jobId: string, notes?: string, overrideRejection?: boolean, portalSource?: string) => ApplicationRecord | null;
   checkRejectionCollision: (company: string, role: string) => RejectionCollisionCheck;
   updateApplicationStatus: (id: string, status: ApplicationStatus, rejectionData?: { reason: string; notes: string }) => void;
-  updateApplicationNotes: (id: string, notes: string) => void;
+  updateApplicationNotes: (id: string, notes: string) => void;\n  acknowledgeApplicationCheckIn: (id: string, stage: 7 | 14) => void;
   deleteApplication: (id: string) => void;
   addInterviewStage: (applicationId: string, stageName: string, date: string, notes: string) => void;
   getFollowUpRequiredApplications: () => ApplicationRecord[];
@@ -743,7 +743,7 @@ export const useWizardStore = create<WizardState>()(
         });
       },
 
-      updateApplicationNotes: (id, notes) => {
+      acknowledgeApplicationCheckIn: (id,stage) => {\n        const now=new Date().toISOString();\n        set(state=>({applications:state.applications.map(app=>app.id===id?{...app,...(stage===7?{checkIn7AcknowledgedAt:now}:{checkIn14AcknowledgedAt:now})}:app)}));\n      },\n\n      updateApplicationNotes: (id, notes) => {
         set((state) => ({
           applications: state.applications.map((app) =>
             app.id === id ? { ...app, notes } : app
