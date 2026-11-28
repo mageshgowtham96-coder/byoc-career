@@ -200,6 +200,8 @@ export interface ApplicationRecord {
   rejectionReason?: string;
   rejectionDate?: string;
   rejectionNotes?: string;
+  checkIn7AcknowledgedAt?: string;
+  checkIn14AcknowledgedAt?: string;
   interviewStages: Array<{
     id: string;
     stageName: string;
