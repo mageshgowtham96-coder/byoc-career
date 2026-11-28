@@ -107,7 +107,6 @@ export const SourcingTab: React.FC = () => {
         jobs
       );
       setLiveSearchReport(res);
-      setJobs(res.jobs);
 
       if (res.jobs.length > 0) {
         addToast({
