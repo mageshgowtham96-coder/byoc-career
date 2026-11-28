@@ -169,13 +169,13 @@ export async function extractResumeFile(file?: File | null): Promise<ExtractionR
  */
 async function extractPdfText(file: File): Promise<{ text: string; pageCount: number }> {
   const data = new Uint8Array(await file.arrayBuffer());
+  let loadingTask: ReturnType<typeof pdfjsLib.getDocument> | undefined;
   let pdf: Awaited<ReturnType<typeof pdfjsLib.getDocument>['promise']> | undefined;
 
   try {
-    const loadingTask = pdfjsLib.getDocument({
+    loadingTask = pdfjsLib.getDocument({
       data,
       useSystemFonts: true,
-      isEvalSupported: false,
       cMapUrl: `${import.meta.env.BASE_URL}cmaps/`,
       cMapPacked: true,
       standardFontDataUrl: `${import.meta.env.BASE_URL}standard_fonts/`
@@ -203,8 +203,168 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
     }
     throw error;
   } finally {
-    await pdf?.destroy();
+    await loadingTask?.destroy();
   }
+}
+
+async function decompressBytes(
+  compressed: Uint8Array,
+  format: 'deflate' | 'deflate-raw'
+): Promise<Uint8Array> {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('Compressed stream decompression is unavailable in this browser runtime.');
+  }
+  const ds = new DecompressionStream(format);
+  const writer = ds.writable.getWriter();
+  const writePromise = writer.write(new Uint8Array(compressed)).then(() => writer.close());
+  // Prevent Node/Web unhandledRejection if readable stream errors before writePromise finishes
+  writePromise.catch(() => undefined);
+
+  const chunks: Uint8Array[] = [];
+  const reader = ds.readable.getReader();
+  let readFailed = false;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+  } catch (err) {
+    readFailed = true;
+    await reader.cancel().catch(() => undefined);
+    await writePromise.catch(() => undefined);
+    throw err;
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (!readFailed) {
+    await writePromise;
+  }
+
+  const totalLen = chunks.reduce((sum, c) => sum + c.length, 0);
+  const out = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
+}
+
+function decodeXmlEntities(xml: string): string {
+  return xml
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)));
+}
+
+function extractParagraphsFromDocumentXml(xml: string): string {
+  const paragraphBlocks = xml.split(/<\/w:p>/i);
+  const lines: string[] = [];
+
+  for (const block of paragraphBlocks) {
+    // Preserve tabs/line breaks within a paragraph while collecting <w:t> runs
+    const normalizedBlock = block
+      .replace(/<w:tab(?:\s[^>]*)?\/>/gi, ' ')
+      .replace(/<w:br(?:\s[^>]*)?\/>/gi, '\n');
+
+    const wtRegex = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi;
+    const pieces: string[] = [];
+    let match: RegExpExecArray | null;
+    while ((match = wtRegex.exec(normalizedBlock)) !== null) {
+      if (match[1]) {
+        pieces.push(decodeXmlEntities(match[1]));
+      }
+    }
+
+    const line = pieces.join('').replace(/[ \t]+/g, ' ').trim();
+    if (line) {
+      lines.push(line);
+    }
+  }
+
+  if (lines.length > 0) {
+    return lines.join('\n');
+  }
+
+  // Fallback for document.xml without standard </w:p> wrappers
+  const wtRegex = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi;
+  const fallbackPieces: string[] = [];
+  let fallbackMatch: RegExpExecArray | null;
+  while ((fallbackMatch = wtRegex.exec(xml)) !== null) {
+    if (fallbackMatch[1]) {
+      fallbackPieces.push(decodeXmlEntities(fallbackMatch[1]));
+    }
+  }
+  return fallbackPieces.join(' ').trim();
+}
+
+function extractZipEntryViaCentralDirectory(
+  bytes: Uint8Array,
+  targetEntryPath: string
+): { compressionMethod: number; compressedBytes: Uint8Array } | null {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const minEocdSearch = Math.max(0, bytes.length - 65557);
+
+  let eocdOffset = -1;
+  for (let i = bytes.length - 22; i >= minEocdSearch; i--) {
+    if (
+      bytes[i] === 0x50 &&
+      bytes[i + 1] === 0x4b &&
+      bytes[i + 2] === 0x05 &&
+      bytes[i + 3] === 0x06
+    ) {
+      eocdOffset = i;
+      break;
+    }
+  }
+
+  if (eocdOffset === -1) return null;
+
+  const entryCount = view.getUint16(eocdOffset + 10, true);
+  const cdOffset = view.getUint32(eocdOffset + 16, true);
+  if (cdOffset >= bytes.length) return null;
+
+  const decoder = new TextDecoder('utf-8', { fatal: false });
+  let cursor = cdOffset;
+
+  for (let idx = 0; idx < entryCount && cursor + 46 <= bytes.length; idx++) {
+    // Central directory header signature 0x02014b50
+    if (view.getUint32(cursor, true) !== 0x02014b50) break;
+
+    const compressionMethod = view.getUint16(cursor + 10, true);
+    const compressedSize = view.getUint32(cursor + 20, true);
+    const nameLen = view.getUint16(cursor + 28, true);
+    const extraLen = view.getUint16(cursor + 30, true);
+    const commentLen = view.getUint16(cursor + 32, true);
+    const localHeaderOffset = view.getUint32(cursor + 42, true);
+
+    const entryName = decoder.decode(bytes.subarray(cursor + 46, cursor + 46 + nameLen));
+    if (entryName === targetEntryPath) {
+      if (localHeaderOffset + 30 > bytes.length) return null;
+      if (view.getUint32(localHeaderOffset, true) !== 0x04034b50) return null;
+
+      const localNameLen = view.getUint16(localHeaderOffset + 26, true);
+      const localExtraLen = view.getUint16(localHeaderOffset + 28, true);
+      const dataStart = localHeaderOffset + 30 + localNameLen + localExtraLen;
+      const dataEnd = dataStart + compressedSize;
+      if (dataEnd > bytes.length) return null;
+
+      return {
+        compressionMethod,
+        compressedBytes: bytes.subarray(dataStart, dataEnd)
+      };
+    }
+
+    cursor += 46 + nameLen + extraLen + commentLen;
+  }
+
+  return null;
 }
 
 async function extractDocxText(file: File): Promise<string> {
