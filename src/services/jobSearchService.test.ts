@@ -77,6 +77,14 @@ describe('local job search', () => {
     expect(result.totalFound).toBe(1);
   });
 
+  it('never scores an incomplete JobsEveryHour discovery item',async()=>{
+    const discovery=makeJob({source:'JobsEveryHour',jobDescriptionRaw:'Short snippet',skillsRequired:['React','TypeScript'],fitScore:88});
+    const result=await new LiveJobSearchEngine().executeLiveSearch({},makeResume(),[discovery]);
+    expect(result.jobs[0].fitScore).toBeNull();
+    expect(result.jobs[0].fitStatusText).toBe('Fetching or full JD required');
+    expect(result.jobs[0].matchedKeywords).toEqual([]);
+  });
+
   it('keeps matching evidence honest when the resume is unavailable', () => {
     const result = calculateHonestMatch(makeJob(), null);
     expect(result.score).toBeNull();
