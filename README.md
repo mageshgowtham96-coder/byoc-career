@@ -24,7 +24,7 @@ BYOC is a client-side career workspace for resume intake, remote-job discovery, 
 - **Zero Mock Mode**: All Smart Mock Mode toggles, labels, and synthetic mock fixtures (`INITIAL_MOCK_JOBS`) have been purged from production.
 - **Honest Feedback**: Provider errors, rate limits, or missing keys result in visible, actionable configuration prompts rather than fabricated fallback data.
 
-### Part 2: Genuine Live Job Sourcing & Dashboard Sync
+### Part 2: Local Job Search & Dashboard Sync
 - **Local Job Search**: BYOC searches locally stored and manually imported job positions. External portal shortcuts open websites; BYOC does not fetch listings from those sites.
 - **Manual Portals**: LinkedIn, Glassdoor, Indeed, Naukri, Foundit, Instahyre, and custom shortcuts open external sites; users paste selected listings into BYOC. BYOC does not scrape these portals.
 - **Location and Work Mode**: Country and optional city filters apply to returned remote listings. Worldwide remote inclusion is explicit. Hybrid and on-site filters apply to saved or pasted listings because connected live feeds are remote-only.
