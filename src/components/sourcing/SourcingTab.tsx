@@ -661,6 +661,7 @@ export const SourcingTab: React.FC = () => {
             </span>
           </div>
           <p className="text-[11px] text-slate-400">{liveSearchReport.locationNotice}</p>
+          {liveSearchReport.sourcesQueried.some(x=>x.includes('JobsEveryHour'))&&<p className="text-[10px] text-slate-500">Job data provided by <a href="https://jobseveryhour.com" target="_blank" rel="noopener noreferrer" className="text-sky-400 underline">JobsEveryHour</a>. Listings link to the source posting.</p>}
         </div>
       )}
 
