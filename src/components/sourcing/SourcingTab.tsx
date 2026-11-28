@@ -3,8 +3,6 @@ import { useWizardStore } from '../../store/useWizardStore';
 import {
   jobSearchEngine,
   calculateHonestMatch,
-  isWorldwideCountryCode,
-  matchesRemoteCountryAndLocation,
   sanitizeExternalHttpUrl,
   mergePortalShortcuts,
   buildPortalShortcutUrl,
@@ -91,32 +89,14 @@ export const SourcingTab: React.FC = () => {
   );
 
   const resumeIngested = hasMasterResume();
-  const isWorldwide = isWorldwideCountryCode(candidatePreferences?.country || 'IN');
 
   const handleRunLiveSearch = async () => {
-    const hasSearchTerms = Boolean(
-      searchQuery.trim() ||
-        candidatePreferences?.targetRole?.trim() ||
-        candidatePreferences?.profession?.trim() ||
-        (masterResume?.skills.technical?.length ?? 0) > 0
-    );
-    if (!hasSearchTerms) {
-      addToast({
-        type: 'warning',
-        title: 'Search Terms Needed',
-        message: 'Type a role or skill keyword in the search bar above, or add your resume in Intake first.'
-      });
-      return;
-    }
-
     setIsSearchingLive(true);
     try {
       const res = await jobSearchEngine.executeLiveSearch(
         {
           query: searchQuery.trim() || undefined,
-          country: candidatePreferences?.country || 'IN',
-          location: isWorldwide ? undefined : optionalLocation.trim() || undefined,
-          includeWorldwideRemote: candidatePreferences?.includeWorldwideRemote !== false,
+          location: optionalLocation.trim() || undefined,
           workplaceType: workplaceFilter,
           portal: portalFilter,
           profession: candidatePreferences?.profession,
@@ -127,33 +107,25 @@ export const SourcingTab: React.FC = () => {
         jobs
       );
       setLiveSearchReport(res);
-      if (res.jobs.length > 0) {
-        setJobs(res.jobs);
-      }
+      setJobs(res.jobs);
 
-      if (res.error) {
-        addToast({
-          type: 'warning',
-          title: 'Live Feed Warning',
-          message: res.error
-        });
-      } else if (res.jobs.length > 0) {
+      if (res.jobs.length > 0) {
         addToast({
           type: 'success',
-          title: 'Live Opportunities Updated',
+          title: 'Stored Positions Updated',
           message: `Showing ${res.jobs.length} position(s). Queried: ${res.sourcesQueried.join(', ')}.`
         });
       } else {
         addToast({
           type: 'info',
-          title: 'No Matching Openings Returned',
-          message: `Queried ${res.sourcesQueried.join(', ')}. Try broadening keywords, switching to Worldwide, or pasting a target JD.`
+          title: 'No Matching Stored Positions',
+          message: 'No saved or imported positions match these filters. Add a job description or adjust your search.'
         });
       }
     } catch (err: unknown) {
       addToast({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Live search failed.'
+        message: err instanceof Error ? err.message : 'Stored-position search failed.'
       });
     } finally {
       setIsSearchingLive(false);
@@ -162,7 +134,7 @@ export const SourcingTab: React.FC = () => {
 
   const filteredJobs = React.useMemo(() => {
     const qLower = searchQuery.toLowerCase().trim();
-    const locFilter = isWorldwide ? '' : optionalLocation.trim();
+    const locFilter = optionalLocation.trim().toLowerCase();
     return jobs
       .map((job) => {
         const match = calculateHonestMatch(job, masterResume);
@@ -183,32 +155,21 @@ export const SourcingTab: React.FC = () => {
             (job.jobDescriptionRaw && job.jobDescriptionRaw.toLowerCase().includes(qLower));
           if (!matches) return false;
         }
-        const isLiveFeedJob = ['remotive live', 'remote ok live', 'jobicy live'].includes((job.source || '').toLowerCase());
-        if (!isWorldwide && isLiveFeedJob) {
-          const matchesLoc = matchesRemoteCountryAndLocation(
-            job.location,
-            `${job.title} ${job.jobDescriptionRaw}`,
-            candidatePreferences?.country,
-            locFilter,
-            candidatePreferences?.includeWorldwideRemote !== false
-          );
-          if (!matchesLoc) return false;
-        }
+        if (locFilter && !job.location.toLowerCase().includes(locFilter)) return false;
         if (workplaceFilter !== 'All' && job.workplaceType.toLowerCase() !== workplaceFilter.toLowerCase()) {
           return false;
         }
         if (portalFilter !== 'All') {
-          const matchPortal =
-            portalFilter === 'User Import'
-              ? (job.source || '').toLowerCase() !== 'remotive live'
-              : (job.source && job.source.toLowerCase().includes(portalFilter.toLowerCase())) ||
-                (job.url && job.url.toLowerCase().includes(portalFilter.toLowerCase()));
-          if (!matchPortal) return false;
+          if (portalFilter !== 'User Import') {
+            const matchPortal = (job.source || '').toLowerCase().includes(portalFilter.toLowerCase()) ||
+              (job.url || '').toLowerCase().includes(portalFilter.toLowerCase());
+            if (!matchPortal) return false;
+          }
         }
         return true;
       })
       .sort((a, b) => (b.fitScore ?? -1) - (a.fitScore ?? -1));
-  }, [jobs, searchQuery, workplaceFilter, portalFilter, masterResume, isWorldwide, optionalLocation, candidatePreferences?.country, candidatePreferences?.includeWorldwideRemote]);
+  }, [jobs, searchQuery, workplaceFilter, portalFilter, masterResume, optionalLocation]);
 
   const handleSelectJob = (job: JobPosting) => {
     // Check Rejection Deduplication Guard
@@ -386,96 +347,38 @@ export const SourcingTab: React.FC = () => {
         </div>
       )}
 
-      {/* Country Preference & Optional Location Selector */}
+      {/* Local Position Filters */}
       <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-900/90 via-indigo-950/20 to-slate-900/90 border border-slate-800 text-xs space-y-2.5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Globe className="w-4 h-4 text-sky-400 shrink-0" />
-            <label htmlFor="sourcing-country-select" className="font-bold text-white">
-              Search Market:
-            </label>
-            <select
-              id="sourcing-country-select"
-              value={candidatePreferences?.country || 'IN'}
-              onChange={(e) => {
-                const nextCountry = e.target.value;
-                setCandidatePreferences({ country: nextCountry });
-                addToast({
-                  type: 'info',
-                  message:
-                    nextCountry === 'GLOBAL'
-                      ? 'Location mode set to Worldwide / Global Remote.'
-                      : `Location preference updated to ${nextCountry}.`
-                });
-              }}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white font-semibold text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-            >
-              <option value="IN">India (IN)</option>
-              <option value="US">United States (US)</option>
-              <option value="GB">United Kingdom (GB)</option>
-              <option value="CA">Canada (CA)</option>
-              <option value="DE">Germany / EU (DE)</option>
-              <option value="SG">Singapore (SG)</option>
-              <option value="AE">United Arab Emirates (AE)</option>
-              <option value="GLOBAL">Worldwide / Global Remote</option>
-            </select>
-
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <input
-                type="text"
-                aria-label="Optional city or region filter"
-                value={isWorldwide ? '' : optionalLocation}
-                disabled={isWorldwide}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setOptionalLocation(val);
-                  setCandidatePreferences({ preferredLocations: val.trim() ? [val.trim()] : [] });
-                }}
-              placeholder={isWorldwide ? 'Worldwide mode active' : 'City/region (e.g. Bengaluru)'}
-                className="px-2.5 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed w-52"
-              />
-            </div>
-
-            {!isWorldwide && (
-              <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={candidatePreferences?.includeWorldwideRemote !== false}
-                  onChange={(e) => setCandidatePreferences({ includeWorldwideRemote: e.target.checked })}
-                  className="accent-sky-500"
-                />
-                Include worldwide remote roles
-              </label>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 self-start md:self-auto">
-            <span className="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-300 border border-sky-500/20 font-mono text-[10px] font-bold">
-              {isWorldwide
-                ? 'Worldwide Remote'
-                : candidatePreferences?.includeWorldwideRemote === false
-                  ? `${candidatePreferences?.country || 'IN'} Only`
-                  : `${candidatePreferences?.country || 'IN'} + Worldwide Remote`}
-            </span>
-          </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <label htmlFor="sourcing-location-filter" className="font-bold text-white">
+            Filter by location:
+          </label>
+          <input
+            id="sourcing-location-filter"
+            type="text"
+            aria-label="Filter saved and imported positions by location"
+            value={optionalLocation}
+            onChange={(e) => {
+              const value = e.target.value;
+              setOptionalLocation(value);
+              setCandidatePreferences({ preferredLocations: value.trim() ? [value.trim()] : [] });
+            }}
+            placeholder="City or region (e.g. Bengaluru)"
+            className="px-2.5 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 w-52"
+          />
         </div>
-
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          {isWorldwide
-            ? 'Worldwide mode queries the Remotive, Remote OK, and Jobicy remote feeds. Coverage depends on these feeds and is not an exhaustive global job index.'
-            : `Remotive, Remote OK, and Jobicy provide remote postings only and filter published locations for ${candidatePreferences?.country || 'IN'}${candidatePreferences?.includeWorldwideRemote === false ? ' only' : ' plus explicitly worldwide roles'}${
-                optionalLocation.trim() ? ` + "${optionalLocation.trim()}"` : ''
-              }. City mentions in descriptions do not count as location evidence; hybrid/on-site openings must be saved or pasted.`}
+          BYOC searches positions already saved in your workspace or manually imported. External portal shortcuts open their websites; job listings are not fetched from those sites.
         </p>
       </div>
 
-      {/* Honest Source Filter & Provider Disclosure */}
+      {/* Stored Position Source Filter */}
       <div className="space-y-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
             <Globe className="w-3.5 h-3.5 text-sky-400" />
-            <span>Active Job Sources</span>
+            <span>Position Sources</span>
           </span>
           <span className="text-[10px] text-slate-500 font-mono tabular-nums">
             {filteredJobs.length} role{filteredJobs.length === 1 ? '' : 's'} shown
@@ -483,7 +386,7 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {(['All', 'Remotive Live', 'Remote OK Live', 'Jobicy Live', 'User Import'] as JobSourcePortal[]).map((portal) => {
+          {(['All', 'User Import'] as JobSourcePortal[]).map((portal) => {
             const isSelectedPortal = portalFilter === portal;
             return (
               <button
@@ -503,10 +406,10 @@ export const SourcingTab: React.FC = () => {
         </div>
 
         <div className="p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] text-slate-400 leading-relaxed">
-          <strong className="text-slate-200">Live Query Status:</strong> Remotive, Remote OK, and Jobicy public remote feeds are queried on demand; listings retain source links and provider failures appear in search status. This is not a complete worldwide index. Adzuna is unavailable in client-only builds (requires server-side App ID &amp; Key). External portals (including Glassdoor, LinkedIn, Indeed, Naukri, Foundit, and Instahyre) remain shortcuts only—open a shortcut below, then paste the listing text &amp; link via <span className="text-sky-300 font-semibold">Add Custom Job Description</span>.
+          <strong className="text-slate-200">Search Status:</strong> Search and matching operate only on locally stored and manually imported positions. Use an external portal shortcut below to find a listing, then paste its job description and link into BYOC.
         </div>
 
-        {/* External Portal Shortcuts (Shortcut Only — No Live API) */}
+      {/* External Portal Shortcuts (Shortcut Only — No Live API) */}
         <div className="p-3.5 rounded-2xl bg-[#0F172A] border border-slate-800 space-y-2.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -666,17 +569,15 @@ export const SourcingTab: React.FC = () => {
             className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSearchingLive ? 'animate-spin' : ''}`} />
-            <span>{isSearchingLive ? 'Checking public job listings...' : 'Search Job Listings'}</span>
+            <span>{isSearchingLive ? 'Searching stored positions...' : 'Search Stored Positions'}</span>
           </button>
         </div>
       </div>
 
       <p className="-mt-1 text-[11px] text-slate-400">
         {workplaceFilter === 'All'
-          ? 'All shows saved/pasted roles of any type, plus remote roles from connected public feeds.'
-          : workplaceFilter === 'Remote'
-            ? 'Connected public job feeds provide remote roles only.'
-            : `${workplaceFilter} filters saved or pasted listings only; connected public feeds currently provide remote roles only.`}
+          ? 'All shows saved and imported roles of any workplace type.'
+          : `${workplaceFilter} filters saved and imported positions only.`}
       </p>
 
       {/* Live Search Feedback Banner */}
@@ -699,7 +600,7 @@ export const SourcingTab: React.FC = () => {
           <p className="text-[11px] text-slate-400">{liveSearchReport.locationNotice}</p>
           {liveSearchReport.error && (
             <p className="text-[11px] text-rose-300 font-mono">
-              Provider Error: {liveSearchReport.error}
+              Search Error: {liveSearchReport.error}
             </p>
           )}
         </div>
