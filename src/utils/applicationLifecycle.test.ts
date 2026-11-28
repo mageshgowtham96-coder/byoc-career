@@ -15,8 +15,8 @@ describe('application check-in lifecycle',()=>{
  });
  it('returns the 14-day stage and respects acknowledged/snoozed timestamps',()=>{
   const now=new Date('2026-11-15T00:00:00Z').getTime();
-  expect(getApplicationCheckInStage(base,now)).toBe(14);
-  expect(getApplicationCheckInStage({...base,checkIn14AcknowledgedAt:'2026-11-15'},now)).toBeNull();
+  expect(getApplicationCheckInStage({...base,checkIn7AcknowledgedAt:'2026-11-08'},now)).toBe(14);
+  expect(getApplicationCheckInStage({...base,checkIn7AcknowledgedAt:'2026-11-08',checkIn14AcknowledgedAt:'2026-11-15'},now)).toBeNull();
   expect(getApplicationCheckInStage({...base,checkIn7AcknowledgedAt:'2026-11-09'},now)).toBe(14);
  });
  it('keeps the rejection fingerprint collision active after compaction',()=>{\n  const rejected=compactRejectedApplication(base,'Did not progress');\n  expect(matchesRejectedApplication(rejected,'example','Analyst')).toBe(true);\n  expect(matchesRejectedApplication(rejected,'Other Company','Analyst')).toBe(false);\n });\n it('compacts rejected application while preserving fingerprint fields and reason',()=>{
