@@ -13,3 +13,9 @@ export function compactRejectedApplication(app:ApplicationRecord,reason='Did not
  return {...app,status:'Rejected',rejectionReason:reason||app.rejectionReason||'Did not progress',rejectionDate:app.rejectionDate||now,lastActivityDate:now,jobDescriptionRaw:jd.length>200?jd.slice(0,197)+'…':jd,
  tailoredResumeSnapshot:{...snapshot,variants:[],tailoredSummary:(snapshot.tailoredSummary||'').slice(0,200),highlightedSkills:(snapshot.highlightedSkills||[]).slice(0,10),optimizedBullets:[],coverLetter:'',interviewPrepQuestions:[],exportedMaterials:[]}};
 }
+
+export function matchesRejectedApplication(app:Pick<ApplicationRecord,'status'|'company'|'role'>,company:string,role:string):boolean {
+ if(app.status!=='Rejected')return false;
+ const c=company.toLowerCase().trim(),r=role.toLowerCase().trim(),ac=app.company.toLowerCase().trim(),ar=app.role.toLowerCase().trim();
+ return (ac===c||ac.includes(c)||c.includes(ac))&&(ar===r||ar.includes(r)||r.includes(ar));
+}
