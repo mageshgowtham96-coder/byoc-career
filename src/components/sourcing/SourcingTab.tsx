@@ -105,13 +105,13 @@ export const SourcingTab: React.FC = () => {
     setIsDiscoveringJobs(true);
     try{
       const expanded=await expandOccupationSearchTermsWithGemini(title,geminiApiKey);
-      const results=await Promise.all(expanded.map(term=>jobsEveryHourAdapter.discover(term,40)));
+      const allDiscovered=await jobsEveryHourAdapter.discover('',800);\n      const terms=expanded.map(t=>t.toLowerCase());\n      const results=allDiscovered.filter(job=>terms.some(term=>job.title.toLowerCase().includes(term)||term.split(' ').every(word=>job.title.toLowerCase().includes(word))||job.company.toLowerCase().includes(term)||job.jobDescriptionRaw.toLowerCase().includes(term))).slice(0,120);
       const merged=[...jobs];
-      for(const job of results.flat())if(!merged.some(x=>x.id===job.id))merged.push(job);
+      for(const job of results)if(!merged.some(x=>x.id===job.id))merged.push(job);
       setJobs(merged);
       setSearchQuery(title);
-      setLiveSearchReport({jobs:results.flat(),totalFound:results.flat().length,sourcesQueried:['JobsEveryHour (cross-industry categories)'],locationNotice:'JobsEveryHour listings are indexed locally. Full descriptions are retrieved on selection; incomplete listings remain unscored.',lastUpdated:new Date().toISOString()});
-      addToast({type:results.flat().length?'success':'info',title:results.flat().length?'Jobs Indexed':'No Results',message:`Found ${results.flat().length} discovery listing(s) across occupational categories.`});
+      setLiveSearchReport({jobs:results,totalFound:results.length,sourcesQueried:['JobsEveryHour (cross-industry categories)'],locationNotice:'JobsEveryHour listings are indexed locally. Full descriptions are retrieved on selection; incomplete listings remain unscored.',lastUpdated:new Date().toISOString()});
+      addToast({type:results.length?'success':'info',title:results.length?'Jobs Indexed':'No Results',message:`Found ${results.length} discovery listing(s) across occupational categories.`});
     }catch(err){addToast({type:'warning',message:err instanceof Error?err.message:'Job discovery unavailable.'});}
     finally{setIsDiscoveringJobs(false);}
   };
