@@ -303,7 +303,7 @@ export function parseJobPageMarkdown(markdown:string):ExtractedJobDetails|null {
  const title=lines.find(x=>x.startsWith('# '))?.replace(/^#+\s*/,'')||'Job Listing';
  const company=lines.find(x=>/^company:|^employer:/i.test(x))?.replace(/^[^:]+:/,'').trim()||'Company not listed';
  const location=lines.find(x=>/^location:/i.test(x))?.replace(/^location:/i,'').trim()||'Location unspecified';
- const description=markdown.replace(/\\n{3,}/g,'\\n\\n').trim();
+ const description=markdown.replace(/\n{3,}/g,'\n\n').trim();
  const keywords=['JavaScript','TypeScript','Python','Java','SQL','Excel','Communication','Sales','Customer Service','Accounting','Nursing','Project Management','Logistics','Marketing','Leadership','React','Node.js','AWS','Healthcare','Teaching'];
  const skills=keywords.filter(k=>normalized.toLowerCase().includes(k.toLowerCase()));
  return {title,company,location,workplaceType:/remote/i.test(normalized)?'Remote':/hybrid/i.test(normalized)?'Hybrid':/on.site/i.test(normalized)?'On-site':'Unspecified',skillsRequired:skills,jobDescriptionRaw:description};
