@@ -35,7 +35,7 @@ function distance(a:string,b:string):number {
 }
 export function getOccupationSuggestions(query:string, resumeText='', cachedJobTitles:string[]=[]):string[] {
   const q=normalize(query); if(q.length<2)return [];
-  const candidates=[...OCCUPATIONS,...cachedJobTitles,...resumeText.split(/[\\n,;|]/).map(x=>x.trim()).filter(x=>x.length>2)];
+  const candidates=[...OCCUPATIONS,...cachedJobTitles,...resumeText.split(/[\n,;|]/).map(x=>x.trim()).filter(x=>x.length>2)];
   const expanded=SHORT_FORMS[q]||[];
   const unique=[...new Set([...candidates,...expanded].map(x=>x.trim()).filter(Boolean))];
   return unique.map(title=>{
