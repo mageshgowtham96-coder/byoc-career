@@ -189,7 +189,6 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const emptyVaultPayload = (geminiKey: string = ''): DecryptedVaultData => ({
     geminiApiKey: geminiKey,
-    geminiApiKey: '',
     masterResume: null,
     emailInteractions: [],
     jobs: [],

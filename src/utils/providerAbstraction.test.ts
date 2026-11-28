@@ -1,208 +1,98 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { 
-  ProviderManager, 
-  GroqProvider, 
-  OpenRouterProvider, 
-  GeminiProvider, 
-  PROVIDER_CONFIGS, 
-  getProviderConfig, 
-  isProviderClientUsable 
-} from './providerAbstraction';
+import { ProviderManager, GeminiProvider, PROVIDER_CONFIGS, getProviderConfig, isProviderClientUsable } from './providerAbstraction';
 
-// Mock the services and SDKs
-vi.mock('../services/groqService', () => ({
-  getAvailableGroqModels: vi.fn().mockResolvedValue(['llama-3.1-70b-versatile']),
-  callGroqChat: vi.fn().mockResolvedValue('{"response": "mocked groq"}')
+const { getAvailableGeminiModels, callGeminiChat } = vi.hoisted(() => ({
+  getAvailableGeminiModels: vi.fn(),
+  callGeminiChat: vi.fn()
 }));
 
-vi.mock('@google/genai', () => ({
-  GoogleGenAI: vi.fn().mockImplementation(() => ({
-    models: {
-      generateContent: vi.fn().mockResolvedValue({
-        text: '{"response": "mocked gemini"}',
-        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20, totalTokenCount: 30 }
-      })
-    }
-  }))
+vi.mock('../services/geminiService', () => ({
+  getAvailableGeminiModels,
+  callGeminiChat
 }));
 
-// Mock global fetch for OpenRouter
-global.fetch = vi.fn();
-
-describe('Provider Abstraction', () => {
+describe('Gemini-only provider abstraction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getAvailableGeminiModels.mockResolvedValue(['gemini-2.5-flash']);
+    callGeminiChat.mockResolvedValue('{"response":"Gemini response"}');
   });
 
-  describe('Provider Configurations', () => {
-    it('groq config exists with expected models', () => {
-      const config = getProviderConfig('groq');
-      expect(config.name).toBe('Groq');
-      expect(Array.isArray(config.models)).toBe(true);
-      expect(config.models.length).toBeGreaterThan(0);
-      expect(config.baseURL).toBe('https://api.groq.com/openai/v1/chat/completions');
+  it('exposes only the Gemini 2.5 Flash configuration', () => {
+    expect(Object.keys(PROVIDER_CONFIGS)).toEqual(['gemini']);
+    expect(getProviderConfig()).toEqual({
+      name: 'Gemini',
+      models: ['gemini-2.5-flash'],
+      timeoutMs: 45000
     });
-
-    it('openrouter config has models list and baseURL', () => {
-      const config = getProviderConfig('openrouter');
-      expect(Array.isArray(config.models)).toBe(true);
-      expect(config.baseURL).toBe('https://openrouter.ai/api/v1/chat/completions');
-    });
-
-    it('gemini config has models list', () => {
-      const config = getProviderConfig('gemini');
-      expect(Array.isArray(config.models)).toBe(true);
-      expect(config.models).toContain('gemini-1.5-pro');
-    });
+    expect(isProviderClientUsable('gemini')).toBe(true);
   });
 
-  describe('Client-Usability Check', () => {
-    it('all three providers are client-usable', () => {
-      expect(isProviderClientUsable('groq')).toBe(true);
-      expect(isProviderClientUsable('openrouter')).toBe(true);
-      expect(isProviderClientUsable('gemini')).toBe(true);
-    });
+  it('initializes and returns the sole Gemini provider', () => {
+    const manager = new ProviderManager();
+    manager.init();
+
+    expect(manager.getProvider()).toBeInstanceOf(GeminiProvider);
+    expect(manager.getSelectedProvider()).toBe('gemini');
+    expect(manager.getProvider('gemini')).toBeDefined();
   });
 
-  describe('ProviderManager', () => {
-    it('initializes all providers', () => {
-      const manager = new ProviderManager();
-      manager.init();
-      expect(manager.getProvider('groq')).toBeDefined();
-      expect(manager.getProvider('openrouter')).toBeDefined();
-      expect(manager.getProvider('gemini')).toBeDefined();
-    });
+  it('keeps Gemini selected when explicitly selected', () => {
+    const manager = new ProviderManager();
+    manager.setSelectedProvider('gemini');
+    expect(manager.getSelectedProvider()).toBe('gemini');
+    manager.setSelectedProvider(null);
+    expect(manager.getSelectedProvider()).toBeNull();
+  });
 
-    it('getProvider retrieves a provider', () => {
-      const manager = new ProviderManager();
-      manager.init();
-      const groqProvider = manager.getProvider('groq');
-      expect(groqProvider).toBeInstanceOf(GroqProvider);
-    });
+  it('checks availability through Gemini and returns its state', async () => {
+    const manager = new ProviderManager();
+    const states = await manager.checkAllProviders({ gemini: 'test-key' });
 
-    it('setSelectedProvider and getSelectedProvider work', () => {
-      const manager = new ProviderManager();
-      manager.init();
-      manager.setSelectedProvider('groq');
-      expect(manager.getSelectedProvider()).toBe('groq');
-      manager.setSelectedProvider(null);
-      expect(manager.getSelectedProvider()).toBeNull();
-    });
+    expect(getAvailableGeminiModels).toHaveBeenCalledWith('test-key');
+    expect(states.size).toBe(1);
+    expect(states.get('gemini')?.status).toBe('available');
+    expect(states.get('gemini')?.modelInUse).toBe('gemini-2.5-flash');
+  });
 
-    it('attemptChat falls back when primary fails', async () => {
-      const manager = new ProviderManager();
-      manager.init();
-      manager.setSelectedProvider('groq');
-      
-      const apiKeys = { groq: 'key-g', openrouter: 'key-o', gemini: 'key-m' };
-      
-      // Mock groq failure
-      const { callGroqChat } = await import('../services/groqService');
-      (callGroqChat as any).mockRejectedValueOnce(new Error('Groq Down'));
-      
-      // Mock openrouter success
-      (global.fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          choices: [{ message: { content: 'openrouter success' } }],
-          model: 'openrouter-model'
-        })
-      });
-      
-      const result = await manager.attemptChat('sys', 'user', apiKeys);
-      expect(result).not.toBeNull();
-      expect(result?.provider).toBe('openrouter');
-      expect(result?.content).toBe('openrouter success');
+  it('routes chat directly to Gemini without provider fallback', async () => {
+    const manager = new ProviderManager();
+    const result = await manager.attemptChat('system prompt', 'user prompt', { gemini: 'test-key' });
+
+    expect(callGeminiChat).toHaveBeenCalledWith('system prompt', 'user prompt', 'test-key');
+    expect(result).toEqual({
+      content: '{"response":"Gemini response"}',
+      model: 'gemini-2.5-flash',
+      provider: 'gemini'
     });
   });
 
-  describe('GroqProvider', () => {
-    it('requires API key for availability check', async () => {
-      const provider = new GroqProvider();
-      const state = await provider.checkAvailability('');
-      expect(state.status).toBe('error');
-      expect(state.errorMessage).toContain('API key is required');
-    });
+  it('propagates Gemini request failures rather than silently switching providers', async () => {
+    const manager = new ProviderManager();
+    callGeminiChat.mockRejectedValueOnce(new Error('Gemini unavailable'));
 
-    it('successful availability check', async () => {
-      const provider = new GroqProvider();
-      const state = await provider.checkAvailability('test-key');
-      expect(state.status).toBe('available');
-      expect(state.modelInUse).toBeDefined();
-    });
-
-    it('requires API key for chat', async () => {
-      const provider = new GroqProvider();
-      await expect(provider.callChat('sys', 'user', '')).rejects.toThrow('Groq API key is required');
-    });
-    
-    it('successful chat call', async () => {
-      const provider = new GroqProvider();
-      const result = await provider.callChat('sys', 'user', 'test-key');
-      expect(result.content).toBe('{"response": "mocked groq"}');
-    });
+    await expect(manager.attemptChat('system', 'user', { gemini: 'test-key' }))
+      .rejects.toThrow('Gemini unavailable');
+    expect(callGeminiChat).toHaveBeenCalledTimes(1);
   });
 
-  describe('OpenRouterProvider', () => {
-    it('requires API key for availability check', async () => {
-      const provider = new OpenRouterProvider();
-      const state = await provider.checkAvailability('');
-      expect(state.status).toBe('error');
-      expect(state.errorMessage).toContain('API key is required');
-    });
+  it('requires an API key for the provider availability check', async () => {
+    const provider = new GeminiProvider();
+    const state = await provider.checkAvailability('');
 
-    it('successful availability check', async () => {
-      const provider = new OpenRouterProvider();
-      (global.fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: [{ id: 'model-1' }] })
-      });
-      const state = await provider.checkAvailability('test-key');
-      expect(state.status).toBe('available');
-    });
-
-    it('requires API key for chat', async () => {
-      const provider = new OpenRouterProvider();
-      await expect(provider.callChat('sys', 'user', '')).rejects.toThrow('OpenRouter API key is required');
-    });
-
-    it('successful chat call', async () => {
-      const provider = new OpenRouterProvider();
-      (global.fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          choices: [{ message: { content: 'openrouter chat' } }],
-          model: 'openrouter-model'
-        })
-      });
-      const result = await provider.callChat('sys', 'user', 'test-key');
-      expect(result.content).toBe('openrouter chat');
-    });
+    expect(state.status).toBe('error');
+    expect(state.errorMessage).toContain('Gemini API key is required');
+    expect(getAvailableGeminiModels).not.toHaveBeenCalled();
   });
 
-  describe('GeminiProvider', () => {
-    it('requires API key for availability check', async () => {
-      const provider = new GeminiProvider();
-      const state = await provider.checkAvailability('');
-      expect(state.status).toBe('error');
-      expect(state.errorMessage).toContain('API key is required');
-    });
+  it('returns the Gemini completion through the provider adapter', async () => {
+    const provider = new GeminiProvider();
+    const result = await provider.callChat('system', 'user', 'test-key');
 
-    it('successful availability check', async () => {
-      const provider = new GeminiProvider();
-      const state = await provider.checkAvailability('test-key');
-      expect(state.status).toBe('available');
-    });
-
-    it('requires API key for chat', async () => {
-      const provider = new GeminiProvider();
-      await expect(provider.callChat('sys', 'user', '')).rejects.toThrow('Gemini API key is required');
-    });
-
-    it('successful chat call', async () => {
-      const provider = new GeminiProvider();
-      const result = await provider.callChat('sys', 'user', 'test-key');
-      expect(result.content).toBe('{"response": "mocked gemini"}');
+    expect(result).toEqual({
+      content: '{"response":"Gemini response"}',
+      model: 'gemini-2.5-flash',
+      finishReason: 'stop'
     });
   });
 });

@@ -364,47 +364,48 @@ export async function callGeminiChat(
 /**
  * Validates and sanitizes JobVetting schema returned by LLM
  */
-function validateJobVetting(parsed: any): JobVetting {
-  if (typeof parsed !== 'object' || parsed === null) {
+export function validateJobVetting(parsed: unknown): JobVetting {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     throw new GeminiApiError('Job vetting output was not a valid JSON object.', 502, 'SCHEMA_ERROR');
   }
 
-  const rawFit = Number(parsed.cultureFit);
+  const value = parsed as Record<string, any>;
+  const rawFit = Number(value.cultureFit);
   const cultureFit = isNaN(rawFit) ? 50 : Math.max(0, Math.min(100, Math.round(rawFit)));
 
-  const redFlags = Array.isArray(parsed.redFlags)
-    ? parsed.redFlags.map((x: any) => String(x).trim()).filter(Boolean)
+  const redFlags = Array.isArray(value.redFlags)
+    ? value.redFlags.map((x: any) => String(x).trim()).filter(Boolean)
     : [];
-  const greenFlags = Array.isArray(parsed.greenFlags)
-    ? parsed.greenFlags.map((x: any) => String(x).trim()).filter(Boolean)
+  const greenFlags = Array.isArray(value.greenFlags)
+    ? value.greenFlags.map((x: any) => String(x).trim()).filter(Boolean)
     : [];
-  const pros = Array.isArray(parsed.pros)
-    ? parsed.pros.map((x: any) => String(x).trim()).filter(Boolean)
+  const pros = Array.isArray(value.pros)
+    ? value.pros.map((x: any) => String(x).trim()).filter(Boolean)
     : [];
-  const cons = Array.isArray(parsed.cons)
-    ? parsed.cons.map((x: any) => String(x).trim()).filter(Boolean)
+  const cons = Array.isArray(value.cons)
+    ? value.cons.map((x: any) => String(x).trim()).filter(Boolean)
     : [];
 
-  const strongAlignments = Array.isArray(parsed.gapAnalysis?.strongAlignments)
-    ? parsed.gapAnalysis.strongAlignments.map((x: any) => String(x).trim()).filter(Boolean)
+  const strongAlignments = Array.isArray(value.gapAnalysis?.strongAlignments)
+    ? value.gapAnalysis.strongAlignments.map((x: any) => String(x).trim()).filter(Boolean)
     : [];
-  const addressableGaps = Array.isArray(parsed.gapAnalysis?.addressableGaps)
-    ? parsed.gapAnalysis.addressableGaps.map((x: any) => String(x).trim()).filter(Boolean)
+  const addressableGaps = Array.isArray(value.gapAnalysis?.addressableGaps)
+    ? value.gapAnalysis.addressableGaps.map((x: any) => String(x).trim()).filter(Boolean)
     : [];
-  const criticalMissing = Array.isArray(parsed.gapAnalysis?.criticalMissing)
-    ? parsed.gapAnalysis.criticalMissing.map((x: any) => String(x).trim()).filter(Boolean)
+  const criticalMissing = Array.isArray(value.gapAnalysis?.criticalMissing)
+    ? value.gapAnalysis.criticalMissing.map((x: any) => String(x).trim()).filter(Boolean)
     : [];
 
   let recommendation: JobVetting['recommendation'] = 'Selective Apply';
-  if (parsed.recommendation === 'Strong Match') recommendation = 'Strong Match';
-  else if (parsed.recommendation === 'Proceed With Caution') recommendation = 'Proceed With Caution';
+  if (value.recommendation === 'Strong Match') recommendation = 'Strong Match';
+  else if (value.recommendation === 'Proceed With Caution') recommendation = 'Proceed With Caution';
 
   return {
     cultureFit,
     redFlags: redFlags.length > 0 ? redFlags : ['No critical red flags identified in JD text.'],
     greenFlags: greenFlags.length > 0 ? greenFlags : ['Standard job requirements and expectations.'],
-    growthTrajectory: String(parsed.growthTrajectory || 'Direct alignment with professional trajectory.'),
-    salaryCompetitiveness: String(parsed.salaryCompetitiveness || 'Standard market compensation.'),
+    growthTrajectory: String(value.growthTrajectory || 'Direct alignment with professional trajectory.'),
+    salaryCompetitiveness: String(value.salaryCompetitiveness || 'Standard market compensation.'),
     pros: pros.length > 0 ? pros : ['Clear technological focus'],
     cons: cons.length > 0 ? cons : ['Competitive applicant pool'],
     gapAnalysis: {
@@ -413,7 +414,7 @@ function validateJobVetting(parsed: any): JobVetting {
       criticalMissing
     },
     recommendation,
-    summaryVerdict: String(parsed.summaryVerdict || 'Evaluated against candidate qualifications.')
+    summaryVerdict: String(value.summaryVerdict || 'Evaluated against candidate qualifications.')
   };
 }
 
@@ -482,6 +483,30 @@ ${hasResume ? JSON.stringify({
 }
 
 /**
+ * Normalizes interview-preparation questions into the public BYOC schema.
+ * Malformed optional fields receive safe, reviewable defaults.
+ */
+export function validateInterviewPrepQuestions(input: unknown): InterviewQuestion[] {
+  if (!Array.isArray(input)) return [];
+  return input.map((item) => {
+    const question = item && typeof item === 'object' && !Array.isArray(item)
+      ? item as Record<string, unknown>
+      : {};
+    const category = ['Technical', 'Behavioral', 'Architecture', 'Leadership'].includes(String(question.category))
+      ? question.category as InterviewQuestion['category']
+      : 'Technical';
+    return {
+      question: String(question.question || 'Describe your relevant technical contributions.'),
+      category,
+      suggestedTalkingPoints: Array.isArray(question.suggestedTalkingPoints)
+        ? question.suggestedTalkingPoints.map((point) => String(point))
+        : ['Cite documented milestones from master profile'],
+      authenticEvidenceRef: String(question.authenticEvidenceRef || 'Master Resume Record')
+    };
+  });
+}
+
+/**
  * Validates and sanitizes 3 distinct sibling variants from LLM output
  */
 export function validateTailoredOutput(parsed: any, job: JobPosting, masterResume: MasterResume): TailoredArtifact {
@@ -519,18 +544,7 @@ export function validateTailoredOutput(parsed: any, job: JobPosting, masterResum
       `Aligned with ${job.company} requirements.`
     );
 
-    const interviewPrepQuestions: InterviewQuestion[] = Array.isArray(rv.interviewPrepQuestions)
-      ? rv.interviewPrepQuestions.map((q: any) => ({
-          question: String(q.question || 'Describe your relevant technical contributions.'),
-          category: (['Technical', 'Behavioral', 'Architecture', 'Leadership'].includes(q.category)
-            ? q.category
-            : 'Technical') as InterviewQuestion['category'],
-          suggestedTalkingPoints: Array.isArray(q.suggestedTalkingPoints)
-            ? q.suggestedTalkingPoints.map((tp: any) => String(tp))
-            : ['Cite documented milestones from master profile'],
-          authenticEvidenceRef: String(q.authenticEvidenceRef || 'Master Resume Record')
-        }))
-      : [];
+    const interviewPrepQuestions = validateInterviewPrepQuestions(rv.interviewPrepQuestions);
 
     const highlightedSkills: string[] = [];
     if (Array.isArray(rv.highlightedSkills)) {
