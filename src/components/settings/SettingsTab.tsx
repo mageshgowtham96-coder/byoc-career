@@ -8,7 +8,7 @@ import {
 import { WORKSPACE_STORE_KEY } from '../../utils/vaultMigration';
 import { emailVault } from '../../services/emailSyncService';
 import { safeRemoveItem } from '../../utils/storagePersistence';
-import { getAvailableGroqModels, formatGroqError } from '../../services/groqService';
+import { getAvailableGeminiModels, formatGeminiError } from '../../services/geminiService';
 import {
   Settings,
   Zap,
@@ -33,8 +33,8 @@ import {
 
 export const SettingsTab: React.FC = () => {
   const {
-    groqApiKey,
-    setGroqApiKey,
+    geminiApiKey,
+    setGeminiApiKey,
     setIsLiveApiMode,
     user,
     toggleBiometricEnrollment,
@@ -48,7 +48,7 @@ export const SettingsTab: React.FC = () => {
     addToast
   } = useWizardStore();
 
-  const [inputKey, setInputKey] = useState(groqApiKey);
+  const [inputKey, setInputKey] = useState(geminiApiKey);
   const [showKey, setShowKey] = useState(false);
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null);
@@ -61,8 +61,8 @@ export const SettingsTab: React.FC = () => {
   const docsSectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    setInputKey(groqApiKey);
-  }, [groqApiKey]);
+    setInputKey(geminiApiKey);
+  }, [geminiApiKey]);
 
   useEffect(() => {
     if (settingsFocusSection === 'backup') {
@@ -77,30 +77,30 @@ export const SettingsTab: React.FC = () => {
 
   const handleSaveKey = async () => {
     const trimmed = inputKey.trim();
-    setGroqApiKey(trimmed);
+    setGeminiApiKey(trimmed);
     setIsLiveApiMode(true);
     const synced = await syncVaultFromStoreNow();
 
     if (trimmed) {
       addToast({
         type: 'success',
-        title: 'Groq API Key Saved',
+        title: 'Gemini API Key Saved',
         message: synced
-          ? 'Encrypted in your AES-256-GCM vault. Live Groq inference active.'
-          : 'Groq key active for this session.'
+          ? 'Encrypted in your AES-256-GCM vault. Live Gemini inference active.'
+          : 'Gemini key active for this session.'
       });
     } else {
       addToast({
         type: 'info',
-        message: 'Groq API Key cleared from vault. Local non-AI tools remain available.'
+        message: 'Gemini API Key cleared from vault. Local non-AI tools remain available.'
       });
     }
   };
 
-  const handleTestGroq = async () => {
+  const handleTestGemini = async () => {
     const trimmed = inputKey.trim();
     if (!trimmed) {
-      setTestResult({ success: false, msg: 'Please enter a Groq API key first.' });
+      setTestResult({ success: false, msg: 'Please enter a Gemini API key first.' });
       return;
     }
 
@@ -108,8 +108,8 @@ export const SettingsTab: React.FC = () => {
     setTestResult(null);
 
     try {
-      const models = await getAvailableGroqModels(trimmed);
-      setGroqApiKey(trimmed);
+      const models = await getAvailableGeminiModels(trimmed);
+      setGeminiApiKey(trimmed);
       setIsLiveApiMode(true);
       await syncVaultFromStoreNow();
       setTestResult({
@@ -119,7 +119,7 @@ export const SettingsTab: React.FC = () => {
     } catch (err: unknown) {
       setTestResult({
         success: false,
-        msg: formatGroqError(err, 'Connection failed. Check your API key and network status.')
+        msg: formatGeminiError(err, 'Connection failed. Check your API key and network status.')
       });
     } finally {
       setIsTestingKey(false);
@@ -225,11 +225,11 @@ export const SettingsTab: React.FC = () => {
           <span>System &amp; Workspace Settings</span>
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-          Manage your Groq BYOK credentials, AES-256-GCM vault backups, biometric screen shield, and documentation.
+          Manage your Gemini BYOK credentials, AES-256-GCM vault backups, biometric screen shield, and documentation.
         </p>
       </div>
 
-      {/* Groq Intelligence Configuration */}
+      {/* Gemini Intelligence Configuration */}
       <section className="p-5 sm:p-6 rounded-2xl bg-[#0F172A] border border-slate-800 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -237,18 +237,18 @@ export const SettingsTab: React.FC = () => {
               <Cpu className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">Groq API &amp; Model Orchestration</h3>
+              <h3 className="text-sm font-bold text-white">Gemini API &amp; Model Orchestration</h3>
               <p className="text-xs text-slate-400">
-                Direct browser-to-Groq inference (Llama 3.3 70B &amp; sibling variants)
+                Direct browser-to-Gemini inference (Llama 3.3 70B &amp; sibling variants)
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 text-xs font-medium self-start sm:self-auto">
-            {groqApiKey ? (
+            {geminiApiKey ? (
               <span className="text-emerald-400 flex items-center gap-1">
                 <Zap className="w-3.5 h-3.5" />
-                <span>Groq Key Configured</span>
+                <span>Gemini Key Configured</span>
               </span>
             ) : (
               <span className="text-amber-400 flex items-center gap-1">
@@ -260,22 +260,22 @@ export const SettingsTab: React.FC = () => {
         </div>
 
         <div>
-          <label htmlFor="settings-groq-key" className="block text-xs font-semibold text-slate-300 mb-1.5">
-            Groq API Key (Stored Exclusively Inside Encrypted Vault)
+          <label htmlFor="settings-gemini-key" className="block text-xs font-semibold text-slate-300 mb-1.5">
+            Gemini API Key (Stored Exclusively Inside Encrypted Vault)
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <input
-                id="settings-groq-key"
+                id="settings-gemini-key"
                 type={showKey ? 'text' : 'password'}
                 value={inputKey}
                 onChange={(e) => setInputKey(e.target.value)}
-                placeholder="gsk_..."
+                placeholder="AIza..."
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#070B14] border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-sky-500 pr-10"
               />
               <button
                 type="button"
-                aria-label={showKey ? 'Hide Groq API Key' : 'Show Groq API Key'}
+                aria-label={showKey ? 'Hide Gemini API Key' : 'Show Gemini API Key'}
                 onClick={() => setShowKey(!showKey)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
               >
@@ -292,7 +292,7 @@ export const SettingsTab: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={handleTestGroq}
+                onClick={handleTestGemini}
                 disabled={isTestingKey}
                 className="px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer whitespace-nowrap shrink-0"
               >
@@ -321,7 +321,7 @@ export const SettingsTab: React.FC = () => {
 
         <div className="pt-3 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-400">
           <span>
-            Groq BYOK handles vetting, tailoring, and evidence-anchored prep with strict zero-fabrication prompts. Gemini is not enabled in this pure client bundle because <span className="font-mono text-slate-300">@google/genai</span> requires a server-side proxy route.
+            Gemini BYOK powers resume structuring, job vetting, tailoring, and interview preparation. Requests go directly from this device to Google Gemini; the API key is held in memory after vault unlock and persisted only inside the AES-256-GCM encrypted vault.
           </span>
           <span className="text-emerald-400 font-mono text-[11px] shrink-0">Live BYOK Architecture</span>
         </div>
@@ -560,7 +560,7 @@ export const SettingsTab: React.FC = () => {
               <ol className="list-decimal list-inside space-y-1.5 text-slate-400">
                 <li><strong className="text-slate-200">Intake:</strong> Upload your master resume or paste raw text, verify extracted milestones in the Review Gate, and approve into your vault.</li>
                 <li><strong className="text-slate-200">Sourcing:</strong> Paste job descriptions from any board or query the public Remotive, Remote OK, and Jobicy remote feeds. These are not an exhaustive global index; Adzuna needs server-side credentials, and LinkedIn/Glassdoor/Naukri/Indeed/Foundit/Instahyre remain shortcuts rather than live feeds.</li>
-                <li><strong className="text-slate-200">Vetting:</strong> Audit role requirements, culture signals, and skill gaps via Groq before investing time tailoring.</li>
+                <li><strong className="text-slate-200">Vetting:</strong> Audit role requirements, culture signals, and skill gaps via Gemini before investing time tailoring.</li>
                 <li><strong className="text-slate-200">Customize:</strong> Generate 3 strictly grounded resume variations, review diffs, export PDF/DOCX/TXT, and use questionnaire chips.</li>
                 <li><strong className="text-slate-200">Tracking &amp; Prep-Zone:</strong> Save immutable application snapshots, track interview stages, and practice domain-grounded prompts.</li>
               </ol>
@@ -585,7 +585,7 @@ export const SettingsTab: React.FC = () => {
               <ul className="space-y-1.5 text-slate-400">
                 <li>• <strong className="text-slate-200">Supported Local Extraction:</strong> Processes <span className="font-mono text-slate-200">.txt</span>, <span className="font-mono text-slate-200">.md</span>, standard compressed XML <span className="font-mono text-slate-200">.docx</span>, and basic selectable-text <span className="font-mono text-slate-200">.pdf</span> files up to 10MB 100% locally on-device.</li>
                 <li>• <strong className="text-slate-200">Unsupported Formats (No OCR):</strong> Raster image OCR (PNG/JPG/scanned PDFs), encrypted PDFs, and complex CID/custom-font PDF glyph maps remain unsupported. When readable text cannot be extracted, BYOC directs you to the Manual Paste Fallback box.</li>
-                <li>• <strong className="text-slate-200">Groq BYOK (Active AI Provider):</strong> Create a free or paid key at <span className="font-mono text-sky-400">console.groq.com</span> and paste it above. Gemini is not active in client-only mode because official Gemini SDK calls require a backend <span className="font-mono text-slate-200">/api/*</span> proxy. Without a Groq key (or if Groq is unreachable/rate-limited), all local vault, sourcing, offline baseline export, Assisted-Apply, and tracking workflows remain functional offline.</li>
+                <li>• <strong className="text-slate-200">Gemini BYOK (Active AI Provider):</strong> Create a Gemini API key in Google AI Studio and paste it above. BYOC calls Gemini directly from this device using the official <span className="font-mono text-slate-200">@google/genai</span> SDK. Without a Gemini key (or if Gemini is unreachable/rate-limited), local vault, sourcing, offline baseline export, Assisted-Apply, and tracking workflows remain available.</li>
               </ul>
             </>
           )}

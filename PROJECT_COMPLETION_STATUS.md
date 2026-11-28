@@ -3,7 +3,7 @@
 ## Phase 1: Resume Ingestion and Master Profile
 - [x] **Resume Ingestion (PDF, DOCX, TXT, Paste)** — VERIFIED: Local stream extraction for selectable PDF (including hex-encoded text & FlateDecode streams), PKZIP/Deflate DOCX (`word/document.xml`), raw TXT/MD, and Manual Paste Fallback.
 - [x] **Text Extraction & Scanned Document Guard** — VERIFIED: Scanned raster PDF detection with honest fallback alerts when selectable text is under 10 words.
-- [x] **Master Profile Structuring (AI)** — VERIFIED: Optional Groq-assisted structuring (`parseResumeWithGroq`) with fallback merging to local parse.
+- [x] **Master Profile Structuring (AI)** — Gemini-assisted structuring via `parseResumeWithGemini`; post-migration execution is not yet verified.
 - [x] **Profile Editing & Approval** — VERIFIED: Inline editing in Review Gate before committing to Master Profile. Half-built resume detection & interactive milestone builder.
 - [x] **Secure Vault Persistence** — VERIFIED: AES-256-GCM authenticated encryption with PBKDF2-HMAC-SHA256 (100k rounds) key derivation. Volatile in-memory MVK session management.
 
@@ -15,7 +15,7 @@
 
 ## Phase 3: ATS Analysis and Resume Customization
 - [x] **Customization Tab Suite** — VERIFIED: Full `CustomizationTab.tsx` component integrated with job selection, variant preview, and kit generation.
-- [x] **Three Sibling Resume Variants** — VERIFIED: Generates Variant A (Leadership & Scale), Variant B (Systems & Reliability), and Variant C (ATS Match & Delivery) via Groq AI.
+- [x] **Three Sibling Resume Variants** — Three grounded variants are generated through Gemini 2.5 Flash; post-migration execution is not yet verified.
 - [x] **Tailored Kit Editing & Preview** — VERIFIED: Full variant switcher, bullet partition/verification resolver (`tailoredBulletResolver.ts`), and cover letter editing.
 - [x] **Material Export (DOCX, TXT, PDF)** — VERIFIED: Export service integrated via `exporterService.ts` for clean DOCX, formatted TXT, and PDF generation.
 - [x] **Evidence-Based ATS Analysis** — VERIFIED: Match rationale and skill highlight verification against Master Profile.
@@ -35,24 +35,21 @@
 - [x] **Responsive Layouts** — VERIFIED: Safe-area aware, mobile navigation shell, touch-friendly targets, and modal/drawer behavior.
 
 ## AI Provider Architecture
-- [x] **Provider Abstraction** — IMPLEMENTED: `src/utils/providerAbstraction.ts` with Groq, OpenRouter, and Gemini implementations.
-- [x] **Groq Provider** — IMPLEMENTED: Full integration with existing `groqService.ts`, model discovery, and chat completion.
-- [x] **OpenRouter Provider** — IMPLEMENTED: `OpenRouterProvider` class with availability check and chat completion via OpenRouter API.
-- [x] **Gemini Provider** — IMPLEMENTED: `GeminiProvider` class using `@google/genai` SDK with proper client-side integration.
-- [x] **Provider Manager** — IMPLEMENTED: `ProviderManager` with fallback chain (Groq → OpenRouter → Gemini) and explicit user selection.
+- [x] **Provider Abstraction** — Gemini-only implementation in `src/utils/providerAbstraction.ts`; no alternate provider or fallback.
+- [x] **Gemini Provider** — `GeminiProvider` uses `@google/genai` and `gemini-2.5-flash`.
+- [x] **Provider Manager** — Routes exclusively to Gemini; no silent provider switching.
 - [x] **Provider Tests** — IMPLEMENTED: `src/utils/providerAbstraction.test.ts` with configuration and client-usability tests (converted to Vitest).
 
 ## Security & Reliability
 - [x] **Cryptographic Vault Engine** — VERIFIED: AES-256-GCM + PBKDF2 100,000 rounds. Emergency Recovery Phrase unwrapping and session locking.
 - [x] **Biometric Session Shield** — VERIFIED: In-session WebAuthn/biometric screen lock with vault key verification.
-- [x] **Zero Plaintext Credentials** — VERIFIED: API keys (Groq, OpenRouter, Gemini) and personal profile data stored exclusively inside encrypted vault envelope.
+- [x] **Zero Plaintext Credentials** — Gemini API key is held in memory while unlocked and persisted only in the encrypted vault.
 - [x] **Passphrase Rate Limiting** — IMPLEMENTED: `src/utils/rateLimit.ts` with progressive delays (3 attempts → 30s, 5 → 2min, 10 → 15min, >10 → 1hr).
 - [x] **Rate Limit Tests** — IMPLEMENTED: `src/utils/rateLimit.test.ts` covering lockout, cooldown, reset, and manual clearance (converted to Vitest).
 - [x] **Lockout UI** — IMPLEMENTED: `getLockoutDescription()` provides human-readable lockout state.
 
 ## Quality Assurance
 - [x] **TypeScript Compilation** — VERIFIED: Strict TypeScript configuration (`tsconfig.json`) passes.
-- [x] **Unit & Integration Tests** — VERIFIED: Comprehensive test suite in `src/utils/cryptoVault.test.ts` covering vault cryptography, PDF extraction, DOCX extraction, job search matching, migration logic, and Groq error handling (converted to Vitest).
 - [x] **Additional Test Coverage** — IMPLEMENTED:
   - `src/utils/rateLimit.test.ts` — Rate limiting behavior (converted to Vitest)
   - `src/utils/providerAbstraction.test.ts` — Provider configurations and client-usability (converted to Vitest)
@@ -87,10 +84,8 @@
 |----------|--------|-------|
 | **5 Product Phases** | ✅ IMPLEMENTED | All functional components exist |
 | **Unit Tests** | ✅ IMPLEMENTED | ~95+ tests across vault, rate limit, providers, exports (all Vitest) |
-| **Integration Tests** | ✅ IMPLEMENTED | Vault crypto, migration, job search, Groq validation |
 | **Design System** | ✅ IMPLEMENTED | Tokens + CSS + component integration |
 | **Vault Security** | ✅ IMPLEMENTED | AES-256-GCM + PBKDF2 + Rate limiting |
-| **AI Provider Architecture** | ✅ IMPLEMENTED | Groq, OpenRouter, Gemini with manager |
 | **Export Reliability** | ✅ IMPLEMENTED | DOCX/TXT/PDF with error handling + meaningful tests |
 | **Responsive Layouts** | ✅ IMPLEMENTED | Safe-area, mobile, touch targets |
 | **Android Config** | ✅ IMPLEMENTED | Capacitor + Android project |
@@ -105,3 +100,10 @@
 ---
 
 **Status Summary**: All 5 core product phases, security vault mechanisms, AI provider architecture, design system specifications, career workflow stages, quality gates, and CI/CD configuration are fully implemented. Test framework standardized to Vitest. The application is complete and ready for production use. Remaining verifications (Android APK, live API, browser rendering, CI execution) require environment-specific execution outside this session.
+
+## Gemini-only migration status (2026-11-28)
+
+- Commit 1 replaced the previous AI service/provider implementation with `src/services/geminiService.ts`, Gemini 2.5 Flash, and encrypted-vault BYOK storage.
+- Commit 2 migrated all existing UI entry points that reference the provider to Gemini BYOK.
+- `GuidedMasterResumeBuilder.tsx`, `DocumentsTab.tsx`, `careerTranslationService.ts`, `pdfQuestionService.ts`, and `authLocale.ts` do not exist in this repository tree and were not created during this migration.
+- Test updates, TypeScript verification, production build, live API verification, and Android packaging remain pending. Earlier verification claims describe the pre-migration baseline only.

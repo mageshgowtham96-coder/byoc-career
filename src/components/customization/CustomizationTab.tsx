@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
-import { tailorResumeWithGroq, draftQuestionnaireAnswer, formatGroqError } from '../../services/groqService';
+import { tailorResumeWithGemini, draftQuestionnaireAnswer, formatGeminiError } from '../../services/geminiService';
 import { sanitizeExternalHttpUrl } from '../../services/jobSearchService';
 import {
   partitionTailoredBullets,
@@ -49,7 +49,7 @@ export const CustomizationTab: React.FC = () => {
     updateApplicationStatus,
     checkRejectionCollision,
     candidatePreferences,
-    groqApiKey,
+    geminiApiKey,
     setActiveTab,
     addToast
   } = useWizardStore();
@@ -150,10 +150,10 @@ export const CustomizationTab: React.FC = () => {
     setIsGenerating(true);
     setTailoringError(null);
     try {
-      const artifact = await tailorResumeWithGroq(
+      const artifact = await tailorResumeWithGemini(
         selectedJob!,
         masterResume!,
-        groqApiKey
+        geminiApiKey
       );
       saveTailoredArtifact(selectedJob!.id, artifact);
       addToast({
@@ -162,7 +162,7 @@ export const CustomizationTab: React.FC = () => {
         message: '3 AI draft variations generated. Review all generated wording before use.'
       });
     } catch (err: unknown) {
-      const msg = formatGroqError(err, 'Tailoring generation failed.');
+      const msg = formatGeminiError(err, 'Tailoring generation failed.');
       setTailoringError(msg);
       addToast({ type: 'error', message: msg });
     } finally {
@@ -171,7 +171,7 @@ export const CustomizationTab: React.FC = () => {
   };
 
   const handleDraftScreeningAnswer = async () => {
-    if (!masterResume || !selectedJob || !groqApiKey) {
+    if (!masterResume || !selectedJob || !geminiApiKey) {
       addToast({
         type: 'warning',
         title: 'Questionnaire Draft Unavailable',
@@ -179,7 +179,7 @@ export const CustomizationTab: React.FC = () => {
           ? 'Add a Master Resume first.'
           : !selectedJob
           ? 'Select a target job first.'
-          : 'Add your Groq API key in Settings to draft an answer.'
+          : 'Add your Gemini API key in Settings to draft an answer.'
       });
       return;
     }
@@ -192,10 +192,10 @@ export const CustomizationTab: React.FC = () => {
     setQuestionnaireError(null);
     setScreeningAnswer(null);
     try {
-      const result = await draftQuestionnaireAnswer(screeningQuestion, selectedJob, masterResume, groqApiKey);
+      const result = await draftQuestionnaireAnswer(screeningQuestion, selectedJob, masterResume, geminiApiKey);
       setScreeningAnswer({ jobId: selectedJob.id, ...result });
     } catch (err: unknown) {
-      const message = formatGroqError(err, 'Could not draft a screening answer.');
+      const message = formatGeminiError(err, 'Could not draft a screening answer.');
       setQuestionnaireError(message);
       addToast({ type: 'error', message });
     } finally {
@@ -821,7 +821,7 @@ export const CustomizationTab: React.FC = () => {
                 </div>
               ) : (
                 <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 text-xs text-slate-400">
-                  No AI cover letter generated in this baseline offline kit. Configure your Groq key and click &quot;Generate 3 Sibling Variants&quot; above if you want a role-tailored cover letter draft.
+                  No AI cover letter generated in this baseline offline kit. Configure your Gemini key and click &quot;Generate 3 Sibling Variants&quot; above if you want a role-tailored cover letter draft.
                 </div>
               )}
             </div>
@@ -996,7 +996,7 @@ export const CustomizationTab: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => void handleDraftScreeningAnswer()}
-                        disabled={isDraftingAnswer || !screeningQuestion.trim() || !masterResume || !selectedJob || !groqApiKey}
+                        disabled={isDraftingAnswer || !screeningQuestion.trim() || !masterResume || !selectedJob || !geminiApiKey}
                         className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-45"
                       >
                         <Sparkles className="h-3.5 w-3.5" />
@@ -1327,7 +1327,7 @@ export const CustomizationTab: React.FC = () => {
       ) : (
         <div className="p-6 sm:p-8 rounded-3xl bg-slate-800/40 border border-slate-800 text-center space-y-3">
           <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
-            No tailored artifact synthesized yet. Click &quot;Generate 3 Sibling Variants&quot; above (with a Groq key), or prepare an offline baseline kit using only your authentic Master Profile to export documents and launch Assisted-Apply without AI.
+            No tailored artifact synthesized yet. Click &quot;Generate 3 Sibling Variants&quot; above (with a Gemini key), or prepare an offline baseline kit using only your authentic Master Profile to export documents and launch Assisted-Apply without AI.
           </p>
           {hasResume && hasJob && (
             <button

@@ -1,7 +1,7 @@
 # BYOC — Bring Your Own Career
 ### Local-First Career Search and Application Workspace
 
-BYOC is a client-side career workspace for resume intake, remote-job discovery, evidence-grounded AI drafts, document export, and manually tracked applications. Sensitive career records are kept in an AES-256-GCM encrypted local vault. BYOC does not provide a backend inbox connection or a complete global job-board index. AI actions explicitly send the selected content to Groq from the browser; local vault and manual workflows do not require AI.
+BYOC is a client-side career workspace for resume intake, remote-job discovery, evidence-grounded AI drafts, document export, and manually tracked applications. Sensitive career records are kept in an AES-256-GCM encrypted local vault. BYOC does not provide a backend inbox connection or a complete global job-board index. AI actions explicitly send selected content from this device to Google Gemini using Gemini 2.5 Flash; local vault and manual workflows do not require AI. The Gemini API key is persisted only in the AES-256-GCM encrypted vault.
 
 ---
 
@@ -11,7 +11,7 @@ BYOC is a client-side career workspace for resume intake, remote-job discovery, 
 - **Styling**: Tailwind CSS with dark-mode primary palette (`#0f172a` deep navy).
 - **Client State**: Zustand with encrypted-vault persistence and versioned workspace metadata migrations (`version: 4`).
 - **Mobile Container**: Native Android Capacitor 8 project (`com.byoc.career`).
-- **AI Intelligence**: Optional, user-triggered Groq BYOK requests for resume structuring, tailoring, vetting, and interview preparation. Generated content must be reviewed.
+- **AI Intelligence**: Optional, user-triggered Gemini BYOK requests for resume structuring, tailoring, vetting, and interview preparation. Generated content must be reviewed.
 - **Session Security**: WebAuthn is an in-session screen lock. Cold starts require the vault passphrase or Emergency Recovery Phrase to unlock the encrypted vault.
 - **Document Engine**: Client-side extraction for supported selectable-text PDF, DOCX, TXT, and Markdown files. Raster OCR is not included.
 - **Export Formats**: Authentic Plain Text (`.txt`), styled PDF (`.pdf` via `pdf-lib`), and Microsoft Word (`.docx` via `docx`).
@@ -41,10 +41,10 @@ BYOC is a client-side career workspace for resume intake, remote-job discovery, 
 - **Extraction Limits**: Raster images and scanned/image-only PDFs are not OCR-processed. Encrypted PDFs and some complex CID/custom-font PDFs may require manual paste.
 - **Traceable Extraction**: Regex-driven and header-indexed extraction with zero synthetic milestones.
 
-### Part 5: Groq AI Provider Reliability
-- **Model Resolution**: Resolves `llama-3.3-70b-versatile` dynamically from the live Groq catalog.
+### Part 5: Gemini AI Provider Reliability
+- **Model**: Uses `gemini-2.5-flash` through the official `@google/genai` SDK.
 - **Systemic Experience Originality Lock**: Every LLM prompt constructor enforces strict anti-fabrication rules: the AI can only emphasize or reorder verified evidence.
-- **Schema Validation**: Validates structured outputs with fallback handling for malformed JSON, timeouts (30s), and HTTP rate limits (429).
+- **Schema Validation**: Validates structured outputs with fallback handling for malformed JSON, timeouts (45s), and HTTP rate limits (429).
 
 ### Part 6: Master Profile, Tailor & Immutable Application Snapshots
 - **3 Sibling Variants**:
@@ -59,7 +59,7 @@ BYOC is a client-side career workspace for resume intake, remote-job discovery, 
 - **Application Tracking**: Users update application stages manually. Follow-up reminders are calculated from the recorded application date.
 
 ### Part 8: Credential Security and Session Biometrics
-- **Separation of Credentials**: Workspace passkey login is separate from Groq BYOK API key validation.
+- **Separation of Credentials**: Workspace passkey login is separate from Gemini BYOK API key validation.
 - **WebAuthn Scope**: Platform biometrics protect an active unlocked session only; they do not unwrap the vault key or replace cold-start passphrase/recovery unlock.
 
 ### Part 9: Persistence & Safe Migrations
@@ -73,7 +73,7 @@ BYOC is a client-side career workspace for resume intake, remote-job discovery, 
 
 ### Part 11: Service Worker & PWA Reliability
 - **Cache Version**: `byoc-cache-v3`.
-- **Privacy Protections**: The service worker explicitly excludes AI endpoints (`api.groq.com`), external APIs, and credentials from cache storage.
+- **Privacy Protections**: The service worker explicitly excludes AI endpoints (`generativelanguage.googleapis.com`), external APIs, and credentials from cache storage.
 - **Network-First Navigation**: Navigation requests prioritize network fetch to ensure deployed updates arrive immediately.
 
 ---
@@ -108,6 +108,6 @@ The resulting debug APK will be generated at:
 
 ## 4. External Credentials Required for Full Live Operation
 
-1. **Groq API Key**: Obtain a key from [console.groq.com](https://console.groq.com/keys) and enter it in **Settings > Groq API**.
+1. **Gemini API Key**: Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey) and enter it in **Settings > Gemini API**.
 2. **Adzuna Job Sourcing**: Not active in the client-only build. It requires a server-side integration to protect credentials.
 3. **Gmail / Workspace OAuth**: Not implemented. Email settings currently inspect the encrypted local email vault and do not connect to an inbox.

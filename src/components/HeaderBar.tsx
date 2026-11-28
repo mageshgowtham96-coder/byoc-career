@@ -5,9 +5,9 @@ import { PWAInstallButton } from './PWAInstallButton';
 import { Zap, Key } from 'lucide-react';
 
 export const HeaderBar: React.FC = () => {
-  const { groqApiKey, isLiveApiMode, setActiveTab, user } = useWizardStore();
+  const { geminiApiKey, isLiveApiMode, setActiveTab, user } = useWizardStore();
 
-  const isLiveActive = Boolean(groqApiKey && groqApiKey.trim().length > 0 && isLiveApiMode);
+  const isLiveActive = Boolean(geminiApiKey && geminiApiKey.trim().length > 0 && isLiveApiMode);
 
   return (
     <header
@@ -37,12 +37,12 @@ export const HeaderBar: React.FC = () => {
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20'
                 : 'bg-[#0F172A] border-slate-700 text-slate-300 hover:text-white'
             }`}
-            title="Configure Groq BYOK in Settings"
+            title="Configure Gemini API access in Settings"
           >
             {isLiveActive ? (
               <>
                 <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Groq Connected</span>
+                <span>Gemini Connected</span>
               </>
             ) : (
               <>

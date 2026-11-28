@@ -36,7 +36,6 @@ self.addEventListener('fetch', (event) => {
   // STRICT PRIVACY & CREDENTIAL SECURITY + DEV FRESHNESS:
   // Never cache external API queries, auth endpoints, AI streams, or Vite dev/source modules.
   if (
-    url.hostname.includes('api.groq.com') ||
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('adzuna.com') ||
     url.hostname.includes('remotive.com') ||
