@@ -7,9 +7,13 @@ import {
   sanitizeExternalHttpUrl,
   mergePortalShortcuts,
   buildPortalShortcutUrl,
+  jobsEveryHourAdapter,
+  fetchAndExtractJobFromUrl,
   type JobSearchResult
 } from '../../services/jobSearchService';
 import type { JobPosting, ApplicationRecord, JobSourcePortal } from '../../types';
+import { getOccupationSuggestions } from '../../services/roleSuggestions';
+import { expandOccupationSearchTermsWithGemini } from '../../services/geminiService';
 import {
   Search,
   MapPin,
@@ -37,6 +41,7 @@ export const SourcingTab: React.FC = () => {
   const {
     jobs,
     setJobs,
+    geminiApiKey,
     selectedJobId,
     setSelectedJobId,
     masterResume,
@@ -62,6 +67,10 @@ export const SourcingTab: React.FC = () => {
   const [isSearchingLive, setIsSearchingLive] = useState(false);
   const [liveSearchReport, setLiveSearchReport] = useState<JobSearchResult | null>(null);
   const [showAddJobModal, setShowAddJobModal] = useState(false);
+  const [occupationSuggestionsOpen,setOccupationSuggestionsOpen]=useState(false);
+  const [isDiscoveringJobs,setIsDiscoveringJobs]=useState(false);
+  const [jobUrlInput,setJobUrlInput]=useState('');
+  const [isAutoImporting,setIsAutoImporting]=useState(false);
 
   // Portal Shortcut Builder & Inline Listing URL Editor
   const [showAddShortcutForm, setShowAddShortcutForm] = useState(false);
@@ -90,6 +99,33 @@ export const SourcingTab: React.FC = () => {
   );
 
   const resumeIngested = hasMasterResume();
+
+  const occupationSuggestions=React.useMemo(()=>getOccupationSuggestions(searchQuery,masterResume?.rawText||'',jobs.map(j=>j.title)),[searchQuery,masterResume?.rawText,jobs]);
+  const handleDiscoverJobs=async(title=searchQuery)=>{
+    setIsDiscoveringJobs(true);
+    try{
+      const expanded=await expandOccupationSearchTermsWithGemini(title,geminiApiKey);
+      const results=await Promise.all(expanded.map(term=>jobsEveryHourAdapter.discover(term,40)));
+      const merged=[...jobs];
+      for(const job of results.flat())if(!merged.some(x=>x.id===job.id))merged.push(job);
+      setJobs(merged);
+      setSearchQuery(title);
+      setLiveSearchReport({jobs:results.flat(),totalFound:results.flat().length,sourcesQueried:['JobsEveryHour (cross-industry categories)'],locationNotice:'JobsEveryHour listings are indexed locally. Full descriptions are retrieved on selection; incomplete listings remain unscored.',lastUpdated:new Date().toISOString()});
+      addToast({type:results.flat().length?'success':'info',title:results.flat().length?'Jobs Indexed':'No Results',message:`Found ${results.flat().length} discovery listing(s) across occupational categories.`});
+    }catch(err){addToast({type:'warning',message:err instanceof Error?err.message:'Job discovery unavailable.'});}
+    finally{setIsDiscoveringJobs(false);}
+  };
+  const handleAutoImportUrl=async(url=jobUrlInput)=>{
+    setIsAutoImporting(true);
+    try{
+      const extracted=await fetchAndExtractJobFromUrl(url,geminiApiKey);
+      const match=calculateHonestMatch(extracted,masterResume);
+      const fullJob={...extracted,fitScore:match.score,matchedKeywords:match.matchedKeywords,missingKeywords:match.missingKeywords,fitStatusText:match.statusText};
+      addJob(fullJob);setSelectedJobId(fullJob.id);setJobUrlInput('');
+      addToast({type:'success',title:'Job Imported Automatically',message:`Retrieved the job description for ${fullJob.title}. Match score: ${match.score===null?'Unavailable':match.score+'%'}.`});
+    }catch(err){addToast({type:'warning',title:'Automatic Import Failed',message:err instanceof Error?err.message:'Please paste the full job description manually.'});setShowAddJobModal(true);setCustomUrl(url);}
+    finally{setIsAutoImporting(false);}
+  };
 
   const handleRunLiveSearch = async () => {
     setIsSearchingLive(true);
@@ -171,7 +207,7 @@ export const SourcingTab: React.FC = () => {
       .sort((a, b) => (b.fitScore ?? -1) - (a.fitScore ?? -1));
   }, [jobs, searchQuery, workplaceFilter, portalFilter, masterResume, optionalLocation]);
 
-  const handleSelectJob = (job: JobPosting) => {
+  const handleSelectJob = async (job: JobPosting) => {
     // Check Rejection Deduplication Guard
     const check = checkRejectionCollision(job.company, job.title);
     if (check.isCollision && check.pastRecord) {
@@ -184,6 +220,17 @@ export const SourcingTab: React.FC = () => {
       return;
     }
 
+    if(job.source==='JobsEveryHour'&&!job.jobDescriptionRaw){
+      setSelectedJobId(job.id);
+      try{
+        const resolved=await fetchAndExtractJobFromUrl(job.url,geminiApiKey);
+        const match=calculateHonestMatch(resolved,masterResume);
+        const full={...job,...resolved,id:job.id,fitScore:match.score,matchedKeywords:match.matchedKeywords,missingKeywords:match.missingKeywords,fitStatusText:match.statusText};
+        setJobs(jobs.map(j=>j.id===job.id?full:j));
+        addToast({type:'success',title:'Full Job Description Retrieved',message:'This listing is now scored against your resume.'});
+      }catch(err){addToast({type:'warning',title:'Could Not Retrieve Full JD',message:err instanceof Error?err.message:'Paste the full JD manually to score this role.'});setCustomTitle(job.title);setCustomCompany(job.company);setCustomUrl(job.url);setShowAddJobModal(true);}
+      return;
+    }
     setSelectedJobId(job.id);
     addToast({
       type: 'info',
@@ -537,14 +584,26 @@ export const SourcingTab: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={occupationSuggestionsOpen&&occupationSuggestions.length>0}
+            aria-controls="occupation-suggestions"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by title, location, skill, or description..."
+            onFocus={()=>setOccupationSuggestionsOpen(true)}
+            onChange={(e) => {setSearchQuery(e.target.value);setOccupationSuggestionsOpen(true);}}
+            onKeyDown={(e)=>{if(e.key==='Escape')setOccupationSuggestionsOpen(false);if(e.key==='Enter'&&searchQuery.trim()){setOccupationSuggestionsOpen(false);void handleDiscoverJobs(searchQuery.trim());}}}
+            placeholder="Occupation / job title (type 2+ letters)..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
           />
+          {occupationSuggestionsOpen&&occupationSuggestions.length>0&&(
+            <div id="occupation-suggestions" role="listbox" className="absolute z-30 top-full mt-1 left-0 right-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
+              {occupationSuggestions.map((suggestion,i)=><button key={suggestion} type="button" role="option" aria-selected={false} onClick={()=>{setSearchQuery(suggestion);setOccupationSuggestionsOpen(false);void handleDiscoverJobs(suggestion);}} className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-indigo-600/30 border-b border-slate-800 last:border-0">{suggestion}</button>)}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={()=>void handleDiscoverJobs()} disabled={isDiscoveringJobs||searchQuery.trim().length<2} className="px-3 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs disabled:opacity-50">{isDiscoveringJobs?'Discovering…':'Discover Jobs (All Fields)'}</button>
           <div className="flex items-center gap-1.5 p-1 bg-slate-800/80 rounded-xl border border-slate-700/80">
             {(['All', 'Remote', 'Hybrid', 'On-site'] as const).map((type) => (
               <button
@@ -579,6 +638,12 @@ export const SourcingTab: React.FC = () => {
           ? 'All shows saved and imported roles of any workplace type.'
           : `${workplaceFilter} filters saved and imported positions only.`}
       </p>
+
+      <div className="flex flex-col sm:flex-row gap-2 p-3 rounded-2xl border border-sky-500/30 bg-sky-950/20">
+        <Link2 className="w-4 h-4 text-sky-400 mt-2 shrink-0" />
+        <input value={jobUrlInput} onChange={e=>setJobUrlInput(e.target.value)} placeholder="Paste job URL to auto-import the full description" className="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
+        <button type="button" disabled={isAutoImporting||!jobUrlInput.trim()} onClick={()=>void handleAutoImportUrl()} className="px-3 py-2 rounded-lg bg-sky-600 text-white text-xs font-bold disabled:opacity-50">{isAutoImporting?'Reading…':'Paste Job URL to Auto-Import'}</button>
+      </div>
 
       {/* Local Position Search Feedback */}
       {liveSearchReport && (
@@ -629,7 +694,7 @@ export const SourcingTab: React.FC = () => {
                   className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
                 >
                   <Search className="w-4 h-4 text-sky-400" />
-                  <span>{isSearchingLive ? 'Checking public job listings...' : 'Search Job Listings'}</span>
+                  <span>{isSearchingLive ? 'Searching stored positions...' : 'Search Stored Positions'}</span>
                 </button>
               </div>
             </div>
@@ -842,7 +907,7 @@ export const SourcingTab: React.FC = () => {
                     </div>
                   ) : (
                     <button
-                      onClick={() => handleSelectJob(job)}
+                      onClick={() => void handleSelectJob(job)}
                       className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                         isSelected
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
