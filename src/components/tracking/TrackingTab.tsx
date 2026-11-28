@@ -231,7 +231,7 @@ export const TrackingTab: React.FC = () => {
       ) : (
         /* Status Board Columns */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {statuses.map((status) => {
+          {statuses.filter(status=>status!=='Rejected'||showArchivedRejections).map((status) => {
             const appsInStatus = applications.filter((a) => a.status === status && (status!=='Rejected'||showArchivedRejections));
 
             return (
