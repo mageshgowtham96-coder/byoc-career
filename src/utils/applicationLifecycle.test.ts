@@ -1,6 +1,6 @@
 import { describe,expect,it } from 'vitest';
 import type { ApplicationRecord } from '../types';
-import { compactRejectedApplication,getApplicationCheckInStage } from './applicationLifecycle';
+import { compactRejectedApplication,getApplicationCheckInStage,matchesRejectedApplication } from './applicationLifecycle';
 
 const base:ApplicationRecord={
  id:'app',jobId:'job',company:'Example',role:'Analyst',location:'Remote',workplaceType:'Remote',salary:'',appliedDate:'2026-11-01T00:00:00.000Z',status:'Applied',jobDescriptionRaw:'Full job description '.repeat(40),
@@ -19,7 +19,7 @@ describe('application check-in lifecycle',()=>{
   expect(getApplicationCheckInStage({...base,checkIn14AcknowledgedAt:'2026-11-15'},now)).toBeNull();
   expect(getApplicationCheckInStage({...base,checkIn7AcknowledgedAt:'2026-11-09'},now)).toBe(14);
  });
- it('compacts rejected application while preserving fingerprint fields and reason',()=>{
+ it('keeps the rejection fingerprint collision active after compaction',()=>{\n  const rejected=compactRejectedApplication(base,'Did not progress');\n  expect(matchesRejectedApplication(rejected,'example','Analyst')).toBe(true);\n  expect(matchesRejectedApplication(rejected,'Other Company','Analyst')).toBe(false);\n });\n it('compacts rejected application while preserving fingerprint fields and reason',()=>{
   const compact=compactRejectedApplication(base,'Rejected after interview','2026-11-15');
   expect(compact.status).toBe('Rejected');
   expect(compact.company).toBe(base.company);
