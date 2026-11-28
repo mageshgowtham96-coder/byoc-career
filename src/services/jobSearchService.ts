@@ -14,22 +14,12 @@ export interface JobSearchQueryParams {
   limit?: number;
 }
 
-export interface JobProviderStatus {
-  id: string;
-  name: string;
-  status: 'queried' | 'unconfigured' | 'error' | 'skipped';
-  count: number;
-  detail: string;
-}
-
 export interface JobSearchResult {
   jobs: JobPosting[];
   totalFound: number;
   sourcesQueried: string[];
-  providerStatuses: JobProviderStatus[];
   locationNotice: string;
   lastUpdated: string;
-  error?: string;
 }
 
 export function sanitizeExternalHttpUrl(rawUrl?: string): string | null {
@@ -283,7 +273,6 @@ export class LiveJobSearchEngine {
       jobs: filtered,
       totalFound: filtered.length,
       sourcesQueried: ['Local Stored Positions (User Import)'],
-      providerStatuses,
       locationNotice: buildLocationScopeNotice(normalizedParams.location),
       lastUpdated: new Date().toISOString()
     };
