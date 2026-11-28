@@ -277,7 +277,7 @@ export interface JobsEveryHourFeedJob { title?:string; company?:string; location
 export interface JobsEveryHourFeed { jobs?:JobsEveryHourFeedJob[]; total?:number; name?:string; }
 const JEH_CATEGORIES=['engineering','healthcare','sales','operations','marketing','finance','accounting','customer-support','human-resources','education','logistics','legal','design','product','data','manufacturing','retail','administration','hospitality','construction','security','science','writing','consulting','management'];
 const jehFeedCache=new Map<string,{at:number,jobs:JobPosting[]}>();
-const JEH_CACHE_MS=60*60*1000;
+const JEH_CACHE_MS=60*60*1000;\nfunction readJobsFeedCache(url:string){const inMemory=jehFeedCache.get(url);if(inMemory)return inMemory;try{const raw=localStorage.getItem('byoc_jeh_feed_'+encodeURIComponent(url));if(raw){const parsed=JSON.parse(raw) as {at:number,jobs:JobPosting[]};jehFeedCache.set(url,parsed);return parsed;}}catch{/* storage may be unavailable */}return undefined;}\nfunction writeJobsFeedCache(url:string,value:{at:number,jobs:JobPosting[]}){jehFeedCache.set(url,value);try{localStorage.setItem('byoc_jeh_feed_'+encodeURIComponent(url),JSON.stringify(value));}catch{/* storage quota/privacy mode */}}
 function mapJobsEveryHourJob(raw:JobsEveryHourFeedJob,index:number):JobPosting {
  return {id:'jeh-'+index+'-'+(raw.url||raw.title||'job'),title:raw.title||'Untitled role',company:raw.company||'Company not listed',location:raw.location||'Location unspecified',workplaceType:raw.remote?'Remote':'Unspecified',salary:raw.salary||'Undisclosed',postedDate:raw.posted||'Recently posted',jobDescriptionRaw:raw.description||raw.jobDescription||'',url:sanitizeExternalHttpUrl(raw.url)||'#',source:'JobsEveryHour',skillsRequired:raw.skills||[],fitScore:null,fitStatusText:'Fetching or full JD required',matchedKeywords:[],missingKeywords:[],experienceLevel:'Unspecified'};
 }
@@ -286,8 +286,8 @@ export class JobsEveryHourAdapter {
  async discover(query='',limit=60):Promise<JobPosting[]> {
   const feeds=await Promise.all(['latest',...JEH_CATEGORIES].map(async slug=>{
    const url=slug==='latest'?'https://jobseveryhour.com/api/v1/latest.json':'https://jobseveryhour.com/api/v1/categories/'+slug+'.json';
-   const cached=jehFeedCache.get(url);if(cached&&Date.now()-cached.at<JEH_CACHE_MS)return cached.jobs;
-   try{const res=await fetch(url,{signal:AbortSignal.timeout(15000)});if(!res.ok)throw new Error('Feed status '+res.status);const data=await res.json() as JobsEveryHourFeed;const jobs=(data.jobs||[]).map(mapJobsEveryHourJob);jehFeedCache.set(url,{at:Date.now(),jobs});return jobs;}catch{return cached?.jobs||[];}
+   const cached=readJobsFeedCache(url);if(cached&&Date.now()-cached.at<JEH_CACHE_MS)return cached.jobs;
+   try{const res=await fetch(url,{signal:AbortSignal.timeout(15000)});if(!res.ok)throw new Error('Feed status '+res.status);const data=await res.json() as JobsEveryHourFeed;const jobs=(data.jobs||[]).map(mapJobsEveryHourJob);writeJobsFeedCache(url,{at:Date.now(),jobs});return jobs;}catch{return cached?.jobs||[];}
   }));
   const q=query.toLowerCase().trim();const all=deduplicateJobs(feeds.flat());
   return (q?all.filter(j=>j.title.toLowerCase().includes(q)||j.company.toLowerCase().includes(q)||j.location.toLowerCase().includes(q)||j.jobDescriptionRaw.toLowerCase().includes(q)):all).slice(0,limit);
@@ -310,7 +310,7 @@ export function parseJobPageMarkdown(markdown:string):ExtractedJobDetails|null {
 }
 export async function fetchAndExtractJobFromUrl(jobUrl:string,geminiApiKey?:string):Promise<JobPosting> {
  const clean=sanitizeExternalHttpUrl(jobUrl);if(!clean)throw new Error('Please enter a valid HTTP(S) job listing URL.');
- const response=await fetch('https://r.jina.ai/'+clean,{signal:AbortSignal.timeout(20000),headers:{Accept:'text/plain'}});
+ const response=await fetch('https://r.jina.ai/'+encodeURIComponent(clean),{signal:AbortSignal.timeout(20000),headers:{Accept:'text/plain'}});
  if(!response.ok)throw new Error('Automatic page reading failed ('+response.status+'). Paste the job description manually instead.');
  const markdown=await response.text();let parsed=parseJobPageMarkdown(markdown);
  if(!parsed)throw new Error('Listing is blocked, login-walled, or lacks enough job details. Paste the job description manually.');
