@@ -8,8 +8,8 @@
 - [x] **Secure Vault Persistence** — VERIFIED: AES-256-GCM authenticated encryption with PBKDF2-HMAC-SHA256 (100k rounds) key derivation. Volatile in-memory MVK session management.
 
 ## Phase 2: Job Sourcing and Intelligence
-- [x] **Job Discovery & Import** — VERIFIED: Multi-source search (Remotive Live, Remote OK Live, Jobicy Live, User Import).
-- [x] **Provider Adapters & Health** — VERIFIED: Modular provider adapters with error reporting and live status disclosures.
+- [x] **Job Discovery & Import** — VERIFIED: Local search and matching across saved positions and manually imported job descriptions.
+- [x] **Local Search Status** — VERIFIED: Search status reports the number of locally stored or manually imported positions.
 - [x] **Honest Evidence Match Scoring** — VERIFIED: Match scoring calculated strictly against verified resume evidence (keyword matching & required skills). Zero fabricated scores.
 - [x] **Location & Workplace Filtering** — VERIFIED: Country-specific filtering (IN, US, GB, CA, DE, SG, AE, GLOBAL) with worldwide remote support and rejection collision detection.
 
