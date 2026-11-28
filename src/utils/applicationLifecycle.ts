@@ -3,8 +3,8 @@ export type ApplicationCheckInStage = 7 | 14 | null;
 export function getApplicationCheckInStage(app:Pick<ApplicationRecord,'status'|'appliedDate'|'followUpDate'|'notes'|'checkIn7AcknowledgedAt'|'checkIn14AcknowledgedAt'>,now=Date.now()):ApplicationCheckInStage {
  if(app.status!=='Applied')return null;
  const days=Math.floor((now-new Date(app.appliedDate).getTime())/(24*60*60*1000));
- if(days>=14&&!app.checkIn14AcknowledgedAt)return 14;
  if(days>=7&&!app.checkIn7AcknowledgedAt)return 7;
+ if(days>=14&&app.checkIn7AcknowledgedAt&&!app.checkIn14AcknowledgedAt)return 14;
  return null;
 }
 export function compactRejectedApplication(app:ApplicationRecord,reason='Did not progress',now=new Date().toISOString()):ApplicationRecord {
