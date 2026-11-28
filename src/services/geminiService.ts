@@ -707,7 +707,7 @@ export async function expandOccupationSearchTermsWithGemini(query: string, apiKe
       'Job title: ' + clean + '. Include the original title first and 2 related search titles.',
       apiKey
     );
-    const cleaned = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
     const parsed = JSON.parse(cleaned) as { titles?: unknown };
     const titles = Array.isArray(parsed.titles) ? parsed.titles.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map(x=>x.trim()).slice(0,2) : [];
     return [...new Set([clean,...titles])];
