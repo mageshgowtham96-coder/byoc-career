@@ -293,7 +293,7 @@ export const TrackingTab: React.FC = () => {
                         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 mb-2 text-[10px] text-amber-200">
                           <div className="font-bold mb-1">{getApplicationCheckInStage(app)===14?'14-Day Status Check-In':'7-Day Follow-Up Check-In'}</div>
                           <div className="flex flex-wrap gap-1">
-                            <button type="button" onClick={e=>{e.stopPropagation();setSelectedApp(app);setActiveModalTab('followup');}} className="px-2 py-1 rounded bg-amber-500 text-slate-950 font-bold">Draft Follow-Up Email</button>
+                            <button type="button" onClick={e=>{e.stopPropagation();acknowledgeApplicationCheckIn(app.id,getApplicationCheckInStage(app) as 7|14);setSelectedApp(app);setActiveModalTab('followup');}} className="px-2 py-1 rounded bg-amber-500 text-slate-950 font-bold">Draft Follow-Up Email</button>
                             <button type="button" onClick={e=>{e.stopPropagation();updateApplicationStatus(app.id,'Interview');acknowledgeApplicationCheckIn(app.id,getApplicationCheckInStage(app) as 7|14);}} className="px-2 py-1 rounded bg-sky-600 text-white">Moved to Interview</button>
                             <button type="button" onClick={e=>{e.stopPropagation();updateApplicationStatus(app.id,'Rejected',{reason:'Did not progress',notes:''});}} className="px-2 py-1 rounded border border-rose-500/40 text-rose-300">Mark Rejected / Did Not Progress</button>
                           </div>
