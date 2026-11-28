@@ -313,7 +313,7 @@ export interface ExtractedJobDetails { title:string;company:string;location:stri
 const urlImportCache=new Map<string,JobPosting>();
 const SKILL_KEYWORDS=['JavaScript','TypeScript','Python','Java','SQL','Excel','Communication','Sales','Customer Service','Accounting','Nursing','Project Management','Logistics','Marketing','Leadership','React','Node.js','AWS','Healthcare','Teaching','Risk Management','Fraud Detection','Compliance','Human Resources','Recruiting','Operations','Customer Support','Quality Assurance','Data Analysis','Power BI','Tableau','SAP','CRM','Microsoft Office','Financial Analysis','Audit','Documentation','Research','Scheduling','Inventory','Procurement','Cybersecurity','Cloud','Linux','Git'];
 export function parseJobPageMarkdown(markdown:string):ExtractedJobDetails|null {
- const cleanLine=(s:string)=>s.replace(/^[-*#>]+\\s*/,'').replace(/\\*\\*/g,'').trim();
+ const cleanLine=(s:string)=>s.replace(/^[-*>]+\\s*/,'').replace(/\\*\\*/g,'').trim();
  const lines=markdown.split(/\\r?\\n/).map(cleanLine).filter(Boolean);
  const normalized=lines.join(' ').replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim();
  if(normalized.length<250||(/sign in|login required|captcha|access denied|verify you are human/i.test(normalized)&&normalized.length<1800))return null;
