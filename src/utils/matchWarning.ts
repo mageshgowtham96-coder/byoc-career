@@ -9,7 +9,7 @@ export interface MatchWarningInput {
  */
 export function getMatchWarningMessage({ fitScore, skillsRequired = [] }: MatchWarningInput): string | null {
   if (fitScore !== null && fitScore < 70) {
-    return `Low Skill Overlap (< 70%): ${Math.round(fitScore)}% match — review missing skills before investing time tailoring.`;
+    return `Low Skill Overlap (< 70%): ${(Number.isInteger(fitScore) ? fitScore : fitScore.toFixed(1))}% match — review missing skills before investing time tailoring.`;
   }
 
   if (fitScore === null && skillsRequired.length === 0) {
