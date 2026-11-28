@@ -264,7 +264,7 @@ jobs:
 All five career management phases operate end-to-end:
 1. **Resume Ingestion** → PDF/DOCX/TXT/Paste extraction with scanned-document guard
 2. **Master Profile** → Structured, editable, vault-persisted profile  
-3. **Job Sourcing** → Remotive/Remote OK/Jobicy live feeds + User Import
+3. **Job Sourcing** → Local stored positions + User Import
 5. **Tracking & Prep-Zone** → Full pipeline, interview rounds, AI questions
 
 **Security**: AES-256-GCM vault + PBKDF2 100k rounds + progressive rate limiting + Emergency Recovery Phrase + Biometric session shield
