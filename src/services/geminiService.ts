@@ -704,11 +704,12 @@ export async function expandOccupationSearchTermsWithGemini(query: string, apiKe
   try {
     const raw = await callGeminiChat(
       'Return JSON only: {"titles":[...]} . Expand a job title into 2-3 closely related, commonly used titles in the same occupation. Do not broaden into unrelated jobs, change seniority materially, or add commentary.',
-      `Job title: ${clean}. Include the original title first and 2 related search titles.`,
+      'Job title: ' + clean + '. Include the original title first and 2 related search titles.',
       apiKey
     );
-    const cleaned = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n    const parsed = JSON.parse(cleaned) as { titles?: unknown };
-    const titles = Array.isArray(parsed.titles) ? parsed.titles.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map(x=>x.trim()).slice(0,3) : [];
+    const cleaned = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();
+    const parsed = JSON.parse(cleaned) as { titles?: unknown };
+    const titles = Array.isArray(parsed.titles) ? parsed.titles.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map(x=>x.trim()).slice(0,2) : [];
     return [...new Set([clean,...titles])];
   } catch {
     return [clean];
