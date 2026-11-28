@@ -6,7 +6,13 @@ describe('occupation suggestions',()=>{
   expect(getOccupationSuggestions('HR')).toContain('Recruiter');
   expect(getOccupationSuggestions('Ops')).toContain('Operations Analyst');
  });
- it('expands occupation synonyms locally without AI',()=>{\n  expect(expandOccupationSearchTermsLocally('Fraud Risk Analyst')).toContain('fraud analyst');\n  expect(expandOccupationSearchTermsLocally('Fraud Analyst')).toContain('fraud risk analyst');\n  expect(expandOccupationSearchTermsLocally('HR')).toContain('human resources');\n  expect(expandOccupationSearchTermsLocally('Customer Support')).toContain('customer service');\n });\n it('tolerates one-character title typos and includes resume/index titles',()=>{
+ it('expands occupation synonyms locally without AI',()=>{
+  expect(expandOccupationSearchTermsLocally('Fraud Risk Analyst')).toContain('fraud analyst');
+  expect(expandOccupationSearchTermsLocally('Fraud Analyst')).toContain('fraud risk analyst');
+  expect(expandOccupationSearchTermsLocally('HR')).toContain('human resources');
+  expect(expandOccupationSearchTermsLocally('Customer Support')).toContain('customer service');
+ });
+ it('tolerates one-character title typos and includes resume/index titles',()=>{
   expect(getOccupationSuggestions('Nurse')).toContain('Registered Nurse');
   expect(getOccupationSuggestions('Dat Analyst','', ['Data Analyst']).some(x=>x==='Data Analyst')).toBe(true);
  });
