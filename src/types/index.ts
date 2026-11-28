@@ -97,6 +97,7 @@ export interface JobPosting {
   source: string;
   skillsRequired: string[];
   fitScore: number | null; // 0 - 100, or null when profile/criteria data is insufficient
+  fitStatusText?: string;
   matchedKeywords: string[];
   missingKeywords: string[];
   department?: string;
@@ -199,6 +200,8 @@ export interface ApplicationRecord {
   rejectionReason?: string;
   rejectionDate?: string;
   rejectionNotes?: string;
+  checkIn7AcknowledgedAt?: string;
+  checkIn14AcknowledgedAt?: string;
   interviewStages: Array<{
     id: string;
     stageName: string;

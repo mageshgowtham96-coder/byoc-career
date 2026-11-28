@@ -38,6 +38,7 @@ import {
   type DecryptedVaultData,
   type VaultEnvelope
 } from '../utils/cryptoVault';
+import { compactRejectedApplication, getApplicationCheckInStage, matchesRejectedApplication } from '../utils/applicationLifecycle';
 import {
   WORKSPACE_STORE_KEY,
   extractLegacyPlaintextFromRawStore,
@@ -195,6 +196,7 @@ interface WizardState {
   checkRejectionCollision: (company: string, role: string) => RejectionCollisionCheck;
   updateApplicationStatus: (id: string, status: ApplicationStatus, rejectionData?: { reason: string; notes: string }) => void;
   updateApplicationNotes: (id: string, notes: string) => void;
+  acknowledgeApplicationCheckIn: (id: string, stage: 7 | 14) => void;
   deleteApplication: (id: string) => void;
   addInterviewStage: (applicationId: string, stageName: string, date: string, notes: string) => void;
   getFollowUpRequiredApplications: () => ApplicationRecord[];
@@ -656,23 +658,8 @@ export const useWizardStore = create<WizardState>()(
       // Tracking Pipeline & Rejection Deduplication
       applications: [],
       checkRejectionCollision: (company: string, role: string) => {
-        const compLower = company.toLowerCase().trim();
-        const roleLower = role.toLowerCase().trim();
-
-        const match = get().applications.find((app) => {
-          if (app.status !== 'Rejected') return false;
-          const appComp = app.company.toLowerCase().trim();
-          const appRole = app.role.toLowerCase().trim();
-          return (
-            (appComp === compLower || appComp.includes(compLower) || compLower.includes(appComp)) &&
-            (appRole === roleLower || appRole.includes(roleLower) || roleLower.includes(appRole))
-          );
-        });
-
-        return {
-          isCollision: Boolean(match),
-          pastRecord: match
-        };
+        const match=get().applications.find(app=>matchesRejectedApplication(app,company,role));
+        return {isCollision:Boolean(match),pastRecord:match};
       },
 
       applyForJob: (jobId, notes = '', overrideRejection = false, portalSource) => {
@@ -723,24 +710,18 @@ export const useWizardStore = create<WizardState>()(
       },
 
       updateApplicationStatus: (id, status, rejectionData) => {
-        set((state) => ({
-          applications: state.applications.map((app) => {
-            if (app.id !== id) return app;
-            return {
-              ...app,
-              status,
-              lastActivityDate: new Date().toISOString(),
-              rejectionDate: status === 'Rejected' ? new Date().toISOString() : app.rejectionDate,
-              rejectionReason: rejectionData?.reason || app.rejectionReason,
-              rejectionNotes: rejectionData?.notes || app.rejectionNotes
-            };
-          })
-        }));
-        get().addToast({
-          type: 'info',
-          title: 'Status Updated',
-          message: `Application moved to ${status}.`
-        });
+        const now=new Date().toISOString();
+        set(state=>({applications:state.applications.map(app=>{
+          if(app.id!==id)return app;
+          const next={...app,status,lastActivityDate:now,rejectionDate:status==='Rejected'?now:app.rejectionDate,rejectionReason:rejectionData?.reason||app.rejectionReason,rejectionNotes:rejectionData?.notes||app.rejectionNotes};
+          return status==='Rejected'?compactRejectedApplication(next,rejectionData?.reason||'Did not progress',now):next;
+        })}));
+        get().addToast({type:'info',title:'Status Updated',message:'Application moved to '+status+'.'});
+      },
+
+      acknowledgeApplicationCheckIn: (id,stage) => {
+        const now=new Date().toISOString();
+        set(state=>({applications:state.applications.map(app=>app.id===id?{...app,...(stage===7?{checkIn7AcknowledgedAt:now}:{checkIn14AcknowledgedAt:now})}:app)}));
       },
 
       updateApplicationNotes: (id, notes) => {
@@ -780,16 +761,7 @@ export const useWizardStore = create<WizardState>()(
         }));
       },
 
-      getFollowUpRequiredApplications: () => {
-        const now = Date.now();
-        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-        return get().applications.filter((app) => {
-          if (app.status !== 'Applied') return false;
-          const appliedTime = new Date(app.appliedDate).getTime();
-          return now - appliedTime >= SEVEN_DAYS_MS || app.notes?.includes('[NeedsFollowUp]');
-        });
-      },
-
+      getFollowUpRequiredApplications: () => get().applications.filter(app=>getApplicationCheckInStage(app)!==null),
       generateFollowUpEmailContent: (app: ApplicationRecord) => {
         const candidateName = get().masterResume?.contactInfo.name || get().user?.name || '';
         const candidateEmail = get().masterResume?.contactInfo.email || get().user?.email || '';

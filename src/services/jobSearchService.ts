@@ -221,11 +221,13 @@ export class LiveJobSearchEngine {
 
     const scoredJobs = deduplicateJobs(existingJobs).map((job) => {
       const honestMatch = calculateHonestMatch(job, masterResume);
+      const incompleteDiscovery=job.source==='JobsEveryHour'&&(job.jobDescriptionRaw||'').trim().length<500;
       return {
         ...job,
-        fitScore: honestMatch.score,
-        matchedKeywords: honestMatch.matchedKeywords,
-        missingKeywords: honestMatch.missingKeywords
+        fitScore: incompleteDiscovery?null:honestMatch.score,
+        fitStatusText:incompleteDiscovery?'Fetching or full JD required':job.fitStatusText,
+        matchedKeywords: incompleteDiscovery?[]:honestMatch.matchedKeywords,
+        missingKeywords: incompleteDiscovery?[]:honestMatch.missingKeywords
       };
     });
 
@@ -269,6 +271,73 @@ export class LiveJobSearchEngine {
       lastUpdated: new Date().toISOString()
     };
   }
+}
+
+
+export interface JobsEveryHourFeedJob { title?:string; company?:string; location?:string; remote?:boolean; salary?:string; posted?:string; url?:string; description?:string; jobDescription?:string; skills?:string[]; }
+export interface JobsEveryHourFeed { jobs?:JobsEveryHourFeedJob[]; total?:number; name?:string; }
+const JEH_CATEGORIES=['hardware-engineering','science-healthcare','retail-food-facilities','operations-administration','sales-business-development','skilled-trades','internships-first-jobs','software-development','accounting-finance','leadership','product-project-management','logistics-warehouse-transport','customer-service-support','cloud-devops-it','data-analytics','education-training','marketing-communications','legal-compliance','hr-recruiting','security','ai-machine-learning','jobs-by-language','writing-editing-translation','crypto-web3','design-creative'];
+const jehFeedCache=new Map<string,{at:number,jobs:JobPosting[]}>();
+const JEH_CACHE_MS=60*60*1000;
+function readJobsFeedCache(url:string){const inMemory=jehFeedCache.get(url);if(inMemory)return inMemory;try{const raw=localStorage.getItem('byoc_jeh_feed_'+encodeURIComponent(url));if(raw){const parsed=JSON.parse(raw) as {at:number,jobs:JobPosting[]};jehFeedCache.set(url,parsed);return parsed;}}catch{/* storage may be unavailable */}return undefined;}
+function writeJobsFeedCache(url:string,value:{at:number,jobs:JobPosting[]}){jehFeedCache.set(url,value);try{localStorage.setItem('byoc_jeh_feed_'+encodeURIComponent(url),JSON.stringify(value));}catch{/* storage quota/privacy mode */}}
+function mapJobsEveryHourJob(raw:JobsEveryHourFeedJob,index:number):JobPosting {
+ return {id:'jeh-'+index+'-'+(raw.url||raw.title||'job'),title:raw.title||'Untitled role',company:raw.company||'Company not listed',location:raw.location||'Location unspecified',workplaceType:raw.remote?'Remote':'Unspecified',salary:raw.salary||'Undisclosed',postedDate:raw.posted||'Recently posted',jobDescriptionRaw:raw.description||raw.jobDescription||'',url:sanitizeExternalHttpUrl(raw.url)||'#',source:'JobsEveryHour',skillsRequired:raw.skills||[],fitScore:null,fitStatusText:(raw.description||raw.jobDescription||'').trim().length<500?'Fetching or full JD required':undefined,matchedKeywords:[],missingKeywords:[],experienceLevel:'Unspecified'};
+}
+/** Searches cross-industry feeds; cached category requests are limited to one per hour. */
+export class JobsEveryHourAdapter {
+ async discover(query='',limit=60):Promise<JobPosting[]> {
+  const q=query.toLowerCase().trim();
+  const feeds=await Promise.all(['latest',...JEH_CATEGORIES].map(async slug=>{
+   const url=slug==='latest'?'https://jobseveryhour.com/api/v1/latest.json':'https://jobseveryhour.com/api/v1/categories/'+slug+'.json';
+   const cached=readJobsFeedCache(url);if(cached&&Date.now()-cached.at<JEH_CACHE_MS)return cached.jobs;
+   try{const res=await fetch(url,{signal:AbortSignal.timeout(15000)});if(!res.ok)throw new Error('Feed status '+res.status);const data=await res.json() as JobsEveryHourFeed;const jobs=(data.jobs||[]).map(mapJobsEveryHourJob);writeJobsFeedCache(url,{at:Date.now(),jobs});return jobs;}catch{return cached?.jobs||[];}
+  }));
+  let all=feeds.flat();
+  if(q){
+   const skillSlug=q.replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+   const skillUrl='https://jobseveryhour.com/api/v1/skills/'+skillSlug+'.json';
+   const cached=readJobsFeedCache(skillUrl);
+   let skillJobs=cached&&Date.now()-cached.at<JEH_CACHE_MS?cached.jobs:[];
+   if(!skillJobs.length)try{const response=await fetch(skillUrl,{signal:AbortSignal.timeout(15000)});if(response.ok){const data=await response.json() as JobsEveryHourFeed;skillJobs=(data.jobs||[]).map(mapJobsEveryHourJob);writeJobsFeedCache(skillUrl,{at:Date.now(),jobs:skillJobs});}}catch{/* category results still searchable */}
+   all=all.concat(skillJobs);
+  }
+  const unique=deduplicateJobs(all);
+  return (q?unique.filter(j=>j.title.toLowerCase().includes(q)||j.company.toLowerCase().includes(q)||j.location.toLowerCase().includes(q)||j.jobDescriptionRaw.toLowerCase().includes(q)||q.split(' ').every(word=>j.title.toLowerCase().includes(word))):unique).slice(0,limit);
+
+ }
+}
+export const jobsEveryHourAdapter=new JobsEveryHourAdapter();
+
+export interface ExtractedJobDetails { title:string;company:string;location:string;workplaceType:JobPosting['workplaceType'];skillsRequired:string[];jobDescriptionRaw:string; }
+const urlImportCache=new Map<string,JobPosting>();
+const SKILL_KEYWORDS=['JavaScript','TypeScript','Python','Java','SQL','Excel','Communication','Sales','Customer Service','Accounting','Nursing','Project Management','Logistics','Marketing','Leadership','React','Node.js','AWS','Healthcare','Teaching','Risk Management','Fraud Detection','Compliance','Human Resources','Recruiting','Operations','Customer Support','Quality Assurance','Data Analysis','Power BI','Tableau','SAP','CRM','Microsoft Office','Financial Analysis','Audit','Documentation','Research','Scheduling','Inventory','Procurement','Cybersecurity','Cloud','Linux','Git'];
+export function parseJobPageMarkdown(markdown:string):ExtractedJobDetails|null {
+ const cleanLine=(s:string)=>s.replace(/^[-*>]+\\s*/,'').replace(/\\*\\*/g,'').trim();
+ const lines=markdown.split(/\\r?\\n/).map(cleanLine).filter(Boolean);
+ const normalized=lines.join(' ').replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim();
+ if(normalized.length<250||(/sign in|login required|captcha|access denied|verify you are human/i.test(normalized)&&normalized.length<1800))return null;
+ const labeled=(patterns:RegExp[])=>lines.find(line=>patterns.some(pattern=>pattern.test(line)));
+ const titleLine=lines.find(x=>/^#{1,3}\\s+/.test(x))||labeled([/^job title\\s*:/i,/^position title\\s*:/i]);
+ const title=titleLine?.replace(/^#{1,3}\\s*/,'').replace(/^(job title|position title)\\s*[:|-]\\s*/i,'').trim()||'Job Listing';
+ const companyLine=labeled([/^company\\s*:/i,/^employer\\s*:/i,/^company name\\s*:/i]);
+ const company=companyLine?.replace(/^[^:]+:/,'').trim()||'Company not listed';
+ const locationLine=labeled([/^location\\s*:/i,/^job location\\s*:/i,/^based in\\s*:/i]);
+ const location=locationLine?.replace(/^[^:]+:/,'').trim()||'Location unspecified';
+ const workplaceType=/\\bremote\\b/i.test(normalized)?'Remote':/\\bhybrid\\b/i.test(normalized)?'Hybrid':/\\bon.site|in.office|onsite\\b/i.test(normalized)?'On-site':'Unspecified';
+ const skills=SKILL_KEYWORDS.filter(k=>normalized.toLowerCase().includes(k.toLowerCase()));
+ const description=markdown.replace(/\\n{3,}/g,'\\n\\n').trim();
+ return {title,company,location,workplaceType,skillsRequired:skills,jobDescriptionRaw:description};
+}
+export async function fetchAndExtractJobFromUrl(jobUrl:string,_geminiApiKey?:string):Promise<JobPosting> {
+ const clean=sanitizeExternalHttpUrl(jobUrl);if(!clean)throw new Error('Please enter a valid HTTP(S) job listing URL.');
+ const cached=urlImportCache.get(clean);if(cached)return {...cached};
+ const response=await fetch('https://r.jina.ai/'+encodeURIComponent(clean),{signal:AbortSignal.timeout(20000),headers:{Accept:'text/plain'}});
+ if(!response.ok)throw new Error('Automatic page reading failed ('+response.status+'). Paste the job description manually instead.');
+ const markdown=await response.text();const parsed=parseJobPageMarkdown(markdown);
+ if(!parsed)throw new Error('Listing is blocked, login-walled, or lacks enough job details. Paste the job description manually.');
+ const job:JobPosting={id:'url-import-'+Date.now(),title:parsed.title,company:parsed.company,location:parsed.location,workplaceType:parsed.workplaceType,salary:'Undisclosed',postedDate:'Imported just now',jobDescriptionRaw:parsed.jobDescriptionRaw,url:clean,source:'URL Auto-Import',skillsRequired:parsed.skillsRequired,fitScore:null,matchedKeywords:[],missingKeywords:[],experienceLevel:'Unspecified'};
+ urlImportCache.set(clean,job);return job;
 }
 
 export const jobSearchEngine = new LiveJobSearchEngine();

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { ApplicationRecord } from '../../types';
 import { calculateHonestMatch } from '../../services/jobSearchService';
+import { getApplicationCheckInStage } from '../../utils/applicationLifecycle';
 import { hasActiveVaultKey, readStoredVaultEnvelope } from '../../utils/cryptoVault';
 
 export const DashboardTab: React.FC = () => {
@@ -34,6 +35,8 @@ export const DashboardTab: React.FC = () => {
     candidatePreferences,
     getFollowUpRequiredApplications,
     generateFollowUpEmailContent,
+    acknowledgeApplicationCheckIn,
+    updateApplicationStatus,
     addToast
   } = useWizardStore();
 
@@ -199,14 +202,14 @@ export const DashboardTab: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="text-xs font-bold text-amber-200">
-                  7-Day Follow-Up Ready
+                  {getApplicationCheckInStage(followUpApps[0])===14?'14-Day Status Check-In':'7-Day Follow-Up Ready'}
                 </h4>
                 <span className="text-[10px] font-bold font-mono tracking-wide text-amber-400 tabular-nums">
                   {followUpApps.length} Role{followUpApps.length > 1 ? 's' : ''} Pending Update
                 </span>
               </div>
               <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
-                <strong>{followUpApps[0].company} ({followUpApps[0].role})</strong> has remained in Applied status for 7+ days. Draft an outreach email grounded in your profile preferences.
+                <strong>{followUpApps[0].company} ({followUpApps[0].role})</strong> has remained in Applied status. Check in, update the status, or draft a follow-up grounded in your profile preferences.
               </p>
             </div>
           </div>
@@ -214,11 +217,13 @@ export const DashboardTab: React.FC = () => {
           <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
             <button
               type="button"
-              onClick={() => setActiveFollowUpApp(followUpApps[0])}
+              onClick={() => { acknowledgeApplicationCheckIn(followUpApps[0].id,getApplicationCheckInStage(followUpApps[0]) as 7|14); setActiveFollowUpApp(followUpApps[0]); }}
               className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer"
             >
               Generate Follow-Up
             </button>
+            <button type="button" onClick={()=>updateApplicationStatus(followUpApps[0].id,'Interview')} className="px-3 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold">Moved to Interview</button>
+            <button type="button" onClick={()=>updateApplicationStatus(followUpApps[0].id,'Rejected',{reason:'Did not progress',notes:''})} className="px-3 py-2 rounded-xl border border-rose-500/40 text-rose-300 text-xs font-semibold">Mark Rejected</button>
             <button
               type="button"
               onClick={() => setActiveTab('tracking')}

@@ -694,3 +694,24 @@ ${JSON.stringify({
     );
   }
 }
+
+
+/** Optional title expansion for broader job searches. Offline/keyless callers get local-only terms. */
+export async function expandOccupationSearchTermsWithGemini(query: string, apiKey?: string): Promise<string[]> {
+  const clean = query.trim();
+  if (!clean) return [];
+  if (!apiKey?.trim()) return [clean];
+  try {
+    const raw = await callGeminiChat(
+      'Return JSON only: {"titles":[...]} . Expand a job title into 2-3 closely related, commonly used titles in the same occupation. Do not broaden into unrelated jobs, change seniority materially, or add commentary.',
+      'Job title: ' + clean + '. Include the original title first and 2 related search titles.',
+      apiKey
+    );
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    const parsed = JSON.parse(cleaned) as { titles?: unknown };
+    const titles = Array.isArray(parsed.titles) ? parsed.titles.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map(x=>x.trim()).filter(x=>x.toLowerCase()!==clean.toLowerCase()).slice(0,2) : [];
+    return [...new Set([clean,...titles])];
+  } catch {
+    return [clean];
+  }
+}
