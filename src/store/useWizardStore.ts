@@ -38,6 +38,7 @@ import {
   type DecryptedVaultData,
   type VaultEnvelope
 } from '../utils/cryptoVault';
+import { compactRejectedApplication, getApplicationCheckInStage } from '../utils/applicationLifecycle';
 import {
   WORKSPACE_STORE_KEY,
   extractLegacyPlaintextFromRawStore,
