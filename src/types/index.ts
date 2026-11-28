@@ -97,6 +97,7 @@ export interface JobPosting {
   source: string;
   skillsRequired: string[];
   fitScore: number | null; // 0 - 100, or null when profile/criteria data is insufficient
+  fitStatusText?: string;
   matchedKeywords: string[];
   missingKeywords: string[];
   department?: string;
