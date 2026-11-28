@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
-import { vetJobWithGroq, formatGroqError } from '../../services/groqService';
+import { vetJobWithGemini, formatGeminiError } from '../../services/geminiService';
 import {
   ShieldCheck,
   AlertTriangle,
@@ -19,7 +19,7 @@ export const VettingTab: React.FC = () => {
     jobs,
     masterResume,
     updateJobVetting,
-    groqApiKey,
+    geminiApiKey,
     setActiveTab,
     addToast
   } = useWizardStore();
@@ -34,10 +34,10 @@ export const VettingTab: React.FC = () => {
     setIsVettingLoading(true);
     setVettingError(null);
     try {
-      const vetting = await vetJobWithGroq(
+      const vetting = await vetJobWithGemini(
         selectedJob,
         masterResume,
-        groqApiKey
+        geminiApiKey
       );
       updateJobVetting(selectedJob.id, vetting);
       addToast({
@@ -46,7 +46,7 @@ export const VettingTab: React.FC = () => {
         message: `Recommendation: ${vetting.recommendation}`
       });
     } catch (err: unknown) {
-      const msg = formatGroqError(err, 'Vetting evaluation failed.');
+      const msg = formatGeminiError(err, 'Vetting evaluation failed.');
       setVettingError(msg);
       addToast({ type: 'error', message: msg });
     } finally {
@@ -335,7 +335,7 @@ export const VettingTab: React.FC = () => {
             className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg transition cursor-pointer flex items-center gap-2 mx-auto"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Retry Analysis with Groq</span>
+            <span>Retry Analysis with Gemini</span>
           </button>
         </div>
       ) : null}

@@ -69,7 +69,6 @@ export interface VaultEnvelope {
 }
 
 export interface DecryptedVaultData {
-  groqApiKey?: string;
   geminiApiKey?: string;
   masterResume: any | null;
   careerFormDraft?: CareerApplicationFormState | null;

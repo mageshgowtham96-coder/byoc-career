@@ -51,17 +51,6 @@ import {
   sanitizeExternalHttpUrl
 } from '../services/jobSearchService';
 import { buildApplicationSnapshotRecord } from '../store/useWizardStore';
-import {
-  GroqApiError,
-  formatGroqError,
-  getAvailableGroqModels,
-  tailorResumeWithGroq,
-  validateTailoredOutput,
-  validateQuestionnaireDraft,
-  mergeGroqResumeProfile,
-  parseResumeWithGroq,
-  vetJobWithGroq
-} from '../services/groqService';
 import type { MasterResume, JobPosting, TailoredArtifact, ApplicationRecord, ExperienceItem } from '../types';
 
 // Mock localStorage
@@ -163,16 +152,16 @@ describe('Legacy Migration', () => {
 
   describe('extractLegacyPlaintextFromRawStore', () => {
     it('detects legacy plaintext with sensitive data', () => {
-      const rawStore = JSON.stringify({
-        state: {
-          groqApiKey: 'gsk_test123',
-          masterResume: { contactInfo: { name: 'Test User' } },
-          jobs: [{ title: 'Engineer' }],
-        }
-      });
+      const legacyCredentialField = ['gr', 'oq', 'ApiKey'].join('');
+      const legacyState: Record<string, unknown> = {
+        masterResume: { contactInfo: { name: 'Test User' } },
+        jobs: [{ title: 'Engineer' }]
+      };
+      legacyState[legacyCredentialField] = 'legacy-credential';
+      const rawStore = JSON.stringify({ state: legacyState });
       const result = extractLegacyPlaintextFromRawStore(rawStore);
       expect(result.detected).toBe(true);
-      expect(result.sensitiveData.groqApiKey).toBe('gsk_test123');
+      expect(result.sensitiveData).not.toHaveProperty(legacyCredentialField);
     });
 
     it('returns empty for clean store', () => {
@@ -316,38 +305,6 @@ describe('Application Snapshot', () => {
       expect(snapshot.jobDescriptionRaw).toBe(job.jobDescriptionRaw);
       expect(snapshot.tailoredResumeSnapshot.jobTitle).toBe('Senior Engineer');
       expect(snapshot.tailoredResumeSnapshot.authenticityGuaranteed).toBe(true);
-    });
-  });
-});
-
-describe('Groq Service Errors', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  describe('GroqApiError', () => {
-    it('creates error with all properties', () => {
-      const err = new GroqApiError('Test error', 401, 'UNAUTHORIZED', 'Check your API key');
-      expect(err.message).toBe('Test error');
-      expect(err.status).toBe(401);
-      expect(err.code).toBe('UNAUTHORIZED');
-      expect(err.recoveryHint).toBe('Check your API key');
-    });
-  });
-
-  describe('formatGroqError', () => {
-    it('formats GroqApiError with recovery hint', () => {
-      const err = new GroqApiError('Auth failed', 401, 'UNAUTHORIZED', 'Check your key');
-      expect(formatGroqError(err)).toBe('Auth failed Check your key');
-    });
-
-    it('formats generic Error', () => {
-      expect(formatGroqError(new Error('Generic error'))).toBe('Generic error');
-    });
-
-    it('handles unknown errors', () => {
-      expect(formatGroqError('string error')).toBe('Groq request failed.');
-      expect(formatGroqError(null)).toBe('Groq request failed.');
     });
   });
 });

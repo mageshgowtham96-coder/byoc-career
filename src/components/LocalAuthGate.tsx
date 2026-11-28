@@ -121,7 +121,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
   const [passphrase, setPassphrase] = useState('');
   const [showPassphrase, setShowPassphrase] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState(
-    needsLegacyEncryptionMigration ? (legacyCapture?.sensitiveData.groqApiKey || '') : ''
+    needsLegacyEncryptionMigration ? (legacyCapture?.sensitiveData.geminiApiKey || '') : ''
   );
   const [showApiKey, setShowApiKey] = useState(false);
   const [enableBiometricOnSignup, setEnableBiometricOnSignup] = useState(false);
@@ -187,9 +187,8 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
     stripDemoWorkspaceEmail(legacyCapture?.user?.email) ||
     '';
 
-  const emptyVaultPayload = (groqKey: string = ''): DecryptedVaultData => ({
-    groqApiKey: groqKey,
-    geminiApiKey: '',
+  const emptyVaultPayload = (geminiKey: string = ''): DecryptedVaultData => ({
+    geminiApiKey: geminiKey,
     masterResume: null,
     emailInteractions: [],
     jobs: [],
@@ -270,7 +269,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
         const merged = mergeLegacyIntoDecryptedVault(initialVaultData, legacyCapture.sensitiveData);
         initialVaultData = merged.merged;
         if (apiKeyInput.trim()) {
-          initialVaultData.groqApiKey = apiKeyInput.trim();
+          initialVaultData.geminiApiKey = apiKeyInput.trim();
         }
       }
 
@@ -826,7 +825,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                   {hasLegacyEmails ? ' · Email Records' : ''}
                   {legacyCapture?.sensitiveData.jobs?.length ? ` · ${legacyCapture.sensitiveData.jobs.length} Jobs` : ''}
                   {legacyCapture?.sensitiveData.applications?.length ? ` · ${legacyCapture.sensitiveData.applications.length} Applications` : ''}
-                  {legacyCapture?.sensitiveData.groqApiKey ? ' · API Key' : ''}.
+                  {legacyCapture?.sensitiveData.geminiApiKey ? ' · API Key' : ''}.
                 </p>
               </div>
             )}
@@ -892,10 +891,10 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-semibold text-slate-300">
-                      Groq API Key (Optional)
+                      Gemini API Key (Optional)
                     </label>
                     <a
-                      href="https://console.groq.com/keys"
+                      href="https://aistudio.google.com/app/apikey"
                       target="_blank"
                       rel="noreferrer"
                       className="text-[11px] text-sky-400 hover:underline"
@@ -908,7 +907,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                       type={showApiKey ? 'text' : 'password'}
                       value={apiKeyInput}
                       onChange={(e) => setApiKeyInput(e.target.value)}
-                      placeholder="gsk_... (Can be added later in Settings)"
+                      placeholder="AIza... (Can be added later in Settings)"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-mono focus:outline-none focus:border-sky-500 pr-10"
                     />
                     <button
@@ -921,7 +920,7 @@ export const LocalAuthGate: React.FC<{ children: React.ReactNode }> = ({ childre
                     </button>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-1">
-                    Encrypted inside your vault envelope. Offline unlock never requires Groq.
+                    Encrypted inside your vault envelope. Offline unlock never requires an internet connection.
                   </p>
                 </div>
 

@@ -21,7 +21,7 @@ import {
   Target,
   DollarSign
 } from 'lucide-react';
-import { tailorResumeWithGroq, formatGroqError } from '../services/groqService';
+import { tailorResumeWithGemini, formatGeminiError } from '../services/geminiService';
 import type { PracticeQuestion } from '../types';
 
 export const PrepZone: React.FC = () => {
@@ -31,7 +31,7 @@ export const PrepZone: React.FC = () => {
     jobs,
     tailoredArtifacts,
     saveTailoredArtifact,
-    groqApiKey,
+    geminiApiKey,
     candidatePreferences,
     setActiveTab,
     addToast
@@ -231,7 +231,7 @@ export const PrepZone: React.FC = () => {
     setIsGeneratingPrep(true);
     setPrepError(null);
     try {
-      const artifact = await tailorResumeWithGroq(selectedJob, masterResume, groqApiKey);
+      const artifact = await tailorResumeWithGemini(selectedJob, masterResume, geminiApiKey);
       saveTailoredArtifact(selectedJob.id, artifact);
       addToast({
         type: 'success',
@@ -239,7 +239,7 @@ export const PrepZone: React.FC = () => {
         message: `Generated ${artifact.interviewPrepQuestions.length} role-specific questions grounded in your resume.`
       });
     } catch (err: unknown) {
-      const msg = formatGroqError(err, 'Unable to generate AI prep questions.');
+      const msg = formatGeminiError(err, 'Unable to generate AI prep questions.');
       setPrepError(msg);
       addToast({ type: 'error', message: msg });
     } finally {
@@ -572,7 +572,7 @@ export const PrepZone: React.FC = () => {
                 </div>
               </div>
 
-              {/* Evidence-Anchored AI Interview Questions (Groq) */}
+              {/* Evidence-Anchored AI Interview Questions (Gemini) */}
               <div className="p-5 rounded-3xl bg-slate-800/90 border border-slate-700 space-y-3 text-left">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
@@ -581,19 +581,19 @@ export const PrepZone: React.FC = () => {
                       <span>Evidence-Anchored AI Interview Questions ({selectedJob.company})</span>
                     </h4>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Grounded in your Master Profile milestones and target job requirements via Groq (no fabricated accomplishments).
+                      Grounded in your Master Profile milestones and target job requirements via Gemini (no fabricated accomplishments).
                     </p>
                   </div>
 
                   {hasVerifiedProfile && (
                     <button
                       type="button"
-                      disabled={isGeneratingPrep || !groqApiKey.trim()}
+                      disabled={isGeneratingPrep || !geminiApiKey.trim()}
                       onClick={() => void handleGenerateRolePrep()}
                       title={
-                        !groqApiKey.trim()
-                          ? 'Configure your Groq API key in Settings to generate AI prep questions'
-                          : 'Synthesize role-specific questions via Groq'
+                        !geminiApiKey.trim()
+                          ? 'Configure your Gemini API key in Settings to generate AI prep questions'
+                          : 'Synthesize role-specific questions via Gemini'
                       }
                       className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shrink-0"
                     >
@@ -617,7 +617,7 @@ export const PrepZone: React.FC = () => {
                       onClick={() => setActiveTab('settings')}
                       className="px-2.5 py-1 rounded-lg bg-slate-800 text-rose-200 border border-rose-500/30 text-[11px] font-semibold shrink-0 cursor-pointer"
                     >
-                      Check Groq Settings
+                      Check Gemini Settings
                     </button>
                   </div>
                 )}
@@ -676,8 +676,8 @@ export const PrepZone: React.FC = () => {
                     <span>
                       {!hasVerifiedProfile
                         ? 'Upload your Master Resume in Intake first so AI prep questions anchor strictly to your verified experience.'
-                        : !groqApiKey.trim()
-                        ? 'No Groq API key configured. Add your key in Settings to generate AI prep questions, or use the offline interview blueprint and Domain Role Practice below.'
+                        : !geminiApiKey.trim()
+                        ? 'No Gemini API key configured. Add your key in Settings to generate AI prep questions, or use the offline interview blueprint and Domain Role Practice below.'
                         : 'No AI prep questions generated for this role yet. Click "Generate AI Prep Questions" above or synthesize a 3-variant kit in Customization.'}
                     </span>
                     {!hasVerifiedProfile ? (
@@ -688,13 +688,13 @@ export const PrepZone: React.FC = () => {
                       >
                         Go to Intake
                       </button>
-                    ) : !groqApiKey.trim() ? (
+                    ) : !geminiApiKey.trim() ? (
                       <button
                         type="button"
                         onClick={() => setActiveTab('settings')}
                         className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 font-semibold text-[11px] shrink-0 cursor-pointer self-start sm:self-auto"
                       >
-                        Configure Groq Key
+                        Configure Gemini Key
                       </button>
                     ) : null}
                   </div>

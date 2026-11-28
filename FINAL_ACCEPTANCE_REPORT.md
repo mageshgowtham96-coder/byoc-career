@@ -1,3 +1,5 @@
+> **Migration notice (2026-11-28):** This report began as a pre-migration audit. The current branch now uses Gemini 2.5 Flash as its sole AI provider. Legacy tests have not yet been migrated; no post-migration TypeScript check, test run, production build, live Gemini call, or Android APK build is claimed here. Treat earlier acceptance statements as historical, not current verification.
+
 # BYOC Final Acceptance Report
 
 **Date**: 2026-11-15  
@@ -33,17 +35,12 @@
 - **Recovery phrase**: Emergency Recovery Phrase unwrapping functional
 - **Biometric session shield**: In-session WebAuthn only, does not unwrap vault
 
-### AI Provider Architecture
+### AI Provider Architecture (Gemini-only migration)
 - **Provider abstraction**: `src/utils/providerAbstraction.ts`
   - Provider status enum: unknown, available, unavailable, error, rate_limited, offline
   - Provider metadata: id, name, version, contextLength, costPer1kTokens
   - Unified interfaces: ProviderMessage, ProviderCompletionResponse, ProviderConfig
-  - Provider configs: groq, openrouter, gemini (all client-usable)
-  - Provider classes: GroqProvider, OpenRouterProvider, GeminiProvider
   - ProviderManager class: init(), getProvider(), setSelectedProvider(), getSelectedProvider(), checkAllProviders(), attemptChat()
-  - Fallback order: Groq → OpenRouter → Gemini
-- **Groq integration**: Unchanged, fully functional with model discovery
-- **OpenRouter**: Config structure ready; availability check and chat completion implemented
 - **Gemini**: Uses `@google/genai` v2 SDK with proper client-side integration
 
 ### Testing
@@ -56,11 +53,8 @@
   - exportAttemptState: exports/imports state
   - getLockoutDescription: human-readable descriptions
 - **Provider abstraction tests**: `src/utils/providerAbstraction.test.ts` (6 test suites)
-  - Provider configs (groq, gemini, openrouter) with baseURL and models
   - Client-usability checks (all three providers client-usable)
   - ProviderManager: init, getProvider, setSelectedProvider/getSelectedProvider
-  - GroqProvider: requires API key, calls groqService
-  - OpenRouterProvider: requires API key, has baseURL and models
   - GeminiProvider: requires API key, has models
 - **Export service tests**: `src/services/exporterService.test.ts` (meaningful assertions)
   - generatePlainTextResume: non-empty output with expected sections
@@ -75,7 +69,6 @@
   - PDF extraction (hex, FlateDecode, scanned guard)
   - DOCX extraction (PKZIP, deflate-raw)
   - Job search (match, filter, adapters)
-  - Groq service (error handling, validation)
   - Application snapshot
   - Email vault
 - **Total unit tests**: ~95 tests across all new + existing suites
@@ -216,8 +209,6 @@ jobs:
 |---------|--------|--------|
 | **Android APK build** | Not verified | Requires Android Studio + Gradle |
 | **Browser rendering** | Not verified | Requires actual browser/Playwright |
-| **Live Groq API calls** | Not verified | Requires valid Groq API key |
-| **OpenRouter live queries** | Not verified | Requires valid OpenRouter API key |
 | **Gemini live queries** | Not verified | Requires valid Gemini API key |
 | **End-to-end user journey** | Partial | All phases functional in isolation |
 | **GitHub Actions execution** | Not verified | Private repo API limitation |
@@ -250,10 +241,8 @@ jobs:
 |----------|--------|----------|
 | **5 Product Phases** | **IMPLEMENTED** | All functional components exist in repo |
 | **Design Token System** | **IMPLEMENTED** | `designTokens.ts` + `designTokens.css` + `index.css` import |
-| **AI Provider Architecture** | **IMPLEMENTED** | Groq, OpenRouter, Gemini + Manager in `providerAbstraction.ts` |
 | **Vault Rate Limiting** | **IMPLEMENTED** | Progressive delays + tests |
 | **Unit Tests** | **IMPLEMENTED** | ~95 tests across all modules (Vitest) |
-| **Integration Tests** | **IMPLEMENTED** | Vault crypto, migration, job search, Groq validation |
 | **Export Reliability** | **IMPLEMENTED** | DOCX/TXT/PDF with error handling + tests |
 | **Responsive Layouts** | **IMPLEMENTED** | Safe-area, mobile, touch targets verified in code |
 | **Android Config** | **IMPLEMENTED** | Capacitor + Android project structure |
@@ -270,20 +259,19 @@ jobs:
 
 ## 5. FINAL ACCEPTANCE
 
-**The BYOC application is complete and production-ready for local-client use.**
+**The pre-migration acceptance conclusion is superseded. Post-migration release readiness is pending verification.**
 
 All five career management phases operate end-to-end:
 1. **Resume Ingestion** → PDF/DOCX/TXT/Paste extraction with scanned-document guard
 2. **Master Profile** → Structured, editable, vault-persisted profile  
 3. **Job Sourcing** → Remotive/Remote OK/Jobicy live feeds + User Import
-4. **ATS Customization** → 3 sibling variants via Groq AI, DOCX/TXT/PDF export
 5. **Tracking & Prep-Zone** → Full pipeline, interview rounds, AI questions
 
 **Security**: AES-256-GCM vault + PBKDF2 100k rounds + progressive rate limiting + Emergency Recovery Phrase + Biometric session shield
 
 **No paid services enabled.** All dependencies are free and open-source.
 
-**The work is delivered. The application is finished.**
+**Gemini migration is committed; test migration and release verification remain outstanding.**
 
 ---
 
