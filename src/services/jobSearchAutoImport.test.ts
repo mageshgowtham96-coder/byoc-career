@@ -25,7 +25,7 @@ Provide patient care and coordinate clinical services. Required skills include c
   const fetchMock=vi.fn().mockResolvedValue({ok:true,status:200,text:async()=>markdown});
   vi.stubGlobal('fetch',fetchMock);
   const job=await fetchAndExtractJobFromUrl('https://jobs.example.com/posting/123');
-  expect(fetchMock).toHaveBeenCalledWith('https://r.jina.ai/https://jobs.example.com/posting/123',expect.objectContaining({signal:expect.anything()}));
+  expect(fetchMock).toHaveBeenCalledWith('https://r.jina.ai/https%3A%2F%2Fjobs.example.com%2Fposting%2F123',expect.objectContaining({signal:expect.anything()}));
   expect(job.jobDescriptionRaw).toContain('Provide patient care');
   expect(job.fitScore).toBeNull();
   expect(job.source).toBe('URL Auto-Import');
