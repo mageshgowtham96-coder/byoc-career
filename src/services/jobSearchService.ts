@@ -275,7 +275,7 @@ export class LiveJobSearchEngine {
 
 export interface JobsEveryHourFeedJob { title?:string; company?:string; location?:string; remote?:boolean; salary?:string; posted?:string; url?:string; description?:string; jobDescription?:string; skills?:string[]; }
 export interface JobsEveryHourFeed { jobs?:JobsEveryHourFeedJob[]; total?:number; name?:string; }
-const JEH_CATEGORIES=['engineering','healthcare','sales','operations','marketing','finance','accounting','customer-support','human-resources','education','logistics','legal','design','product','data','manufacturing','retail','administration','hospitality','construction','security','science','writing','consulting','management'];
+const JEH_CATEGORIES=['hardware-engineering','science-healthcare','retail-food-facilities','operations-administration','sales-business-development','skilled-trades','internships-first-jobs','software-development','accounting-finance','leadership','product-project-management','logistics-warehouse-transport','customer-service-support','cloud-devops-it','data-analytics','education-training','marketing-communications','legal-compliance','hr-recruiting','security','ai-machine-learning','jobs-by-language','writing-editing-translation','crypto-web3','design-creative'];
 const jehFeedCache=new Map<string,{at:number,jobs:JobPosting[]}>();
 const JEH_CACHE_MS=60*60*1000;
 function readJobsFeedCache(url:string){const inMemory=jehFeedCache.get(url);if(inMemory)return inMemory;try{const raw=localStorage.getItem('byoc_jeh_feed_'+encodeURIComponent(url));if(raw){const parsed=JSON.parse(raw) as {at:number,jobs:JobPosting[]};jehFeedCache.set(url,parsed);return parsed;}}catch{/* storage may be unavailable */}return undefined;}
