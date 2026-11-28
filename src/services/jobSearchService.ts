@@ -219,14 +219,6 @@ export class LiveJobSearchEngine {
       location: params.location?.trim() || undefined
     };
 
-    const providerStatuses: JobProviderStatus[] = [{
-      id: 'local_store',
-      name: 'Local Stored Positions',
-      status: 'queried',
-      count: existingJobs.length,
-      detail: `${existingJobs.length} locally saved or manually imported position(s)`
-    }];
-
     const scoredJobs = deduplicateJobs(existingJobs).map((job) => {
       const honestMatch = calculateHonestMatch(job, masterResume);
       return {
