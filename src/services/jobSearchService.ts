@@ -6,7 +6,6 @@ export interface JobSearchQueryParams {
   targetRole?: string;
   skills?: string[];
   seniority?: string;
-  country?: string;
   location?: string;
   workplaceType?: 'All' | 'Remote' | 'Hybrid' | 'On-site';
   salary?: string;
@@ -32,17 +31,6 @@ export interface JobSearchResult {
   lastUpdated: string;
   error?: string;
 }
-
-const EXCLUSIVE_REGION_MARKERS: Array<{ marker: RegExp; countries: string[] }> = [
-  { marker: /\b(usa only|us only|u\.s\. only|united states only|us[- ]residents only|us[- ]based)\b/i, countries: ['US'] },
-  { marker: /\b(uk only|united kingdom only)\b/i, countries: ['GB'] },
-  { marker: /\b(canada only)\b/i, countries: ['CA'] },
-  { marker: /\b(india only)\b/i, countries: ['IN'] },
-  { marker: /\b(germany only)\b/i, countries: ['DE'] },
-  { marker: /\b(latam|latin america|south america)\b/i, countries: [] },
-  { marker: /\b(europe only|eu only|emea only)\b/i, countries: ['GB', 'DE', 'AE'] },
-  { marker: /\b(north america)\b/i, countries: ['US', 'CA'] }
-];
 
 export function sanitizeExternalHttpUrl(rawUrl?: string): string | null {
   const trimmed = (rawUrl || '').trim();
@@ -133,11 +121,6 @@ export function buildPortalShortcutUrl(template: string, query?: string): string
   return sanitizeExternalHttpUrl(hydrated);
 }
 
-export function isWorldwideCountryCode(country?: string): boolean {
-  const normalized = (country || '').trim().toUpperCase();
-  return !normalized || normalized === 'GLOBAL' || normalized === 'WORLDWIDE' || normalized === 'ALL';
-}
-
 /**
  * Deduplicates job postings based on composite signature (normalized company + title)
  */
@@ -224,7 +207,7 @@ export function calculateHonestMatch(
   };
 }
 
-export function buildLocationScopeNotice(_country?: string, location?: string): string {
+export function buildLocationScopeNotice(location?: string): string {
   const cleanLocation = (location || '').trim();
   return cleanLocation
     ? `Location filter: showing locally stored or manually imported positions matching "${cleanLocation}". No external job feeds are queried.`
@@ -232,11 +215,7 @@ export function buildLocationScopeNotice(_country?: string, location?: string): 
 }
 
 /**
- * Local-only job search coordinator.
- * It scores and filters positions already stored in the user's workspace; it does not fetch external feeds.
- */
-/**
- * Central Multi-Provider Live Job Search Coordinator
+ * Local-only job search coordinator. It scores and filters positions already stored in the user's workspace.
  */
 export class LiveJobSearchEngine {
   async executeLiveSearch(
@@ -305,7 +284,7 @@ export class LiveJobSearchEngine {
       totalFound: filtered.length,
       sourcesQueried: ['Local Stored Positions (User Import)'],
       providerStatuses,
-      locationNotice: buildLocationScopeNotice(normalizedParams.country, normalizedParams.location),
+      locationNotice: buildLocationScopeNotice(normalizedParams.location),
       lastUpdated: new Date().toISOString()
     };
   }
