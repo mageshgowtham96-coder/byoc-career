@@ -215,7 +215,7 @@ export const TrackingTab: React.FC = () => {
         </div>
       )}
 
-      {/* Main Kanban / Application Pipeline */}
+      {applications.some(a=>a.status==='Rejected')&&<button type="button" onClick={()=>setShowArchivedRejections(v=>!v)} className="mb-3 px-3 py-2 rounded-lg border border-rose-500/30 text-xs text-rose-300">{showArchivedRejections?'Hide Archived Rejections':'Show Archived Rejections'} ({applications.filter(a=>a.status==='Rejected').length})</button>}\n\n      {/* Main Kanban / Application Pipeline */}
       {applications.length === 0 ? (
         <div className="p-10 rounded-3xl bg-slate-800/40 border border-slate-800 text-center max-w-md mx-auto my-10">
           <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto mb-3">
@@ -293,7 +293,7 @@ export const TrackingTab: React.FC = () => {
                         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 mb-2 text-[10px] text-amber-200">
                           <div className="font-bold mb-1">{getApplicationCheckInStage(app)===14?'14-Day Status Check-In':'7-Day Follow-Up Check-In'}</div>
                           <div className="flex flex-wrap gap-1">
-                            <button type="button" onClick={e=>{e.stopPropagation();acknowledgeApplicationCheckIn(app.id,getApplicationCheckInStage(app) as 7|14);setSelectedApp(app);setActiveModalTab('followup');}} className="px-2 py-1 rounded bg-amber-500 text-slate-950 font-bold">Draft Follow-Up Email</button>
+                            <button type="button" onClick={e=>{e.stopPropagation();acknowledgeApplicationCheckIn(app.id,getApplicationCheckInStage(app) as 7|14);acknowledgeApplicationCheckIn(app.id,getApplicationCheckInStage(app) as 7|14);setSelectedApp(app);setActiveModalTab('followup');}} className="px-2 py-1 rounded bg-amber-500 text-slate-950 font-bold">Draft Follow-Up Email</button>
                             <button type="button" onClick={e=>{e.stopPropagation();updateApplicationStatus(app.id,'Interview');acknowledgeApplicationCheckIn(app.id,getApplicationCheckInStage(app) as 7|14);}} className="px-2 py-1 rounded bg-sky-600 text-white">Moved to Interview</button>
                             <button type="button" onClick={e=>{e.stopPropagation();updateApplicationStatus(app.id,'Rejected',{reason:'Did not progress',notes:''});}} className="px-2 py-1 rounded border border-rose-500/40 text-rose-300">Mark Rejected / Did Not Progress</button>
                           </div>
