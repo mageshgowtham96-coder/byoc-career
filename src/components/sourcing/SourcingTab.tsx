@@ -579,14 +579,10 @@ export const SourcingTab: React.FC = () => {
           : `${workplaceFilter} filters saved and imported positions only.`}
       </p>
 
-      {/* Live Search Feedback Banner */}
+      {/* Local Position Search Feedback */}
       {liveSearchReport && (
         <div
-          className={`p-3 rounded-xl border text-xs space-y-1 ${
-            liveSearchReport.error
-              ? 'bg-rose-950/25 border-rose-500/40 text-rose-200'
-              : 'bg-slate-900/80 border-slate-700/80 text-slate-300'
-          }`}
+          className="p-3 rounded-xl border text-xs space-y-1 bg-slate-900/80 border-slate-700/80 text-slate-300"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="font-semibold text-white">
