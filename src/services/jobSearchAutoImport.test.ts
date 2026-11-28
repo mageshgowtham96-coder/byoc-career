@@ -30,7 +30,7 @@ Provide patient care and coordinate clinical services. Required skills include c
   expect(job.fitScore).toBeNull();
   expect(job.source).toBe('URL Auto-Import');
  });
- it('throws a manual paste fallback error for blocked Jina responses',async()=>{
+ it('reuses cached extracted jobs for repeated identical URLs',async()=>{\n  const fetchMock=vi.fn().mockResolvedValue({ok:true,status:200,text:async()=>markdown});vi.stubGlobal('fetch',fetchMock);\n  const first=await fetchAndExtractJobFromUrl('https://jobs.example.com/posting/cache-test');\n  const second=await fetchAndExtractJobFromUrl('https://jobs.example.com/posting/cache-test');\n  expect(second.id).toBe(first.id);expect(fetchMock).toHaveBeenCalledTimes(1);\n });\n it('throws a manual paste fallback error for blocked Jina responses',async()=>{
   vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,status:200,text:async()=> 'Sign in to continue. Login required.'}));
   await expect(fetchAndExtractJobFromUrl('https://linkedin.com/jobs/view/1')).rejects.toThrow(/paste the job description manually/i);
  });
