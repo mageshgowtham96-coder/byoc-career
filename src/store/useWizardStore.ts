@@ -723,27 +723,21 @@ export const useWizardStore = create<WizardState>()(
       },
 
       updateApplicationStatus: (id, status, rejectionData) => {
-        set((state) => ({
-          applications: state.applications.map((app) => {
-            if (app.id !== id) return app;
-            return {
-              ...app,
-              status,
-              lastActivityDate: new Date().toISOString(),
-              rejectionDate: status === 'Rejected' ? new Date().toISOString() : app.rejectionDate,
-              rejectionReason: rejectionData?.reason || app.rejectionReason,
-              rejectionNotes: rejectionData?.notes || app.rejectionNotes
-            };
-          })
-        }));
-        get().addToast({
-          type: 'info',
-          title: 'Status Updated',
-          message: `Application moved to ${status}.`
-        });
+        const now=new Date().toISOString();
+        set(state=>({applications:state.applications.map(app=>{
+          if(app.id!==id)return app;
+          const next={...app,status,lastActivityDate:now,rejectionDate:status==='Rejected'?now:app.rejectionDate,rejectionReason:rejectionData?.reason||app.rejectionReason,rejectionNotes:rejectionData?.notes||app.rejectionNotes};
+          return status==='Rejected'?compactRejectedApplication(next,rejectionData?.reason||'Did not progress',now):next;
+        })}));
+        get().addToast({type:'info',title:'Status Updated',message:'Application moved to '+status+'.'});
       },
 
-      acknowledgeApplicationCheckIn: (id,stage) => {\n        const now=new Date().toISOString();\n        set(state=>({applications:state.applications.map(app=>app.id===id?{...app,...(stage===7?{checkIn7AcknowledgedAt:now}:{checkIn14AcknowledgedAt:now})}:app)}));\n      },\n\n      updateApplicationNotes: (id, notes) => {
+      acknowledgeApplicationCheckIn: (id,stage) => {
+        const now=new Date().toISOString();
+        set(state=>({applications:state.applications.map(app=>app.id===id?{...app,...(stage===7?{checkIn7AcknowledgedAt:now}:{checkIn14AcknowledgedAt:now})}:app)}));
+      },
+
+      updateApplicationNotes: (id, notes) => {
         set((state) => ({
           applications: state.applications.map((app) =>
             app.id === id ? { ...app, notes } : app
@@ -780,16 +774,7 @@ export const useWizardStore = create<WizardState>()(
         }));
       },
 
-      getFollowUpRequiredApplications: () => {
-        const now = Date.now();
-        const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-        return get().applications.filter((app) => {
-          if (app.status !== 'Applied') return false;
-          const appliedTime = new Date(app.appliedDate).getTime();
-          return now - appliedTime >= SEVEN_DAYS_MS || app.notes?.includes('[NeedsFollowUp]');
-        });
-      },
-
+      getFollowUpRequiredApplications: () => get().applications.filter(app=>getApplicationCheckInStage(app)!==null),
       generateFollowUpEmailContent: (app: ApplicationRecord) => {
         const candidateName = get().masterResume?.contactInfo.name || get().user?.name || '';
         const candidateEmail = get().masterResume?.contactInfo.email || get().user?.email || '';
