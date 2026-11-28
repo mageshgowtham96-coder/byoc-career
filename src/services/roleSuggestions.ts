@@ -25,6 +25,32 @@ const SHORT_FORMS: Record<string,string[]> = {
   ta:['Talent Acquisition Specialist','Recruiter']
 };
 const normalize = (s:string) => s.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const ROLE_ALIASES: Record<string,string[]> = {
+ 'fraud risk analyst':['fraud analyst','fraud detection analyst','fraud investigator','risk analyst'],
+ 'fraud analyst':['fraud risk analyst','fraud detection analyst','fraud investigator'],
+ 'hr':['human resources','human resources assistant','hr generalist','recruiter','talent acquisition'],
+ 'human resources':['hr','hr generalist','recruiter','talent acquisition'],
+ 'customer support':['customer service','customer service representative','customer support specialist','support agent'],
+ 'customer service':['customer support','customer support specialist','customer service representative','support agent'],
+ 'qa':['quality assurance','quality assurance analyst','qa engineer','test engineer'],
+ 'quality assurance':['qa','qa engineer','quality assurance analyst','test engineer'],
+ 'ops':['operations','operations analyst','operations manager'],
+ 'operations':['ops','operations analyst','operations manager'],
+ 'data analyst':['data analytics','business analyst'],
+ 'business analyst':['business analysis','data analyst'],
+ 'software developer':['software engineer','programmer','application developer'],
+ 'software engineer':['software developer','programmer','application developer'],
+ 'accountant':['accounting','accounts specialist'],
+ 'nurse':['registered nurse','nursing'],
+ 'sales representative':['sales executive','sales associate'],
+ 'admin':['administration','administrative assistant','office administrator']
+};
+export function expandOccupationSearchTermsLocally(query:string):string[] {
+ const normalized=normalize(query);
+ const aliases=ROLE_ALIASES[normalized]||[];
+ const reverse=Object.entries(ROLE_ALIASES).filter(([,values])=>values.some(v=>normalize(v)===normalized)).map(([key])=>key);
+ return [...new Set([query.trim(),...aliases,...reverse].filter(Boolean))].slice(0,6);
+}
 function distance(a:string,b:string):number {
   const prev=Array.from({length:b.length+1},(_,i)=>i);
   for(let i=1;i<=a.length;i++){
@@ -36,7 +62,7 @@ function distance(a:string,b:string):number {
 export function getOccupationSuggestions(query:string, resumeText='', cachedJobTitles:string[]=[]):string[] {
   const q=normalize(query); if(q.length<2)return [];
   const candidates=[...OCCUPATIONS,...cachedJobTitles,...resumeText.split(/[\n,;|]/).map(x=>x.trim()).filter(x=>x.length>2)];
-  const expanded=SHORT_FORMS[q]||[];
+  const expanded=[...(SHORT_FORMS[q]||[]),...expandOccupationSearchTermsLocally(query)];
   const unique=[...new Set([...candidates,...expanded].map(x=>x.trim()).filter(Boolean))];
   return unique.map(title=>{
     const n=normalize(title), words=n.split(' ');
