@@ -597,11 +597,6 @@ export const SourcingTab: React.FC = () => {
             </span>
           </div>
           <p className="text-[11px] text-slate-400">{liveSearchReport.locationNotice}</p>
-          {liveSearchReport.error && (
-            <p className="text-[11px] text-rose-300 font-mono">
-              Search Error: {liveSearchReport.error}
-            </p>
-          )}
         </div>
       )}
 
@@ -614,18 +609,12 @@ export const SourcingTab: React.FC = () => {
                 <FileText className="w-7 h-7" />
               </div>
               <h3 className="text-base font-bold text-white mb-2">
-                {liveSearchReport?.error
-                  ? 'Job search needs attention'
-                  : liveSearchReport
-                    ? 'No matching openings found'
-                    : 'No job listings added yet'}
+                {liveSearchReport ? 'No matching stored positions found' : 'No job listings added yet'}
               </h3>
               <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-                {liveSearchReport?.error
-                  ? liveSearchReport.error
-                  : liveSearchReport
-                    ? 'No roles matched your current search and location filters. Try adjusting your keywords or search area.'
-                    : 'BYOC does not invent job postings. Paste a job description from an employer portal or search public listings to get started.'}
+                {liveSearchReport
+                  ? 'No saved or imported positions match your current filters. Adjust your keywords or location, or paste a job description from an external portal.'
+                  : 'BYOC does not invent job postings. Paste a job description from an external portal to get started.'}
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
