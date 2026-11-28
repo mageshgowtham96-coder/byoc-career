@@ -36,7 +36,7 @@ function mockPdf(pages: string[][]) {
     })),
     destroy: vi.fn(async () => undefined)
   };
-  getDocument.mockReturnValue({ promise: Promise.resolve(pdf), destroy: vi.fn(async () => undefined) });
+  getDocument.mockReturnValue({ promise: Promise.resolve(pdf), destroy: pdf.destroy });
   return pdf;
 }
 
