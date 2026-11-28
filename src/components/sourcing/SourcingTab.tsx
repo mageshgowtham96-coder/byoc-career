@@ -67,7 +67,7 @@ export const SourcingTab: React.FC = () => {
   const [isSearchingLive, setIsSearchingLive] = useState(false);
   const [liveSearchReport, setLiveSearchReport] = useState<JobSearchResult | null>(null);
   const [showAddJobModal, setShowAddJobModal] = useState(false);
-  const [occupationSuggestionsOpen,setOccupationSuggestionsOpen]=useState(false);
+  const [occupationSuggestionsOpen,setOccupationSuggestionsOpen]=useState(false);\n  const [activeSuggestionIndex,setActiveSuggestionIndex]=useState(0);
   const [isDiscoveringJobs,setIsDiscoveringJobs]=useState(false);
   const [jobUrlInput,setJobUrlInput]=useState('');
   const [isAutoImporting,setIsAutoImporting]=useState(false);
@@ -590,17 +590,17 @@ export const SourcingTab: React.FC = () => {
             role="combobox"
             aria-autocomplete="list"
             aria-expanded={occupationSuggestionsOpen&&occupationSuggestions.length>0}
-            aria-controls="occupation-suggestions"
+            aria-controls="occupation-suggestions"\n            aria-activedescendant={occupationSuggestionsOpen&&occupationSuggestions[activeSuggestionIndex]?`occupation-option-${activeSuggestionIndex}`:undefined}
             value={searchQuery}
             onFocus={()=>setOccupationSuggestionsOpen(true)}
-            onChange={(e) => {setSearchQuery(e.target.value);setOccupationSuggestionsOpen(true);}}
-            onKeyDown={(e)=>{if(e.key==='Escape')setOccupationSuggestionsOpen(false);if(e.key==='Enter'&&searchQuery.trim()){setOccupationSuggestionsOpen(false);void handleDiscoverJobs(searchQuery.trim());}}}
+            onChange={(e) => {setSearchQuery(e.target.value);setActiveSuggestionIndex(0);setOccupationSuggestionsOpen(true);}}
+            onKeyDown={(e)=>{if(e.key==='Escape')setOccupationSuggestionsOpen(false);if(e.key==='ArrowDown'&&occupationSuggestionsOpen&&occupationSuggestions.length){e.preventDefault();setActiveSuggestionIndex(i=>Math.min(i+1,occupationSuggestions.length-1));}if(e.key==='ArrowUp'&&occupationSuggestionsOpen&&occupationSuggestions.length){e.preventDefault();setActiveSuggestionIndex(i=>Math.max(i-1,0));}if(e.key==='Enter'&&searchQuery.trim()){e.preventDefault();const chosen=occupationSuggestionsOpen&&occupationSuggestions[activeSuggestionIndex]?occupationSuggestions[activeSuggestionIndex]:searchQuery.trim();setSearchQuery(chosen);setOccupationSuggestionsOpen(false);void handleDiscoverJobs(chosen);}}}
             placeholder="Occupation / job title (type 2+ letters)..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
           />
           {occupationSuggestionsOpen&&occupationSuggestions.length>0&&(
             <div id="occupation-suggestions" role="listbox" className="absolute z-30 top-full mt-1 left-0 right-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
-              {occupationSuggestions.map((suggestion,i)=><button key={suggestion} type="button" role="option" aria-selected={false} onClick={()=>{setSearchQuery(suggestion);setOccupationSuggestionsOpen(false);void handleDiscoverJobs(suggestion);}} className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-indigo-600/30 border-b border-slate-800 last:border-0">{suggestion}</button>)}
+              {occupationSuggestions.map((suggestion,i)=><button key={suggestion} type="button" role="option" id={`occupation-option-${i}`} aria-selected={i===activeSuggestionIndex} onMouseEnter={()=>setActiveSuggestionIndex(i)} onClick={()=>{setSearchQuery(suggestion);setOccupationSuggestionsOpen(false);void handleDiscoverJobs(suggestion);}} className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-indigo-600/30 border-b border-slate-800 last:border-0">{suggestion}</button>)}
             </div>
           )}
         </div>
