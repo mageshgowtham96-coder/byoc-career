@@ -72,6 +72,14 @@ jobs:
       - name: Install locked dependencies
         run: bun install --frozen-lockfile
 
+      - name: Verify legacy job feeds are absent from src
+        run: |
+          if grep -riE "[r]emotive|[r]emoteok|remote[ ]ok|[j]obicy|[a]rbeitnow|[a]dzuna" src/; then
+            echo "Legacy job-feed references remain in src/."
+            exit 1
+          fi
+          echo "Verified: no legacy job-feed references in src/."
+
       - name: TypeScript check
         run: bun run lint
 

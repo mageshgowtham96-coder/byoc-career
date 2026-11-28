@@ -266,9 +266,6 @@ export interface AppToast {
 
 export type JobSourcePortal =
   | 'All'
-  | 'Remotive Live'
-  | 'Remote OK Live'
-  | 'Jobicy Live'
   | 'User Import'
   | 'LinkedIn'
   | 'Glassdoor'
@@ -287,7 +284,6 @@ export interface PortalShortcut {
 
 export interface CandidatePreferences {
   country: string; // Default market region (e.g. 'IN', 'US', 'GLOBAL')
-  includeWorldwideRemote?: boolean;
   preferredLocations: string[];
   portals: JobSourcePortal[];
   portalShortcuts?: PortalShortcut[];

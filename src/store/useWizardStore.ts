@@ -51,9 +51,8 @@ import {
 
 export const DEFAULT_CANDIDATE_PREFERENCES: CandidatePreferences = {
   country: 'IN',
-  includeWorldwideRemote: true,
   preferredLocations: [],
-  portals: ['Remotive Live', 'User Import'],
+  portals: ['User Import'],
   portalShortcuts: DEFAULT_PORTAL_SHORTCUTS,
   noticePeriod: '',
   expectedCtc: '',

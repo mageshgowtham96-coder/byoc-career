@@ -559,7 +559,7 @@ export const SettingsTab: React.FC = () => {
               <p className="font-semibold text-white">5-Stage Career Execution Pipeline</p>
               <ol className="list-decimal list-inside space-y-1.5 text-slate-400">
                 <li><strong className="text-slate-200">Intake:</strong> Upload your master resume or paste raw text, verify extracted milestones in the Review Gate, and approve into your vault.</li>
-                <li><strong className="text-slate-200">Sourcing:</strong> Paste job descriptions from any board or query the public Remotive, Remote OK, and Jobicy remote feeds. These are not an exhaustive global index; Adzuna needs server-side credentials, and LinkedIn/Glassdoor/Naukri/Indeed/Foundit/Instahyre remain shortcuts rather than live feeds.</li>
+                <li><strong className="text-slate-200">Sourcing:</strong> Search saved positions and paste job descriptions from any external board. Portal shortcuts open external websites; BYOC does not fetch job listings from them.</li>
                 <li><strong className="text-slate-200">Vetting:</strong> Audit role requirements, culture signals, and skill gaps via Gemini before investing time tailoring.</li>
                 <li><strong className="text-slate-200">Customize:</strong> Generate 3 strictly grounded resume variations, review diffs, export PDF/DOCX/TXT, and use questionnaire chips.</li>
                 <li><strong className="text-slate-200">Tracking &amp; Prep-Zone:</strong> Save immutable application snapshots, track interview stages, and practice domain-grounded prompts.</li>

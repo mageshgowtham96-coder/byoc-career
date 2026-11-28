@@ -37,8 +37,6 @@ self.addEventListener('fetch', (event) => {
   // Never cache external API queries, auth endpoints, AI streams, or Vite dev/source modules.
   if (
     url.hostname.includes('googleapis.com') ||
-    url.hostname.includes('adzuna.com') ||
-    url.hostname.includes('remotive.com') ||
     url.pathname.includes('/auth') ||
     url.pathname.includes('/credentials') ||
     url.pathname.startsWith('/src/') ||

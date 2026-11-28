@@ -38,15 +38,9 @@ import {
   emailVault
 } from '../services/emailSyncService';
 import {
-  AdzunaJobAdapter,
   DEFAULT_PORTAL_SHORTCUTS,
-  JobicyJobAdapter,
-  LiveJobSearchEngine,
-  PublicFeedsJobAdapter,
-  RemoteOkJobAdapter,
   buildPortalShortcutUrl,
   calculateHonestMatch,
-  isWorldwideCountryCode,
   mergePortalShortcuts,
   sanitizeExternalHttpUrl
 } from '../services/jobSearchService';
