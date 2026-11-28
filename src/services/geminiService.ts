@@ -709,7 +709,7 @@ export async function expandOccupationSearchTermsWithGemini(query: string, apiKe
     );
     const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
     const parsed = JSON.parse(cleaned) as { titles?: unknown };
-    const titles = Array.isArray(parsed.titles) ? parsed.titles.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map(x=>x.trim()).slice(0,2) : [];
+    const titles = Array.isArray(parsed.titles) ? parsed.titles.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map(x=>x.trim()).filter(x=>x.toLowerCase()!==clean.toLowerCase()).slice(0,2) : [];
     return [...new Set([clean,...titles])];
   } catch {
     return [clean];
