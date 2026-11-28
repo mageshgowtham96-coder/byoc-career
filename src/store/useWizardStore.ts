@@ -38,7 +38,7 @@ import {
   type DecryptedVaultData,
   type VaultEnvelope
 } from '../utils/cryptoVault';
-import { compactRejectedApplication, getApplicationCheckInStage } from '../utils/applicationLifecycle';
+import { compactRejectedApplication, getApplicationCheckInStage, matchesRejectedApplication } from '../utils/applicationLifecycle';
 import {
   WORKSPACE_STORE_KEY,
   extractLegacyPlaintextFromRawStore,
@@ -656,27 +656,7 @@ export const useWizardStore = create<WizardState>()(
 
       // Tracking Pipeline & Rejection Deduplication
       applications: [],
-      checkRejectionCollision: (company: string, role: string) => {
-        const compLower = company.toLowerCase().trim();
-        const roleLower = role.toLowerCase().trim();
-
-        const match = get().applications.find((app) => {
-          if (app.status !== 'Rejected') return false;
-          const appComp = app.company.toLowerCase().trim();
-          const appRole = app.role.toLowerCase().trim();
-          return (
-            (appComp === compLower || appComp.includes(compLower) || compLower.includes(appComp)) &&
-            (appRole === roleLower || appRole.includes(roleLower) || roleLower.includes(appRole))
-          );
-        });
-
-        return {
-          isCollision: Boolean(match),
-          pastRecord: match
-        };
-      },
-
-      applyForJob: (jobId, notes = '', overrideRejection = false, portalSource) => {
+      checkRejectionCollision: (company: string, role: string) => {\n        const match=get().applications.find(app=>matchesRejectedApplication(app,company,role));\n        return {isCollision:Boolean(match),pastRecord:match};\n      },\n\n      applyForJob: (jobId, notes = '', overrideRejection = false, portalSource) => {
         const job = get().jobs.find((j) => j.id === jobId);
         if (!job) {
           get().addToast({
