@@ -19,7 +19,12 @@ describe('application check-in lifecycle',()=>{
   expect(getApplicationCheckInStage({...base,checkIn7AcknowledgedAt:'2026-11-08',checkIn14AcknowledgedAt:'2026-11-15'},now)).toBeNull();
   expect(getApplicationCheckInStage({...base,checkIn7AcknowledgedAt:'2026-11-09'},now)).toBe(14);
  });
- it('keeps the rejection fingerprint collision active after compaction',()=>{\n  const rejected=compactRejectedApplication(base,'Did not progress');\n  expect(matchesRejectedApplication(rejected,'example','Analyst')).toBe(true);\n  expect(matchesRejectedApplication(rejected,'Other Company','Analyst')).toBe(false);\n });\n it('compacts rejected application while preserving fingerprint fields and reason',()=>{
+ it('keeps the rejection fingerprint collision active after compaction',()=>{
+  const rejected=compactRejectedApplication(base,'Did not progress');
+  expect(matchesRejectedApplication(rejected,'example','Analyst')).toBe(true);
+  expect(matchesRejectedApplication(rejected,'Other Company','Analyst')).toBe(false);
+ });
+ it('compacts rejected application while preserving fingerprint fields and reason',()=>{
   const compact=compactRejectedApplication(base,'Rejected after interview','2026-11-15');
   expect(compact.status).toBe('Rejected');
   expect(compact.company).toBe(base.company);
