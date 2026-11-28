@@ -225,12 +225,12 @@ export const SourcingTab: React.FC = () => {
       return;
     }
 
-    if(job.source==='JobsEveryHour'&&!job.jobDescriptionRaw){
+    if(job.source==='JobsEveryHour'&&(job.jobDescriptionRaw||'').trim().length<500){
       setSelectedJobId(job.id);
       try{
         const resolved=await fetchAndExtractJobFromUrl(job.url,geminiApiKey);
         const match=calculateHonestMatch(resolved,masterResume);
-        const full={...job,...resolved,id:job.id,fitScore:match.score,matchedKeywords:match.matchedKeywords,missingKeywords:match.missingKeywords,fitStatusText:match.statusText};
+        const full={...job,...resolved,id:job.id,source:'JobsEveryHour',fitScore:match.score,matchedKeywords:match.matchedKeywords,missingKeywords:match.missingKeywords,fitStatusText:match.score===null?match.statusText:undefined};
         setJobs(jobs.map(j=>j.id===job.id?full:j));
         addToast({type:'success',title:'Full Job Description Retrieved',message:'This listing is now scored against your resume.'});
       }catch(err){addToast({type:'warning',title:'Could Not Retrieve Full JD',message:err instanceof Error?err.message:'Paste the full JD manually to score this role.'});setCustomTitle(job.title);setCustomCompany(job.company);setCustomUrl(job.url);setShowAddJobModal(true);}
