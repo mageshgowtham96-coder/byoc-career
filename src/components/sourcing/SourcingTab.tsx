@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getMatchWarningMessage } from '../../utils/matchWarning';
 import { useWizardStore } from '../../store/useWizardStore';
 import {
   jobSearchEngine,
@@ -777,6 +778,7 @@ export const SourcingTab: React.FC = () => {
             const isSelected = selectedJobId === job.id;
             const isUpgrade = Boolean(job.isRoleUpgrade);
             const isPreviouslyTracked = isJobPreviouslyTracked(job.company, job.title);
+            const matchWarning = getMatchWarningMessage(job);
 
             return (
               <div
@@ -884,6 +886,21 @@ export const SourcingTab: React.FC = () => {
                     )}
                   </div>
                 </div>
+
+                {matchWarning && (
+                  <div
+                    role="status"
+                    className="mt-4 mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-100"
+                  >
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                      <p className="leading-relaxed">{matchWarning}</p>
+                    </div>
+                    <p className="mt-1 pl-6 text-[11px] text-amber-200/80">
+                      This is an advisory only. You can still continue to Tailor Kit or mark the job as Applied.
+                    </p>
+                  </div>
+                )}
 
                 {/* Role Upgrade Analytical Micro-Gap Analysis Overlay */}
                 {isUpgrade && job.roleUpgradeReason && (
