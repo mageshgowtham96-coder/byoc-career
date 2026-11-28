@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useWizardStore } from '../../store/useWizardStore';
 import { sanitizeExternalHttpUrl } from '../../services/jobSearchService';
+import { getApplicationCheckInStage } from '../../utils/applicationLifecycle';
 import type { ApplicationRecord, ApplicationStatus } from '../../types';
 import {
   KanbanSquare,
@@ -43,6 +44,7 @@ export const TrackingTab: React.FC = () => {
     isEmailSyncing,
     lastEmailSyncDate,
     generateFollowUpEmailContent,
+    acknowledgeApplicationCheckIn,
     addToast
   } = useWizardStore();
 
@@ -60,6 +62,7 @@ export const TrackingTab: React.FC = () => {
   const [rejectionNotesInput, setRejectionNotesInput] = useState('');
   const [showRejectionForm, setShowRejectionForm] = useState(false);
   const [confirmArchiveId, setConfirmArchiveId] = useState<string | null>(null);
+  const [showArchivedRejections,setShowArchivedRejections]=useState(false);
 
   const statuses: ApplicationStatus[] = [
     'Saved',
@@ -229,7 +232,7 @@ export const TrackingTab: React.FC = () => {
         /* Status Board Columns */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {statuses.map((status) => {
-            const appsInStatus = applications.filter((a) => a.status === status);
+            const appsInStatus = applications.filter((a) => a.status === status && (status!=='Rejected'||showArchivedRejections));
 
             return (
               <div
@@ -286,14 +289,14 @@ export const TrackingTab: React.FC = () => {
                         {app.role}
                       </h4>
 
-                      {/* 7+ Days Follow-Up Badge */}
-                      {app.status === 'Applied' && (Date.now() - new Date(app.appliedDate).getTime() >= 7 * 24 * 60 * 60 * 1000 || app.notes?.includes('[NeedsFollowUp]')) && (
-                        <div className="text-[10px] text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-1 rounded-lg mb-2 flex items-center justify-between font-mono">
-                          <span className="flex items-center gap-1 font-bold">
-                            <Clock className="w-3 h-3 text-amber-400" />
-                            <span>7+ Days: Follow-Up Ready</span>
-                          </span>
-                          <span className="text-[9px] text-slate-400 font-sans">{app.portalSource || 'Direct'}</span>
+                      {getApplicationCheckInStage(app)!==null&&(
+                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2 mb-2 text-[10px] text-amber-200">
+                          <div className="font-bold mb-1">{getApplicationCheckInStage(app)===14?'14-Day Status Check-In':'7-Day Follow-Up Check-In'}</div>
+                          <div className="flex flex-wrap gap-1">
+                            <button type="button" onClick={e=>{e.stopPropagation();setSelectedApp(app);setActiveModalTab('followup');}} className="px-2 py-1 rounded bg-amber-500 text-slate-950 font-bold">Draft Follow-Up Email</button>
+                            <button type="button" onClick={e=>{e.stopPropagation();updateApplicationStatus(app.id,'Interview');acknowledgeApplicationCheckIn(app.id,getApplicationCheckInStage(app) as 7|14);}} className="px-2 py-1 rounded bg-sky-600 text-white">Moved to Interview</button>
+                            <button type="button" onClick={e=>{e.stopPropagation();updateApplicationStatus(app.id,'Rejected',{reason:'Did not progress',notes:''});}} className="px-2 py-1 rounded border border-rose-500/40 text-rose-300">Mark Rejected / Did Not Progress</button>
+                          </div>
                         </div>
                       )}
 
