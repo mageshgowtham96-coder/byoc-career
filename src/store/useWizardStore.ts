@@ -657,7 +657,12 @@ export const useWizardStore = create<WizardState>()(
 
       // Tracking Pipeline & Rejection Deduplication
       applications: [],
-      checkRejectionCollision: (company: string, role: string) => {\n        const match=get().applications.find(app=>matchesRejectedApplication(app,company,role));\n        return {isCollision:Boolean(match),pastRecord:match};\n      },\n\n      applyForJob: (jobId, notes = '', overrideRejection = false, portalSource) => {
+      checkRejectionCollision: (company: string, role: string) => {
+        const match=get().applications.find(app=>matchesRejectedApplication(app,company,role));
+        return {isCollision:Boolean(match),pastRecord:match};
+      },
+
+      applyForJob: (jobId, notes = '', overrideRejection = false, portalSource) => {
         const job = get().jobs.find((j) => j.id === jobId);
         if (!job) {
           get().addToast({
