@@ -274,4 +274,7 @@ describe('Gemini service', () => {
   });
 });
 
-describe('optional Gemini occupation expansion',()=>{\n it('falls back to the entered title without a configured key',async()=>{expect(await expandOccupationSearchTermsWithGemini('Fraud Risk Analyst')).toEqual(['Fraud Risk Analyst']);});\n it('returns no terms for blank input',async()=>{expect(await expandOccupationSearchTermsWithGemini('  ')).toEqual([]);});\n});\n
+describe('optional Gemini occupation expansion',()=>{
+ it('falls back to the entered title without a configured key',async()=>{expect(await expandOccupationSearchTermsWithGemini('Fraud Risk Analyst')).toEqual(['Fraud Risk Analyst']);});
+ it('returns no terms for blank input',async()=>{expect(await expandOccupationSearchTermsWithGemini('  ')).toEqual([]);});
+});
