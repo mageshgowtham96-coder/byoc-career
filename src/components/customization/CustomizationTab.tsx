@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getMatchWarningMessage } from '../../utils/matchWarning';
 import { useWizardStore } from '../../store/useWizardStore';
 import { tailorResumeWithGemini, draftQuestionnaireAnswer, formatGeminiError } from '../../services/geminiService';
 import { sanitizeExternalHttpUrl } from '../../services/jobSearchService';
@@ -128,6 +129,7 @@ export const CustomizationTab: React.FC = () => {
   // Action Gating Checks
   const hasResume = Boolean(masterResume && (masterResume.rawText.length > 20 || masterResume.experiences.length > 0));
   const hasJob = Boolean(selectedJob);
+  const matchWarning = selectedJob ? getMatchWarningMessage(selectedJob) : null;
 
   const handleGenerateTailoring = async () => {
     if (!hasResume) {
@@ -342,6 +344,21 @@ export const CustomizationTab: React.FC = () => {
           </div>
         ) : null}
       </div>
+
+      {matchWarning && (
+        <div
+          role="status"
+          className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-100"
+        >
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+            <p className="leading-relaxed">{matchWarning}</p>
+          </div>
+          <p className="mt-1 pl-6 text-[11px] text-amber-200/80">
+            This is an advisory only. You may continue tailoring or mark the job as Applied if you choose.
+          </p>
+        </div>
+      )}
 
       {/* Action-Level Gating Banners */}
       {!hasResume && (

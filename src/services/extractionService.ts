@@ -1,5 +1,9 @@
 import type { MasterResume, ExperienceItem, EducationItem, ProjectItem, CertificationItem, ByocStructuredApplicationData } from '../types';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 export type { ByocStructuredApplicationData };
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export interface ExtractionResult {
   success: boolean;
@@ -116,7 +120,7 @@ export async function extractResumeFile(file?: File | null): Promise<ExtractionR
     const charCount = cleanedText.length;
 
     // Scanned Image / Empty / Complex Encoded Stream Detection
-    if (wordCount < 10) {
+    if ((fileExt === 'pdf' && wordCount < 5) || (fileExt !== 'pdf' && wordCount < 10)) {
       return {
         success: false,
         isScannedImage: true,
@@ -125,8 +129,9 @@ export async function extractResumeFile(file?: File | null): Promise<ExtractionR
         pageCount: detectedPages || 1,
         charCount,
         fileName,
-        error:
-          'No readable text stream could be extracted. Scanned image PDFs, encrypted PDFs, and complex font-encoded PDFs require Manual Paste Fallback (or .docx/.txt/.md upload).'
+        error: fileExt === 'pdf'
+          ? 'This PDF contains fewer than 5 readable words. It may be a scanned or image-only PDF. Please use Manual Paste Fallback; cloud OCR is not used.'
+          : 'No readable text could be extracted. Please use Manual Paste Fallback or upload a .docx/.txt/.md file.'
       };
     }
 
@@ -156,133 +161,49 @@ export async function extractResumeFile(file?: File | null): Promise<ExtractionR
   }
 }
 
-function collectPdfOperatorText(content: string): string[] {
-  const chunks: string[] = [];
-
-  // Match Tj operator (single string in parentheses)
-  const tjRegex = /\(([^)\\]*(?:\\.[^)\\]*)*)\)\s*Tj/g;
-  let match: RegExpExecArray | null;
-  while ((match = tjRegex.exec(content)) !== null) {
-    const clean = cleanPdfString(match[1]);
-    if (clean) chunks.push(clean);
-  }
-
-  // Standard PDF writers often encode text operands as hexadecimal strings,
-  // including pdf-lib's built-in fonts. Do not scan arbitrary stream bytes for
-  // words; only decode hex strings immediately followed by a text-show operator.
-  const hexTjRegex = /<([0-9a-fA-F\s]+)>\s*Tj/g;
-  while ((match = hexTjRegex.exec(content)) !== null) {
-    const clean = cleanPdfHexString(match[1]);
-    if (clean) chunks.push(clean);
-  }
-
-  // Match TJ operator (array of strings)
-  const arrayTjRegex = /\[([\s\S]*?)\]\s*TJ/g;
-  while ((match = arrayTjRegex.exec(content)) !== null) {
-    const inner = match[1];
-    const itemRegex = /\(([^)\\]*(?:\\.[^)\\]*)*)\)|<([0-9a-fA-F\s]+)>/g;
-    let itemMatch: RegExpExecArray | null;
-    let combined = '';
-    while ((itemMatch = itemRegex.exec(inner)) !== null) {
-      combined += itemMatch[1] !== undefined ? cleanPdfString(itemMatch[1]) : cleanPdfHexString(itemMatch[2]);
-    }
-    if (combined.trim()) chunks.push(combined.trim());
-  }
-
-  return chunks;
-}
-
 /**
- * Client-side PDF stream extractor for basic uncompressed or FlateDecode ASCII text-operator PDFs.
- * Does not OCR raster pages or decode encrypted / complex CID glyph-mapped PDFs.
+ * Extract selectable text locally with Mozilla PDF.js. Vite emits the worker
+ * as an application asset for offline browser and Capacitor WebView use.
+ * PDF.js preserves its standard text-item order; arbitrary multi-column visual
+ * reading order is not guaranteed to be reconstructed.
  */
 async function extractPdfText(file: File): Promise<{ text: string; pageCount: number }> {
-  const arrayBuffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
-
-  // Convert buffer to Latin-1 / byte-safe binary string
-  let binaryString = '';
-  const chunkSize = 8192;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binaryString += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-
-  // Determine actual page count from PDF catalog
-  const pageMatches = binaryString.match(/\/Type\s*\/Page\b/g);
-  let pageCount = pageMatches ? pageMatches.length : 1;
-
-  const textChunks = collectPdfOperatorText(binaryString);
-
-  // Safely attempt FlateDecode decompression on streams to inspect Tj/TJ operators when uncompressed scan is sparse
-  if (textChunks.join(' ').split(/\s+/).filter(Boolean).length < 15 && typeof DecompressionStream !== 'undefined') {
-    const streamHeaderRegex = /<<([\s\S]*?)>>\s*stream\r?\n/g;
-    let headerMatch: RegExpExecArray | null;
-    while ((headerMatch = streamHeaderRegex.exec(binaryString)) !== null) {
-      const dict = headerMatch[1];
-      if (!/\/FlateDecode\b/.test(dict)) continue;
-
-      const streamStart = headerMatch.index + headerMatch[0].length;
-      const streamEnd = binaryString.indexOf('endstream', streamStart);
-      if (streamEnd === -1 || streamEnd <= streamStart) continue;
-
-      // Trim trailing CRLF / LF before endstream
-      let endIdx = streamEnd;
-      if (endIdx > streamStart && bytes[endIdx - 1] === 0x0a) endIdx--;
-      if (endIdx > streamStart && bytes[endIdx - 1] === 0x0d) endIdx--;
-
-      try {
-        const compressedSlice = bytes.slice(streamStart, endIdx);
-        const decompressed = await decompressBytes(compressedSlice, 'deflate');
-        const streamText = new TextDecoder('latin1').decode(decompressed);
-        const decompressedChunks = collectPdfOperatorText(streamText);
-        if (decompressedChunks.length > 0) {
-          textChunks.push(...decompressedChunks);
-        }
-      } catch {
-        // Ignore non-zlib or encrypted streams cleanly
-      }
-    }
-  }
-
-  let fullText = textChunks.join('\n');
-
-  // Normalize page count if 0
-  if (pageCount < 1) {
-    const words = fullText.split(/\s+/).filter(Boolean).length;
-    pageCount = Math.max(1, Math.ceil(words / 450));
-  }
-
-  return { text: fullText, pageCount };
-}
-
-function cleanPdfString(raw: string): string {
-  return raw
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '')
-    .replace(/\\t/g, ' ')
-    .replace(/\\([()\\])/g, '$1')
-    .trim();
-}
-
-function cleanPdfHexString(raw: string): string {
-  const hex = raw.replace(/\s/g, '');
-  if (!hex || hex.length % 2 !== 0) return '';
-
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  }
+  const data = new Uint8Array(await file.arrayBuffer());
+  let loadingTask: ReturnType<typeof pdfjsLib.getDocument> | undefined;
+  let pdf: Awaited<ReturnType<typeof pdfjsLib.getDocument>['promise']> | undefined;
 
   try {
-    if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
-      return new TextDecoder('utf-16be').decode(bytes.subarray(2)).replace(/\0/g, '').trim();
+    loadingTask = pdfjsLib.getDocument({
+      data,
+      useSystemFonts: true,
+      cMapUrl: `${import.meta.env.BASE_URL}cmaps/`,
+      cMapPacked: true,
+      standardFontDataUrl: `${import.meta.env.BASE_URL}standard_fonts/`
+    });
+    pdf = await loadingTask.promise;
+    const pages: string[] = [];
+
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item) => ('str' in item ? item.str + (item.hasEOL ? '\n' : ' ') : ''))
+        .join('')
+        .trim();
+      if (pageText) pages.push(pageText);
+      page.cleanup();
     }
-    if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-      return new TextDecoder('utf-8', { fatal: false }).decode(bytes.subarray(3)).trim();
+
+    return { text: pages.join('\n'), pageCount: pdf.numPages };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    const errorName = error instanceof Error ? error.name : '';
+    if (/password/i.test(message) || /PasswordException/i.test(errorName)) {
+      throw new Error('This PDF is password-protected. Unlock it before uploading, or use Manual Paste Fallback.');
     }
-    return new TextDecoder('windows-1252', { fatal: false }).decode(bytes).trim();
-  } catch {
-    return '';
+    throw error;
+  } finally {
+    await loadingTask?.destroy();
   }
 }
 
@@ -446,10 +367,6 @@ function extractZipEntryViaCentralDirectory(
   return null;
 }
 
-/**
- * Extracts plain text from standard ZIP-packaged .docx files (word/document.xml)
- * supporting both stored (method 0) and deflate-raw (method 8) ZIP entries.
- */
 async function extractDocxText(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   const bytes = new Uint8Array(arrayBuffer);
