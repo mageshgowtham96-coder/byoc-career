@@ -187,14 +187,14 @@ async function extractPdfText(file: File): Promise<{ text: string; pageCount: nu
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
       const pageText = content.items
-        .map((item) => ('str' in item ? item.str + (item.hasEOL ? '\\n' : ' ') : ''))
+        .map((item) => ('str' in item ? item.str + (item.hasEOL ? '\n' : ' ') : ''))
         .join('')
         .trim();
       if (pageText) pages.push(pageText);
       page.cleanup();
     }
 
-    return { text: pages.join('\\n'), pageCount: pdf.numPages };
+    return { text: pages.join('\n'), pageCount: pdf.numPages };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     const errorName = error instanceof Error ? error.name : '';
