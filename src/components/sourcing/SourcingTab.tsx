@@ -831,7 +831,7 @@ export const SourcingTab: React.FC = () => {
                     ) : (
                       <div className="text-right">
                         <span className="px-2 py-1 rounded-lg bg-slate-700/60 border border-slate-600/50 text-[10px] font-mono text-amber-300 block">
-                          Insufficient profile data
+                          {job.fitStatusText || 'Insufficient profile data'}
                         </span>
                         <span className="text-[9px] text-slate-500 mt-0.5 block">
                           {!resumeIngested ? 'Upload resume in Intake' : 'No job skill criteria specified'}
