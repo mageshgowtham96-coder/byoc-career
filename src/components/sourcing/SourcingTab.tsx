@@ -13,7 +13,7 @@ import {
 } from '../../services/jobSearchService';
 import type { JobPosting, ApplicationRecord, JobSourcePortal } from '../../types';
 import { getOccupationSuggestions } from '../../services/roleSuggestions';
-import { expandOccupationSearchTermsWithGemini } from '../../services/geminiService';
+import { expandOccupationSearchTermsLocally } from '../../services/roleSuggestions';
 import {
   Search,
   MapPin,
@@ -41,7 +41,6 @@ export const SourcingTab: React.FC = () => {
   const {
     jobs,
     setJobs,
-    geminiApiKey,
     selectedJobId,
     setSelectedJobId,
     masterResume,
@@ -105,7 +104,7 @@ export const SourcingTab: React.FC = () => {
   const handleDiscoverJobs=async(title=searchQuery)=>{
     setIsDiscoveringJobs(true);
     try{
-      const expanded=await expandOccupationSearchTermsWithGemini(title,geminiApiKey);
+      const expanded=expandOccupationSearchTermsLocally(title);
       const broad=await jobsEveryHourAdapter.discover('',800);
       const targeted=await Promise.all(expanded.map(term=>jobsEveryHourAdapter.discover(term,60)));
       const combined=[...targeted.flat(),...broad];
@@ -123,7 +122,10 @@ export const SourcingTab: React.FC = () => {
   const handleAutoImportUrl=async(url=jobUrlInput)=>{
     setIsAutoImporting(true);
     try{
-      const extracted=await fetchAndExtractJobFromUrl(url,geminiApiKey);
+      const cleanUrl=sanitizeExternalHttpUrl(url);
+      const cached=cleanUrl?jobs.find(j=>sanitizeExternalHttpUrl(j.url)===cleanUrl):undefined;
+      if(cached){setSelectedJobId(cached.id);setJobUrlInput('');addToast({type:'info',title:'Already Imported',message:'Reusing the locally cached job description; no page fetch was needed.'});return;}
+      const extracted=await fetchAndExtractJobFromUrl(url);
       const match=calculateHonestMatch(extracted,masterResume);
       const fullJob={...extracted,fitScore:match.score,matchedKeywords:match.matchedKeywords,missingKeywords:match.missingKeywords,fitStatusText:match.statusText};
       addJob(fullJob);setSelectedJobId(fullJob.id);setJobUrlInput('');
@@ -229,8 +231,11 @@ export const SourcingTab: React.FC = () => {
 
     if(job.source==='JobsEveryHour'&&(job.jobDescriptionRaw||'').trim().length<500){
       setSelectedJobId(job.id);
+      const cleanUrl=sanitizeExternalHttpUrl(job.url);
+      const cachedFull=cleanUrl?jobs.find(j=>sanitizeExternalHttpUrl(j.url)===cleanUrl&&((j.jobDescriptionRaw||'').trim().length>=500)):undefined;
+      if(cachedFull){setJobs(jobs.map(j=>j.id===job.id?{...job,...cachedFull,id:job.id}:j));addToast({type:'info',title:'Cached Full JD Reused',message:'This job description was already retrieved; no second page fetch was needed.'});return;}
       try{
-        const resolved=await fetchAndExtractJobFromUrl(job.url,geminiApiKey);
+        const resolved=await fetchAndExtractJobFromUrl(job.url);
         const match=calculateHonestMatch(resolved,masterResume);
         const full={...job,...resolved,id:job.id,source:'JobsEveryHour (Full JD Retrieved)',fitScore:match.score,matchedKeywords:match.matchedKeywords,missingKeywords:match.missingKeywords,fitStatusText:match.score===null?match.statusText:undefined};
         setJobs(jobs.map(j=>j.id===job.id?full:j));
