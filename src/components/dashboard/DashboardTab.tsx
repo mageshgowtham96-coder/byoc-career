@@ -32,7 +32,6 @@ export const DashboardTab: React.FC = () => {
     setSettingsFocusSection,
     geminiApiKey,
     candidatePreferences,
-    setJobs,
     getFollowUpRequiredApplications,
     generateFollowUpEmailContent,
     addToast
@@ -42,87 +41,34 @@ export const DashboardTab: React.FC = () => {
   const [copiedFollowUp, setCopiedFollowUp] = React.useState(false);
   const [isRefreshingJobs, setIsRefreshingJobs] = React.useState(false);
 
-  const handleLiveJobRefresh = async (manual = false) => {
-    const hasSearchSignals = Boolean(
-      candidatePreferences.targetRole?.trim() ||
-        candidatePreferences.profession?.trim() ||
-        (masterResume?.skills.technical && masterResume.skills.technical.length > 0)
-    );
-
-    if (!hasSearchSignals) {
-      if (manual) {
-        addToast({
-          type: 'info',
-          title: 'Keywords Needed for Live Sync',
-          message: 'Add your skills in Intake or target role in Settings to discover live openings.'
-        });
-      }
-      return;
-    }
-
+  const handleLocalJobRefresh = async () => {
     setIsRefreshingJobs(true);
     try {
-      const { jobSearchEngine, isWorldwideCountryCode } = await import('../../services/jobSearchService');
-      const optionalLocation = isWorldwideCountryCode(candidatePreferences.country)
-        ? undefined
-        : candidatePreferences.preferredLocations?.[0]?.trim() || undefined;
+      const { jobSearchEngine } = await import('../../services/jobSearchService');
       const searchRes = await jobSearchEngine.executeLiveSearch(
         {
-          country: candidatePreferences.country,
-          location: optionalLocation,
-          profession: candidatePreferences.profession,
-          targetRole: candidatePreferences.targetRole,
-          skills: masterResume?.skills.technical,
+          location: candidatePreferences.preferredLocations?.[0]?.trim() || undefined,
           workplaceType: candidatePreferences.workplaceTypePreference
         },
         masterResume,
         jobs
       );
-      if (searchRes.jobs.length > 0) {
-        setJobs(searchRes.jobs);
-      }
-      if (manual) {
-        if (searchRes.error) {
-          addToast({
-            type: 'warning',
-            title: 'Live Feed Warning',
-            message: `${searchRes.error} (Queried: ${searchRes.sourcesQueried.join(', ')})`
-          });
-        } else if (searchRes.jobs.length > 0) {
-          addToast({
-            type: 'success',
-            title: 'Live Openings Updated',
-            message: `Synced ${searchRes.jobs.length} position(s). Sources: ${searchRes.sourcesQueried.join(', ')}.`
-          });
-        } else {
-          addToast({
-            type: 'info',
-            message: `No additional live openings matched (${searchRes.sourcesQueried.join(', ')}).`
-          });
-        }
-      }
+      addToast({
+        type: searchRes.jobs.length > 0 ? 'success' : 'info',
+        title: searchRes.jobs.length > 0 ? 'Stored Positions Checked' : 'No Stored Positions Found',
+        message: searchRes.jobs.length > 0
+          ? `${searchRes.jobs.length} saved or imported position(s) match your current workspace filters.`
+          : 'Add a job description in Sourcing to build your local position list.'
+      });
     } catch (err: unknown) {
-      if (manual) {
-        addToast({
-          type: 'warning',
-          message:
-            err instanceof Error
-              ? `${err.message} You can paste any JD in Sourcing.`
-              : 'Live job feeds could not be reached right now. You can paste any JD in Sourcing.'
-        });
-      }
+      addToast({
+        type: 'warning',
+        message: err instanceof Error ? err.message : 'Could not refresh stored positions.'
+      });
     } finally {
       setIsRefreshingJobs(false);
     }
   };
-
-  // Live auto-discovery of jobs on mount if list is sparse and user has configured signals
-  React.useEffect(() => {
-    if (jobs.length === 0) {
-      void handleLiveJobRefresh(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const selectedJob = jobs.find((j) => j.id === selectedJobId) || null;
   const selectedJobMatch = selectedJob ? calculateHonestMatch(selectedJob, masterResume) : null;
@@ -324,12 +270,12 @@ export const DashboardTab: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={() => void handleLiveJobRefresh(true)}
+            onClick={() => void handleLocalJobRefresh()}
             disabled={isRefreshingJobs}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingJobs ? 'animate-spin text-sky-400' : ''}`} />
-            <span>{isRefreshingJobs ? 'Syncing...' : 'Live Job Sync'}</span>
+            <span>{isRefreshingJobs ? 'Checking...' : 'Refresh Stored Positions'}</span>
           </button>
         </div>
 
@@ -540,7 +486,7 @@ export const DashboardTab: React.FC = () => {
               Ready to target your next opportunity?
             </h3>
             <p className="text-xs text-slate-400">
-              Search live public feeds by role and region, or paste any custom job specification.
+              Browse external job portals using the Sourcing shortcuts, then import a job description to compare it with your verified profile.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
