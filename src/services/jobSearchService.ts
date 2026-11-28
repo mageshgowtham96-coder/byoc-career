@@ -1,5 +1,4 @@
 import type { JobPosting, MasterResume, JobSourcePortal, PortalShortcut } from '../types';
-import { callGeminiChat } from './geminiService';
 
 export interface JobSearchQueryParams {
   query?: string;
@@ -311,30 +310,34 @@ export class JobsEveryHourAdapter {
 export const jobsEveryHourAdapter=new JobsEveryHourAdapter();
 
 export interface ExtractedJobDetails { title:string;company:string;location:string;workplaceType:JobPosting['workplaceType'];skillsRequired:string[];jobDescriptionRaw:string; }
+const urlImportCache=new Map<string,JobPosting>();
+const SKILL_KEYWORDS=['JavaScript','TypeScript','Python','Java','SQL','Excel','Communication','Sales','Customer Service','Accounting','Nursing','Project Management','Logistics','Marketing','Leadership','React','Node.js','AWS','Healthcare','Teaching','Risk Management','Fraud Detection','Compliance','Human Resources','Recruiting','Operations','Customer Support','Quality Assurance','Data Analysis','Power BI','Tableau','SAP','CRM','Microsoft Office','Financial Analysis','Audit','Documentation','Research','Scheduling','Inventory','Procurement','Cybersecurity','Cloud','Linux','Git'];
 export function parseJobPageMarkdown(markdown:string):ExtractedJobDetails|null {
- const normalized=markdown.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+ const cleanLine=(s:string)=>s.replace(/^[-*#>]+\\s*/,'').replace(/\\*\\*/g,'').trim();
+ const lines=markdown.split(/\\r?\\n/).map(cleanLine).filter(Boolean);
+ const normalized=lines.join(' ').replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim();
  if(normalized.length<250||(/sign in|login required|captcha|access denied|verify you are human/i.test(normalized)&&normalized.length<1800))return null;
- const lines=markdown.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
- const title=lines.find(x=>x.startsWith('# '))?.replace(/^#+\s*/,'')||'Job Listing';
- const company=lines.find(x=>/^company:|^employer:/i.test(x))?.replace(/^[^:]+:/,'').trim()||'Company not listed';
- const location=lines.find(x=>/^location:/i.test(x))?.replace(/^location:/i,'').trim()||'Location unspecified';
- const description=markdown.replace(/\n{3,}/g,'\n\n').trim();
- const keywords=['JavaScript','TypeScript','Python','Java','SQL','Excel','Communication','Sales','Customer Service','Accounting','Nursing','Project Management','Logistics','Marketing','Leadership','React','Node.js','AWS','Healthcare','Teaching'];
- const skills=keywords.filter(k=>normalized.toLowerCase().includes(k.toLowerCase()));
- return {title,company,location,workplaceType:/remote/i.test(normalized)?'Remote':/hybrid/i.test(normalized)?'Hybrid':/on.site/i.test(normalized)?'On-site':'Unspecified',skillsRequired:skills,jobDescriptionRaw:description};
+ const labeled=(patterns:RegExp[])=>lines.find(line=>patterns.some(pattern=>pattern.test(line)));
+ const titleLine=lines.find(x=>/^#{1,3}\\s+/.test(x))||labeled([/^job title\\s*:/i,/^position title\\s*:/i]);
+ const title=titleLine?.replace(/^#{1,3}\\s*/,'').replace(/^(job title|position title)\\s*[:|-]\\s*/i,'').trim()||'Job Listing';
+ const companyLine=labeled([/^company\\s*:/i,/^employer\\s*:/i,/^company name\\s*:/i]);
+ const company=companyLine?.replace(/^[^:]+:/,'').trim()||'Company not listed';
+ const locationLine=labeled([/^location\\s*:/i,/^job location\\s*:/i,/^based in\\s*:/i]);
+ const location=locationLine?.replace(/^[^:]+:/,'').trim()||'Location unspecified';
+ const workplaceType=/\\bremote\\b/i.test(normalized)?'Remote':/\\bhybrid\\b/i.test(normalized)?'Hybrid':/\\bon.site|in.office|onsite\\b/i.test(normalized)?'On-site':'Unspecified';
+ const skills=SKILL_KEYWORDS.filter(k=>normalized.toLowerCase().includes(k.toLowerCase()));
+ const description=markdown.replace(/\\n{3,}/g,'\\n\\n').trim();
+ return {title,company,location,workplaceType,skillsRequired:skills,jobDescriptionRaw:description};
 }
-export async function fetchAndExtractJobFromUrl(jobUrl:string,geminiApiKey?:string):Promise<JobPosting> {
+export async function fetchAndExtractJobFromUrl(jobUrl:string,_geminiApiKey?:string):Promise<JobPosting> {
  const clean=sanitizeExternalHttpUrl(jobUrl);if(!clean)throw new Error('Please enter a valid HTTP(S) job listing URL.');
+ const cached=urlImportCache.get(clean);if(cached)return {...cached};
  const response=await fetch('https://r.jina.ai/'+encodeURIComponent(clean),{signal:AbortSignal.timeout(20000),headers:{Accept:'text/plain'}});
  if(!response.ok)throw new Error('Automatic page reading failed ('+response.status+'). Paste the job description manually instead.');
- const markdown=await response.text();let parsed=parseJobPageMarkdown(markdown);
+ const markdown=await response.text();const parsed=parseJobPageMarkdown(markdown);
  if(!parsed)throw new Error('Listing is blocked, login-walled, or lacks enough job details. Paste the job description manually.');
- if(geminiApiKey?.trim())try{
-  const raw=await callGeminiChat('Extract posting metadata and skills. Return JSON fields title, company, location, workplaceType (Remote, Hybrid, On-site, Unspecified), skillsRequired array only. Do not invent details. The original full page text is preserved separately.',markdown.slice(0,24000),geminiApiKey);
-  const model=JSON.parse(raw.replace(/\`\`\`json|\`\`\`/g,'').trim()) as Partial<ExtractedJobDetails>;
-  if(model.title||model.company||model.location||model.workplaceType||Array.isArray(model.skillsRequired))parsed={...parsed,...model,jobDescriptionRaw:parsed.jobDescriptionRaw,skillsRequired:Array.isArray(model.skillsRequired)?model.skillsRequired:parsed.skillsRequired};
- }catch{/* Local extraction fallback */}
- return {id:'url-import-'+Date.now(),title:parsed.title,company:parsed.company,location:parsed.location,workplaceType:parsed.workplaceType,salary:'Undisclosed',postedDate:'Imported just now',jobDescriptionRaw:parsed.jobDescriptionRaw,url:clean,source:'URL Auto-Import',skillsRequired:parsed.skillsRequired,fitScore:null,matchedKeywords:[],missingKeywords:[],experienceLevel:'Unspecified'};
+ const job:JobPosting={id:'url-import-'+Date.now(),title:parsed.title,company:parsed.company,location:parsed.location,workplaceType:parsed.workplaceType,salary:'Undisclosed',postedDate:'Imported just now',jobDescriptionRaw:parsed.jobDescriptionRaw,url:clean,source:'URL Auto-Import',skillsRequired:parsed.skillsRequired,fitScore:null,matchedKeywords:[],missingKeywords:[],experienceLevel:'Unspecified'};
+ urlImportCache.set(clean,job);return job;
 }
 
 export const jobSearchEngine = new LiveJobSearchEngine();
