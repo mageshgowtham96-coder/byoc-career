@@ -328,9 +328,9 @@ export async function fetchAndExtractJobFromUrl(jobUrl:string,geminiApiKey?:stri
  const markdown=await response.text();let parsed=parseJobPageMarkdown(markdown);
  if(!parsed)throw new Error('Listing is blocked, login-walled, or lacks enough job details. Paste the job description manually.');
  if(geminiApiKey?.trim())try{
-  const raw=await callGeminiChat('Extract the job posting. Return JSON fields title, company, location, workplaceType (Remote, Hybrid, On-site, Unspecified), skillsRequired array, jobDescriptionRaw. Preserve all available description and do not invent details.',markdown.slice(0,24000),geminiApiKey);
+  const raw=await callGeminiChat('Extract posting metadata and skills. Return JSON fields title, company, location, workplaceType (Remote, Hybrid, On-site, Unspecified), skillsRequired array only. Do not invent details. The original full page text is preserved separately.',markdown.slice(0,24000),geminiApiKey);
   const model=JSON.parse(raw.replace(/\`\`\`json|\`\`\`/g,'').trim()) as Partial<ExtractedJobDetails>;
-  if(model.jobDescriptionRaw&&model.jobDescriptionRaw.length>200)parsed={...parsed,...model,skillsRequired:Array.isArray(model.skillsRequired)?model.skillsRequired:parsed.skillsRequired};
+  if(model.title||model.company||model.location||model.workplaceType||Array.isArray(model.skillsRequired))parsed={...parsed,...model,jobDescriptionRaw:parsed.jobDescriptionRaw,skillsRequired:Array.isArray(model.skillsRequired)?model.skillsRequired:parsed.skillsRequired};
  }catch{/* Local extraction fallback */}
  return {id:'url-import-'+Date.now(),title:parsed.title,company:parsed.company,location:parsed.location,workplaceType:parsed.workplaceType,salary:'Undisclosed',postedDate:'Imported just now',jobDescriptionRaw:parsed.jobDescriptionRaw,url:clean,source:'URL Auto-Import',skillsRequired:parsed.skillsRequired,fitScore:null,matchedKeywords:[],missingKeywords:[],experienceLevel:'Unspecified'};
 }
