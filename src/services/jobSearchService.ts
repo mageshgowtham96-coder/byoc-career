@@ -286,13 +286,24 @@ function mapJobsEveryHourJob(raw:JobsEveryHourFeedJob,index:number):JobPosting {
 /** Searches cross-industry feeds; cached category requests are limited to one per hour. */
 export class JobsEveryHourAdapter {
  async discover(query='',limit=60):Promise<JobPosting[]> {
+  const q=query.toLowerCase().trim();
   const feeds=await Promise.all(['latest',...JEH_CATEGORIES].map(async slug=>{
    const url=slug==='latest'?'https://jobseveryhour.com/api/v1/latest.json':'https://jobseveryhour.com/api/v1/categories/'+slug+'.json';
    const cached=readJobsFeedCache(url);if(cached&&Date.now()-cached.at<JEH_CACHE_MS)return cached.jobs;
    try{const res=await fetch(url,{signal:AbortSignal.timeout(15000)});if(!res.ok)throw new Error('Feed status '+res.status);const data=await res.json() as JobsEveryHourFeed;const jobs=(data.jobs||[]).map(mapJobsEveryHourJob);writeJobsFeedCache(url,{at:Date.now(),jobs});return jobs;}catch{return cached?.jobs||[];}
   }));
-  const q=query.toLowerCase().trim();const all=deduplicateJobs(feeds.flat());
-  return (q?all.filter(j=>j.title.toLowerCase().includes(q)||j.company.toLowerCase().includes(q)||j.location.toLowerCase().includes(q)||j.jobDescriptionRaw.toLowerCase().includes(q)):all).slice(0,limit);
+  let all=feeds.flat();
+  if(q){
+   const skillSlug=q.replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+   const skillUrl='https://jobseveryhour.com/api/v1/skills/'+skillSlug+'.json';
+   const cached=readJobsFeedCache(skillUrl);
+   let skillJobs=cached&&Date.now()-cached.at<JEH_CACHE_MS?cached.jobs:[];
+   if(!skillJobs.length)try{const response=await fetch(skillUrl,{signal:AbortSignal.timeout(15000)});if(response.ok){const data=await response.json() as JobsEveryHourFeed;skillJobs=(data.jobs||[]).map(mapJobsEveryHourJob);writeJobsFeedCache(skillUrl,{at:Date.now(),jobs:skillJobs});}}catch{/* category results still searchable */}
+   all=all.concat(skillJobs);
+  }
+  const unique=deduplicateJobs(all);
+  return (q?unique.filter(j=>j.title.toLowerCase().includes(q)||j.company.toLowerCase().includes(q)||j.location.toLowerCase().includes(q)||j.jobDescriptionRaw.toLowerCase().includes(q)||q.split(' ').every(word=>j.title.toLowerCase().includes(word))):unique).slice(0,limit);
+
  }
 }
 export const jobsEveryHourAdapter=new JobsEveryHourAdapter();
