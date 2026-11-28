@@ -30,7 +30,7 @@
     "react-dom": "^19.0.1",
     "vite": "^8.3.0",
     "zustand": "^5.1.0",
-    "pdfjs-dist": "^5.4.394"
+    "pdfjs-dist": "^6.5.438"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.6.0",
